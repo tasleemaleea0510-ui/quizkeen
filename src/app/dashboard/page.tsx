@@ -17,9 +17,10 @@ export default async function DashboardPage() {
 
   const isTeacher = profile.role === "TEACHER";
 
-  const quizzes = isTeacher
-    ? await prisma.quiz.findMany({ where: { creatorId: user.id }, orderBy: { createdAt: "desc" } })
-    : [];
+  const quizzes = await prisma.quiz.findMany({
+    where: { creatorId: user.id },
+    orderBy: { createdAt: "desc" },
+  });
 
   const topPlayers = await prisma.profile.findMany({
     orderBy: { xp: "desc" },
@@ -34,16 +35,23 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-extrabold">
             Hey, {profile.username}! {isTeacher ? "🍎" : "🎒"}
           </h1>
-          <p className="text-slate-400">{isTeacher ? "Teacher dashboard" : `Level ${profile.level} learner`}</p>
+          <p className="text-slate-400">
+            {isTeacher ? "Teacher dashboard" : `Level ${profile.level} learner`}
+          </p>
         </div>
-        {isTeacher ? (
-          <div className="flex gap-2">
-            <Link href="/dashboard/quizzes/new"><Button>➕ New Quiz</Button></Link>
-            <Link href="/dashboard/quizzes"><Button variant="outline">My Quizzes</Button></Link>
-          </div>
-        ) : (
-          <Link href="/play"><Button size="lg">🎮 Join a Game</Button></Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {!isTeacher && (
+            <Link href="/play">
+              <Button size="lg">🎮 Join a Game</Button>
+            </Link>
+          )}
+          <Link href="/dashboard/quizzes/new">
+            <Button>➕ New Quiz</Button>
+          </Link>
+          <Link href="/dashboard/quizzes">
+            <Button variant="outline">My Quizzes</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-6 sm:grid-cols-3">
@@ -62,20 +70,22 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
-        {isTeacher && (
-          <Card>
-            <CardHeader><CardTitle>🎯 Your Quizzes</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {quizzes.length === 0 && <p className="text-slate-400">No quizzes yet — create your first one!</p>}
-              {quizzes.map((q) => (
-                <div key={q.id} className="flex items-center justify-between rounded-lg border border-slate-800 p-3">
-                  <span className="font-semibold">{q.title}</span>
-                  <Link href={`/host/${q.id}`}><Button size="sm">▶ Host</Button></Link>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader><CardTitle>🎯 Your Quizzes</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {quizzes.length === 0 && (
+              <p className="text-slate-400">No quizzes yet — create your first one!</p>
+            )}
+            {quizzes.map((q) => (
+              <div key={q.id} className="flex items-center justify-between rounded-lg border border-slate-800 p-3">
+                <span className="font-semibold">{q.title}</span>
+                <Link href={`/host/${q.id}`}>
+                  <Button size="sm">▶ Host</Button>
+                </Link>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader><CardTitle>🏆 Top Players</CardTitle></CardHeader>
