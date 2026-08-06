@@ -4,17 +4,16 @@ import { prisma } from "@/lib/prisma";
 export async function getQuiz(quizId: string) {
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
-    include: { questions: true },
+    include: { questions: { include: { answers: true } } },
   });
   if (!quiz) return null;
   return {
     title: quiz.title,
-    questions: quiz.questions.map((q) => ({
-      id: q.id,
-      text: q.text,
-      options: q.options,
-      correctIndex: q.correctIndex,
-    })),
+    questions: quiz.questions.map((q) => {
+      const options = q.answers.map((a) => a.text);
+      const correctIndex = q.answers.findIndex((a) => a.isCorrect);
+      return { id: q.id, text: q.text, options, correctIndex };
+    }),
   };
 }
 

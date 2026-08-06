@@ -13,8 +13,12 @@ export async function createQuiz(
       questions: {
         create: questions.map((q) => ({
           text: q.text,
-          options: q.options,
-          correctIndex: q.correct,
+          answers: {
+            create: q.options.map((text, i) => ({
+              text,
+              isCorrect: i === q.correct,
+            })),
+          },
         })),
       },
     },
