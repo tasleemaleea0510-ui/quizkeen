@@ -11,10 +11,26 @@ export async function updateUsername(formData: FormData) {
   if (!user) redirect("/login");
 
   const username = (formData.get("username") as string)?.trim();
-  if (!username || username.length < 3) redirect("/settings");
+  if (!username || username.length < 3) redirect("/settings?msg=short");
 
-  try {
-    await prisma.profile.update({ where: { id: user.id }, data: { username } });
-  } catch {}
-  redirect("/settings");
+  const existing = await prisma.profile.findUnique({ where: { username } });
+  if (existing && existing.id !== user.id) redirect("/settings?msg=taken");
+
+  await prisma.profile.update({ where: { id: user.id }, data: { username } });
+  redirect("/settings?msg=saved");
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const password = formData.get("password") as string;
+  if (!password || password.length < 6) redirect("/settings?msg=passshort");
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) redirect("/settings?msg=passerr");
+  redirect("/settings?msg=passsaved");
 }

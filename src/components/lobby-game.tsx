@@ -86,7 +86,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       width: 800,
       height: 300,
       backgroundColor: "#0f172a",
-      physics: { default: "arcade", arcade: { gravity: { y: 800 } } },
+         physics: { default: "arcade", arcade: { gravity: { x: 0, y: 800 } } },
       scene: LobbyScene,
     });
 
