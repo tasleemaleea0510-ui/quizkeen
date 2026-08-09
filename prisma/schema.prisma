@@ -70,6 +70,7 @@ model Quiz {
   creator     Profile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   questions   Question[]
   gameSessions GameSession[]
+  assignments  Assignment[]
 
   @@index([creatorId])
 }
