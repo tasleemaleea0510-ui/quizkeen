@@ -5,11 +5,15 @@ export const dynamic = "force-dynamic";
 
 export default async function DebugPage() {
   const cookieStore = await cookies();
-  const cookieNames = cookieStore.getAll().map((c: any) => c.name);
+  const all = cookieStore.getAll().map((c: any) => ({
+    name: c.name,
+    len: (c.value || "").length,
+    head: (c.value || "").slice(0, 30),
+  }));
   const supabase = createClient();
   const { data, error } = await supabase.auth.getUser();
   const info = {
-    cookies: cookieNames,
+    cookies: all,
     userEmail: data.user?.email ?? null,
     authError: error?.message ?? null,
   };
