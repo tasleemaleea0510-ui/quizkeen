@@ -10,7 +10,7 @@ export default async function DebugPage() {
     len: (c.value || "").length,
     head: (c.value || "").slice(0, 30),
   }));
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   const info = {
     cookies: all,
