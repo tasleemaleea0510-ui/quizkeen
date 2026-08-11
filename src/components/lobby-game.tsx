@@ -122,7 +122,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       }
 
       update() {
-        this.obstacles.getChildren().forEach((ob) => {
+        this.obstacles.getChildren().forEach((child) => {
+          const ob = child as Phaser.Physics.Arcade.Sprite;
           if (ob.x < -60) ob.destroy();
         });
         this.myLabel.setPosition(this.player.x, this.player.y - 32);
@@ -151,23 +152,4 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           s = scene.physics.add.sprite(x, y, `player-${c}`);
           const sb = s.body as Phaser.Physics.Arcade.Body;
           if (sb) sb.setAllowGravity(false);
-          scene.others[name] = s;
-          scene.otherLabels[name] = scene.add.text(x, y - 32, name, {
-            fontSize: "13px",
-            color: cssColor(COLORS[c]),
-            fontStyle: "bold",
-          }).setOrigin(0.5);
-        }
-        s.setPosition(x, y);
-        scene.otherLabels[name]?.setPosition(x, y - 32);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      game.destroy(true);
-    };
-  }, [pin, username]);
-
-  return <div ref={ref} className="w-full overflow-hidden rounded-xl border border-slate-800" />;
-}
+          scene.o
