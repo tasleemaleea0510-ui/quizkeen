@@ -4,11 +4,16 @@ import Phaser from "phaser";
 import { createBrowserClient } from "@supabase/ssr";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
+const BG_COLORS = ["#0f172a", "#1a2e05", "#2e1065", "#450a0a", "#082f49", "#3f2d04"];
 
 function colorIndexFor(name: string): number {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return h % COLORS.length;
+}
+
+function cssColor(c: number): string {
+  return "#" + c.toString(16).padStart(6, "0");
 }
 
 export default function LobbyGame({ pin, username }: { pin: string; username: string }) {
@@ -25,8 +30,10 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
     class LobbyScene extends Phaser.Scene {
       player!: Phaser.Physics.Arcade.Sprite;
-      others: Record<string, Phaser.Physics.Arcade.Sprite> = {};
       obstacles!: Phaser.Physics.Arcade.Group;
+      others: Record<string, Phaser.Physics.Arcade.Sprite> = {};
+      otherLabels: Record<string, Phaser.GameObjects.Text> = {};
+      myLabel!: Phaser.GameObjects.Text;
 
       constructor() {
         super("LobbyScene");
@@ -35,31 +42,69 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       preload() {
         const g = this.add.graphics();
         COLORS.forEach((c, i) => {
-          g.fillStyle(c, 1).fillRect(0, 0, 40, 40).generateTexture(`player-${i}`, 40, 40);
+          g.fillStyle(c, 1).fillRect(0, 0, 36, 36).generateTexture(`player-${i}`, 36, 36);
         });
-        g.fillStyle(0xef4444, 1).fillRect(0, 0, 30, 60).generateTexture("obstacle", 30, 60);
+        g.clear();
+        g.fillStyle(0xef4444, 1);
+        g.beginPath();
+        g.moveTo(0, 48);
+        g.lineTo(14, 0);
+        g.lineTo(28, 48);
+        g.closePath();
+        g.fillPath();
+        g.generateTexture("obstacle", 28, 48);
+        g.clear();
+        g.fillStyle(0x334155, 1).fillRect(0, 0, 800, 24).generateTexture("ground", 800, 24);
         g.destroy();
       }
 
       create() {
-        this.player = this.physics.add.sprite(100, 250, `player-${myColor}`);
+        this.cameras.main.setBackgroundColor("#0f172a");
+
+        const ground = this.physics.add.staticGroup();
+        ground.create(400, 288, "ground");
+
+        this.player = this.physics.add.sprite(120, 200, `player-${myColor}`);
         this.player.setCollideWorldBounds(true);
+
+        this.myLabel = this.add.text(120, 160, username, {
+          fontSize: "13px",
+          color: cssColor(COLORS[myColor]),
+          fontStyle: "bold",
+        }).setOrigin(0.5);
+
         this.obstacles = this.physics.add.group();
 
-        this.input.keyboard?.on("keydown-SPACE", () => this.jump());
-        this.input.on("pointerdown", () => this.jump());
+        this.physics.add.collider(this.player, ground);
 
-        this.time.addEvent({
-          delay: 1500,
-          loop: true,
-          callback: () => {
-            const o = this.obstacles.create(820, 250, "obstacle") as Phaser.Physics.Arcade.Sprite;
-            o.setVelocityX(-220);
-          },
+        this.physics.add.overlap(this.player, this.obstacles, (_p, o) => {
+          (o as Phaser.Physics.Arcade.Sprite).destroy();
+          this.player.setTint(0xffffff);
+          this.time.delayedCall(150, () => this.player.clearTint());
         });
 
-        this.physics.add.overlap(this.player, this.obstacles, () => {
-          this.player.setPosition(100, 250);
+        const jump = () => {
+          if (this.player.body && this.player.body.touching.down) {
+            this.player.setVelocityY(-430);
+          }
+        };
+        this.input.on("pointerdown", jump);
+        if (this.input.keyboard) {
+          this.input.keyboard.addCapture(["SPACE", "UP"]);
+          this.input.keyboard.on("keydown-SPACE", jump);
+          this.input.keyboard.on("keydown-UP", jump);
+        }
+
+        this.time.addEvent({
+          delay: 1400,
+          loop: true,
+          callback: () => {
+            const ob = this.obstacles.create(840, 252, "obstacle") as Phaser.Physics.Arcade.Sprite;
+            if (ob.body) {
+              ob.body.setAllowGravity(false);
+              ob.body.setVelocityX(-260);
+            }
+          },
         });
 
         this.time.addEvent({
@@ -75,8 +120,13 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         });
       }
 
-      jump() {
-        if (this.player.body?.touching.down) this.player.setVelocityY(-520);
+      update() {
+        this.obstacles.getChildren().forEach((ob) => {
+          if (ob.x < -60) ob.destroy();
+        });
+        this.myLabel.setPosition(this.player.x, this.player.y - 32);
+        const idx = Math.floor(this.time.now / 10000) % BG_COLORS.length;
+        this.cameras.main.setBackgroundColor(BG_COLORS[idx]);
       }
     }
 
@@ -85,8 +135,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       parent: ref.current,
       width: 800,
       height: 300,
-      backgroundColor: "#0f172a",
-         physics: { default: "arcade", arcade: { gravity: { x: 0, y: 800 } } },
+      physics: { default: "arcade", arcade: { gravity: { x: 0, y: 900 } } },
       scene: LobbyScene,
     });
 
@@ -99,9 +148,16 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         let s = scene.others[name];
         if (!s) {
           s = scene.physics.add.sprite(x, y, `player-${c}`);
+          if (s.body) (s.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
           scene.others[name] = s;
+          scene.otherLabels[name] = scene.add.text(x, y - 32, name, {
+            fontSize: "13px",
+            color: cssColor(COLORS[c]),
+            fontStyle: "bold",
+          }).setOrigin(0.5);
         }
         s.setPosition(x, y);
+        scene.otherLabels[name]?.setPosition(x, y - 32);
       })
       .subscribe();
 

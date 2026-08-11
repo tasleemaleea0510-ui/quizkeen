@@ -29,10 +29,15 @@ export default function HostPage() {
   const answersRef = useRef<Record<string, { choice: number; t: number }>>({});
   const startRef = useRef(0);
   const scoresRef = useRef<Record<string, number>>({});
+  const phaseRef = useRef(phase);
+  const qIndexRef = useRef(qIndex);
+  const quizRef = useRef<{ title: string; questions: Q[] } | null>(null);
+  const startedRef = useRef(false);
 
-  useEffect(() => {
-    scoresRef.current = scores;
-  }, [scores]);
+  useEffect(() => { scoresRef.current = scores; }, [scores]);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { qIndexRef.current = qIndex; }, [qIndex]);
+  useEffect(() => { quizRef.current = quiz; }, [quiz]);
 
   useEffect(() => {
     getQuiz(quizId).then((q) => setQuiz(q));
@@ -52,6 +57,30 @@ export default function HostPage() {
     game.on("broadcast", { event: "answer" }, (msg) => {
       const { name, choice } = msg.payload as { name: string; choice: number };
       answersRef.current[name] = { choice, t: Date.now() };
+    });
+    game.on("broadcast", { event: "sync" }, () => {
+      const qz = quizRef.current;
+      if (!qz) return;
+      const ph = phaseRef.current;
+      const i = qIndexRef.current;
+      const q = qz.questions[i];
+      if (!q) return;
+      if (ph === "question") {
+        gameRef.current?.send({
+          type: "broadcast", event: "state",
+          payload: { kind: "question", index: i, text: q.text, options: q.options },
+        });
+      } else if (ph === "reveal") {
+        gameRef.current?.send({
+          type: "broadcast", event: "state",
+          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndex: q.correctIndex, scores: scoresRef.current },
+        });
+      } else if (ph === "end") {
+        gameRef.current?.send({
+          type: "broadcast", event: "state",
+          payload: { kind: "end", scores: scoresRef.current },
+        });
+      }
     });
     game.subscribe();
     gameRef.current = game;
@@ -92,9 +121,11 @@ export default function HostPage() {
   }
 
   function startGame() {
+    if (startedRef.current) return;
+    startedRef.current = true;
     lobbyRef.current?.send({ type: "broadcast", event: "start", payload: {} });
     setQIndex(0);
-    sendQuestion(0);
+    setTimeout(() => sendQuestion(0), 3000);
   }
 
   function reveal() {

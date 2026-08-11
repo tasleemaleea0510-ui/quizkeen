@@ -25,6 +25,11 @@ function GameInner() {
   const [correctIndex, setCorrectIndex] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
 
+  const phaseRef = useRef(phase);
+  const questionRef = useRef<Question | null>(null);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { questionRef.current = question; }, [question]);
+
   const supabaseRef = useRef(
     createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   );
@@ -56,7 +61,31 @@ function GameInner() {
       setPhase("end");
     });
 
-    game.subscribe();
+    game.on("broadcast", { event: "state" }, (msg) => {
+      const p = msg.payload as any;
+      if (p.kind === "question") {
+        if (questionRef.current && questionRef.current.index === p.index) return;
+        setQuestion({ index: p.index, text: p.text, options: p.options });
+        setChoice(null);
+        setCorrectIndex(null);
+        setPhase("question");
+      } else if (p.kind === "reveal") {
+        if (phaseRef.current === "reveal" || phaseRef.current === "end") return;
+        setQuestion({ index: p.index, text: p.text, options: p.options });
+        setCorrectIndex(p.correctIndex);
+        setScores(p.scores);
+        setPhase("reveal");
+      } else if (p.kind === "end") {
+        setScores(p.scores);
+        setPhase("end");
+      }
+    });
+
+    game.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        game.send({ type: "broadcast", event: "sync", payload: {} });
+      }
+    });
     gameRef.current = game;
 
     return () => {
