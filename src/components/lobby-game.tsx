@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Phaser from "phaser";
-import { createBrowserClient } from "@supabase/ssr";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
 const WORLD_END = 170000;
@@ -17,23 +16,23 @@ function cssColor(c: number): string {
   return "#" + c.toString(16).padStart(6, "0");
 }
 
+function mulberry32(a: number) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export default function LobbyGame({ pin, username }: { pin: string; username: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ref.current) return;
     const myColor = colorIndexFor(username);
-    let supabase: ReturnType<typeof createBrowserClient> | null = null;
-    let channel: any = (window as any).__quizkeenChannel;
-    let ownChannel = false;
-    if (!channel) {
-      supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      channel = supabase.channel(`race-${pin}`);
-      ownChannel = true;
-    }
+    const rngSeed = parseInt(pin, 10) || 1;
 
     class LobbyScene extends Phaser.Scene {
       player!: Phaser.Physics.Arcade.Sprite;
@@ -53,6 +52,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       starsT!: Phaser.GameObjects.TileSprite;
       mFarT!: Phaser.GameObjects.TileSprite;
       mNearT!: Phaser.GameObjects.TileSprite;
+      rng: () => number = Math.random;
 
       constructor() {
         super("LobbyScene");
@@ -139,6 +139,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       }
 
       create() {
+        this.rng = mulberry32(rngSeed);
+
         const sky = this.add.image(400, 150, "sky").setScrollFactor(0).setDepth(0);
         sky.setDisplaySize(800, 300);
         this.starsT = this.add.tileSprite(400, 150, 800, 300, "stars").setScrollFactor(0).setDepth(1);
@@ -233,12 +235,11 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           loop: true,
           callback: () => {
             this.progress[username] = this.player.x;
-            console.log("[race] SEND");
-            channel.send({
-              type: "broadcast",
-              event: "pos",
-              payload: { name: username, x: this.player.x, y: this.player.y, c: myColor },
-            });
+            window.dispatchEvent(
+              new CustomEvent("quizkeen-tx", {
+                detail: { name: username, x: this.player.x, y: this.player.y, c: myColor },
+              })
+            );
           },
         });
 
@@ -311,8 +312,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
             b.setAllowGravity(false);
             b.setVelocityX(0);
           }
-          let gap = 180 + Math.random() * 320;
-          if (Math.random() < 0.3) {
+          let gap = 180 + this.rng() * 320;
+          if (this.rng() < 0.3) {
             const ob2 = this.obstacles.create(this.nextSpawnX + 46, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
             ob2.setDepth(6);
             const b2 = ob2.body as Phaser.Physics.Arcade.Body;
@@ -355,34 +356,33 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       scene: LobbyScene,
     });
 
-    channel
-     .on("broadcast", { event: "pos" }, (msg: any) => {
-        const { name, x, y, c } = msg.payload as { name: string; x: number; y: number; c: number };
-        if (name === username) return;
-        console.log("[race] RX", name, Math.round(x));
-        const scene = game.scene.getScene("LobbyScene") as LobbyScene;
-        if (!scene || !scene.player) return;
-        scene.progress[name] = x;
-        let s = scene.others[name];
-        if (!s) {
-          s = scene.physics.add.sprite(x, y, `player-${c}`);
-          s.setDepth(8);
-          const sb = s.body as Phaser.Physics.Arcade.Body;
-          if (sb) sb.setAllowGravity(false);
-          scene.others[name] = s;
-          scene.otherLabels[name] = scene.add.text(x, y - 36, name, {
-            fontSize: "13px",
-            color: cssColor(COLORS[c]),
-            fontStyle: "bold",
-          }).setOrigin(0.5).setDepth(9);
-        }
-        s.setPosition(x, y);
-        scene.otherLabels[name]?.setPosition(x, y - 36);
-      })
-      .subscribe();
+    const onRx = (e: Event) => {
+      const { name, x, y, c } = (e as CustomEvent).detail as { name: string; x: number; y: number; c: number };
+      if (name === username) return;
+      console.log("[race] RX", name, Math.round(x));
+      const scene = game.scene.getScene("LobbyScene") as LobbyScene;
+      if (!scene || !scene.player) return;
+      scene.progress[name] = x;
+      let s = scene.others[name];
+      if (!s) {
+        s = scene.physics.add.sprite(x, y, `player-${c}`);
+        s.setDepth(8);
+        const sb = s.body as Phaser.Physics.Arcade.Body;
+        if (sb) sb.setAllowGravity(false);
+        scene.others[name] = s;
+        scene.otherLabels[name] = scene.add.text(x, y - 36, name, {
+          fontSize: "13px",
+          color: cssColor(COLORS[c]),
+          fontStyle: "bold",
+        }).setOrigin(0.5).setDepth(9);
+      }
+      s.setPosition(x, y);
+      scene.otherLabels[name]?.setPosition(x, y - 36);
+    };
+    window.addEventListener("quizkeen-rx", onRx);
 
     return () => {
-      if (ownChannel && supabase) supabase.removeChannel(channel);
+      window.removeEventListener("quizkeen-rx", onRx);
       game.destroy(true);
     };
   }, [pin, username]);

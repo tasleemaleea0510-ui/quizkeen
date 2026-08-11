@@ -19,6 +19,7 @@ function LobbyInner() {
     const supabase = supabaseRef.current;
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let onTx: ((e: any) => void) | null = null;
 
     const setup = async () => {
       for (const ch of supabase.getChannels()) {
@@ -29,7 +30,6 @@ function LobbyInner() {
       channel = supabase.channel(`lobby-${pin}`, {
         config: { presence: { key: name } },
       });
-      (window as any).__quizkeenChannel = channel;
 
       channel.on("presence", { event: "sync" }, () => {
         if (!channel) return;
@@ -39,6 +39,17 @@ function LobbyInner() {
       channel.on("broadcast", { event: "start" }, () => {
         window.location.href = `/play/game/${pin}?name=${encodeURIComponent(name)}`;
       });
+
+      channel.on("broadcast", { event: "pos" }, (msg: any) => {
+        window.dispatchEvent(new CustomEvent("quizkeen-rx", { detail: msg.payload }));
+      });
+
+      onTx = (e: any) => {
+        if (channel) {
+          channel.send({ type: "broadcast", event: "pos", payload: e.detail });
+        }
+      };
+      window.addEventListener("quizkeen-tx", onTx);
 
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED" && !cancelled && channel) {
@@ -51,6 +62,7 @@ function LobbyInner() {
 
     return () => {
       cancelled = true;
+      if (onTx) window.removeEventListener("quizkeen-tx", onTx);
       if (channel) supabase.removeChannel(channel);
     };
   }, [pin, name]);
