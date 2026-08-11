@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+export async function createClient() {
   const cookieStore = await cookies();
 
   const client = createServerClient(
@@ -16,7 +17,7 @@ import { cookies } from 'next/headers';
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
-          } catch {}
+          } catch (e) {}
         },
       },
     }
@@ -29,9 +30,19 @@ import { cookies } from 'next/headers';
       const raw = cookieStore.get(`sb-${ref}-auth-token`)?.value;
       if (raw) {
         let parsed: any = null;
-        try { parsed = JSON.parse(raw); } catch {}
-        if (!parsed) { try { parsed = JSON.parse(decodeURIComponent(raw)); } catch {} }
-        if (!parsed) { try { parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); } catch {} }
+        try {
+          parsed = JSON.parse(raw);
+        } catch (e) {}
+        if (!parsed) {
+          try {
+            parsed = JSON.parse(decodeURIComponent(raw));
+          } catch (e) {}
+        }
+        if (!parsed) {
+          try {
+            parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+          } catch (e) {}
+        }
         if (parsed && parsed.access_token) {
           await client.auth.setSession({
             access_token: parsed.access_token,
@@ -40,7 +51,7 @@ import { cookies } from 'next/headers';
         }
       }
     }
-  } catch {}
+  } catch (e) {}
 
   return client;
 }
