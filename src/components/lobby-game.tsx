@@ -223,10 +223,11 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
         this.time.addEvent({
-          delay: 100,
+          delay: 200,
           loop: true,
           callback: () => {
             this.progress[username] = this.player.x;
+            console.log("[race] SEND");
             channel.send({
               type: "broadcast",
               event: "pos",
@@ -352,6 +353,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       .on("broadcast", { event: "pos" }, (msg) => {
         const { name, x, y, c } = msg.payload as { name: string; x: number; y: number; c: number };
         if (name === username) return;
+        console.log("[race] RX", name, Math.round(x));
         const scene = game.scene.getScene("LobbyScene") as LobbyScene;
         if (!scene || !scene.player) return;
         scene.progress[name] = x;
