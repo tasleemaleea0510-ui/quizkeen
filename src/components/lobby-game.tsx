@@ -356,7 +356,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
     });
 
     channel
-      .on("broadcast", { event: "pos" }, (msg) => {
+     .on("broadcast", { event: "pos" }, (msg: any) => {
         const { name, x, y, c } = msg.payload as { name: string; x: number; y: number; c: number };
         if (name === username) return;
         console.log("[race] RX", name, Math.round(x));
