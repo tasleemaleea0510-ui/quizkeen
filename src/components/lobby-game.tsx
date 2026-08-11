@@ -5,7 +5,7 @@ import { createBrowserClient } from "@supabase/ssr";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
 const WORLD_END = 170000;
-const RUN_SPEED = 320;
+const RUN_SPEED = 270;
 
 function colorIndexFor(name: string): number {
   let h = 0;
@@ -39,13 +39,12 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       boardText!: Phaser.GameObjects.Text;
       keys: any = null;
       wasd: any = null;
-      nextSpawnX = 900;
+      nextSpawnX = 600;
       finished = false;
       trailG!: Phaser.GameObjects.Graphics;
       trail: { x: number; y: number }[] = [];
       lastDust = 0;
       starsT!: Phaser.GameObjects.TileSprite;
-      sunI!: Phaser.GameObjects.Image;
       mFarT!: Phaser.GameObjects.TileSprite;
       mNearT!: Phaser.GameObjects.TileSprite;
 
@@ -69,13 +68,13 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         g.fillStyle(0xfecaca, 1).fillTriangle(17, 14, 20, 8, 23, 14);
         g.generateTexture("obstacle", 40, 56);
         g.clear();
-        g.fillStyle(0x22d3ee, 1).fillRect(0, 0, 800, 4);
-        g.fillStyle(0x0f172a, 1).fillRect(0, 4, 800, 24);
-        g.fillStyle(0x164e63, 1);
+        g.fillStyle(0xf472b6, 1).fillRect(0, 0, 800, 4);
+        g.fillStyle(0x14081f, 1).fillRect(0, 4, 800, 24);
+        g.fillStyle(0x701a75, 1);
         for (let gx = 0; gx < 800; gx += 40) g.fillRect(gx, 4, 2, 24);
         g.generateTexture("ground", 800, 28);
         g.clear();
-        const pal = [[5, 5, 16], [30, 27, 75], [109, 40, 217], [219, 39, 119]];
+        const pal = [[8, 2, 16], [58, 12, 86], [134, 25, 143], [219, 39, 119], [251, 146, 60]];
         for (let row = 0; row < 30; row++) {
           const t = (row / 29) * (pal.length - 1);
           const i = Math.min(pal.length - 2, Math.floor(t));
@@ -99,7 +98,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         g.generateTexture("sun", 160, 160);
         g.clear();
         let x = 0;
-        g.fillStyle(0x312e81, 1);
+        g.fillStyle(0x86198f, 1);
         while (x < 400) {
           const w = 60 + Math.random() * 80;
           const h = 40 + Math.random() * 90;
@@ -109,7 +108,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         g.generateTexture("mFar", 400, 140);
         g.clear();
         x = 0;
-        g.fillStyle(0x1e1b4b, 1);
+        g.fillStyle(0x4a044e, 1);
         while (x < 400) {
           const w = 80 + Math.random() * 90;
           const h = 30 + Math.random() * 70;
@@ -137,7 +136,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         const sky = this.add.image(400, 150, "sky").setScrollFactor(0).setDepth(0);
         sky.setDisplaySize(800, 300);
         this.starsT = this.add.tileSprite(400, 150, 800, 300, "stars").setScrollFactor(0).setDepth(1);
-        this.sunI = this.add.image(620, 180, "sun").setScrollFactor(0).setDepth(2).setAlpha(0.9);
+        this.add.image(620, 180, "sun").setScrollFactor(0).setDepth(2).setAlpha(0.9);
         this.mFarT = this.add.tileSprite(400, 204, 900, 140, "mFar").setScrollFactor(0).setDepth(3);
         this.mNearT = this.add.tileSprite(400, 219, 900, 110, "mNear").setScrollFactor(0).setDepth(4);
 
@@ -152,7 +151,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         this.player.setCollideWorldBounds(true);
         this.player.setDepth(8);
         const pb = this.player.body as Phaser.Physics.Arcade.Body;
-        pb.setGravityY(-250);
+        pb.setGravityY(-150);
 
         this.myLabel = this.add.text(120, 160, username, {
           fontSize: "13px",
@@ -248,7 +247,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
       jump = () => {
         if (this.player.body && this.player.body.touching.down) {
-          this.player.setVelocityY(-480);
+          this.player.setVelocityY(-430);
           this.burst(this.player.x, this.player.y + 20, 0xffffff, 6);
         }
       };
@@ -271,10 +270,9 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
       update() {
         const camX = this.cameras.main.scrollX;
-        this.starsT.x = 400 + camX * 0.1;
-        this.sunI.x = 620 + camX * 0.05;
-        this.mFarT.x = 400 + camX * 0.25;
-        this.mNearT.x = 400 + camX * 0.45;
+        this.starsT.tilePositionX = camX * 0.1;
+        this.mFarT.tilePositionX = camX * 0.25;
+        this.mNearT.tilePositionX = camX * 0.45;
 
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         let vx = 0;
@@ -285,7 +283,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         if (vx > 0 && body.touching.down && this.time.now - this.lastDust > 100) {
           this.lastDust = this.time.now;
           const d = this.physics.add.sprite(this.player.x - 20, this.player.y + 20, "dot") as Phaser.Physics.Arcade.Sprite;
-          d.setTint(0x94a3b8);
+          d.setTint(0xf9a8d4);
           const db = d.body as Phaser.Physics.Arcade.Body;
           if (db) {
             db.setAllowGravity(false);
@@ -302,8 +300,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
             b.setAllowGravity(false);
             b.setVelocityX(0);
           }
-          let gap = 220 + Math.random() * 380;
-          if (Math.random() < 0.25) {
+          let gap = 180 + Math.random() * 320;
+          if (Math.random() < 0.3) {
             const ob2 = this.obstacles.create(this.nextSpawnX + 46, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
             ob2.setDepth(6);
             const b2 = ob2.body as Phaser.Physics.Arcade.Body;
