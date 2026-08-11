@@ -152,4 +152,23 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           s = scene.physics.add.sprite(x, y, `player-${c}`);
           const sb = s.body as Phaser.Physics.Arcade.Body;
           if (sb) sb.setAllowGravity(false);
-          scene.o
+                    scene.others[name] = s;
+          scene.otherLabels[name] = scene.add.text(x, y - 32, name, {
+            fontSize: "13px",
+            color: cssColor(COLORS[c]),
+            fontStyle: "bold",
+          }).setOrigin(0.5);
+        }
+        s.setPosition(x, y);
+        scene.otherLabels[name]?.setPosition(x, y - 32);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      game.destroy(true);
+    };
+  }, [pin, username]);
+
+  return <div ref={ref} className="w-full overflow-hidden rounded-xl border border-slate-800" />;
+}
