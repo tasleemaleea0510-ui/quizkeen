@@ -100,9 +100,10 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           loop: true,
           callback: () => {
             const ob = this.obstacles.create(840, 252, "obstacle") as Phaser.Physics.Arcade.Sprite;
-            if (ob.body) {
-              ob.body.setAllowGravity(false);
-              ob.body.setVelocityX(-260);
+            const b = ob.body as Phaser.Physics.Arcade.Body;
+            if (b) {
+              b.setAllowGravity(false);
+              b.setVelocityX(-260);
             }
           },
         });
@@ -148,7 +149,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         let s = scene.others[name];
         if (!s) {
           s = scene.physics.add.sprite(x, y, `player-${c}`);
-          if (s.body) (s.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+          const sb = s.body as Phaser.Physics.Arcade.Body;
+          if (sb) sb.setAllowGravity(false);
           scene.others[name] = s;
           scene.otherLabels[name] = scene.add.text(x, y - 32, name, {
             fontSize: "13px",
