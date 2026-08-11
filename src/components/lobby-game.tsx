@@ -27,7 +27,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     const myColor = colorIndexFor(username);
-    const channel = supabase.channel(`lobby-${pin}`);
+     const channel = supabase.channel(`race-${pin}`);
 
     class LobbyScene extends Phaser.Scene {
       player!: Phaser.Physics.Arcade.Sprite;
