@@ -359,7 +359,6 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
     const onRx = (e: Event) => {
       const { name, x, y, c } = (e as CustomEvent).detail as { name: string; x: number; y: number; c: number };
       if (name === username) return;
-      console.log("[race] RX", name, Math.round(x));
       const scene = game.scene.getScene("LobbyScene") as LobbyScene;
       if (!scene || !scene.player) return;
       scene.progress[name] = x;
