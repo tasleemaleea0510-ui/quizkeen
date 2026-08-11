@@ -17,26 +17,40 @@ function LobbyInner() {
 
   useEffect(() => {
     const supabase = supabaseRef.current;
-    const channel = supabase.channel(`lobby-${pin}`, {
-      config: { presence: { key: name } },
-    });
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    channel.on("presence", { event: "sync" }, () => {
-      setPlayers(Object.keys(channel.presenceState()));
-    });
-
-    channel.on("broadcast", { event: "start" }, () => {
-      window.location.href = `/play/game/${pin}?name=${encodeURIComponent(name)}`;
-    });
-
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.track({ name });
+    const setup = async () => {
+      for (const ch of supabase.getChannels()) {
+        await supabase.removeChannel(ch);
       }
-    });
+      if (cancelled) return;
+
+      channel = supabase.channel(`lobby-${pin}`, {
+        config: { presence: { key: name } },
+      });
+
+      channel.on("presence", { event: "sync" }, () => {
+        if (!channel) return;
+        setPlayers(Object.keys(channel.presenceState()));
+      });
+
+      channel.on("broadcast", { event: "start" }, () => {
+        window.location.href = `/play/game/${pin}?name=${encodeURIComponent(name)}`;
+      });
+
+      channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && !cancelled && channel) {
+          await channel.track({ name });
+        }
+      });
+    };
+
+    setup();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [pin, name]);
 
