@@ -4,8 +4,8 @@ import Phaser from "phaser";
 import { createBrowserClient } from "@supabase/ssr";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
-const WORLD_END = 132000;
-const RUN_SPEED = 220;
+const WORLD_END = 170000;
+const RUN_SPEED = 320;
 
 function colorIndexFor(name: string): number {
   let h = 0;
@@ -44,6 +44,10 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       trailG!: Phaser.GameObjects.Graphics;
       trail: { x: number; y: number }[] = [];
       lastDust = 0;
+      starsT!: Phaser.GameObjects.TileSprite;
+      sunI!: Phaser.GameObjects.Image;
+      mFarT!: Phaser.GameObjects.TileSprite;
+      mNearT!: Phaser.GameObjects.TileSprite;
 
       constructor() {
         super("LobbyScene");
@@ -71,10 +75,16 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         for (let gx = 0; gx < 800; gx += 40) g.fillRect(gx, 4, 2, 24);
         g.generateTexture("ground", 800, 28);
         g.clear();
-        g.fillGradientStyle(0x1e1b4b, 0x1e1b4b, 0x6d28d9, 0x6d28d9);
-        g.fillRect(0, 0, 2, 150);
-        g.fillGradientStyle(0x6d28d9, 0x6d28d9, 0xdb2777, 0xdb2777);
-        g.fillRect(0, 150, 2, 150);
+        const pal = [[5, 5, 16], [30, 27, 75], [109, 40, 217], [219, 39, 119]];
+        for (let row = 0; row < 30; row++) {
+          const t = (row / 29) * (pal.length - 1);
+          const i = Math.min(pal.length - 2, Math.floor(t));
+          const f = t - i;
+          const r = Math.round(pal[i][0] + (pal[i + 1][0] - pal[i][0]) * f);
+          const gg = Math.round(pal[i][1] + (pal[i + 1][1] - pal[i][1]) * f);
+          const b = Math.round(pal[i][2] + (pal[i + 1][2] - pal[i][2]) * f);
+          g.fillStyle(Phaser.Display.Color.GetColor(r, gg, b), 1).fillRect(0, row * 10, 2, 10);
+        }
         g.generateTexture("sky", 2, 300);
         g.clear();
         g.fillStyle(0xffffff, 1).fillCircle(3, 3, 3);
@@ -126,10 +136,10 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       create() {
         const sky = this.add.image(400, 150, "sky").setScrollFactor(0).setDepth(0);
         sky.setDisplaySize(800, 300);
-        this.add.tileSprite(400, 150, 800, 300, "stars").setScrollFactor(0.1).setDepth(1);
-        this.add.image(620, 180, "sun").setScrollFactor(0).setDepth(2).setAlpha(0.9);
-        this.add.tileSprite(400, 204, 900, 140, "mFar").setScrollFactor(0.25).setDepth(3);
-        this.add.tileSprite(400, 219, 900, 110, "mNear").setScrollFactor(0.45).setDepth(4);
+        this.starsT = this.add.tileSprite(400, 150, 800, 300, "stars").setScrollFactor(0).setDepth(1);
+        this.sunI = this.add.image(620, 180, "sun").setScrollFactor(0).setDepth(2).setAlpha(0.9);
+        this.mFarT = this.add.tileSprite(400, 204, 900, 140, "mFar").setScrollFactor(0).setDepth(3);
+        this.mNearT = this.add.tileSprite(400, 219, 900, 110, "mNear").setScrollFactor(0).setDepth(4);
 
         this.physics.world.setBounds(0, 0, WORLD_END + 800, 300);
 
@@ -141,6 +151,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         this.player = this.physics.add.sprite(120, 200, `player-${myColor}`);
         this.player.setCollideWorldBounds(true);
         this.player.setDepth(8);
+        const pb = this.player.body as Phaser.Physics.Arcade.Body;
+        pb.setGravityY(-250);
 
         this.myLabel = this.add.text(120, 160, username, {
           fontSize: "13px",
@@ -191,7 +203,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         }
         this.input.on("pointerdown", this.jump);
 
-        const hint = this.add.text(400, 50, "→ / D = run • SPACE = jump • 💥 spike = back to start!", {
+        const hint = this.add.text(400, 50, "→ / D = run • SPACE = jump • 💥 = back to start • jump = speed boost!", {
           fontSize: "14px",
           color: "#ffffff",
         }).setOrigin(0.5).setScrollFactor(0).setDepth(20);
@@ -236,7 +248,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
       jump = () => {
         if (this.player.body && this.player.body.touching.down) {
-          this.player.setVelocityY(-430);
+          this.player.setVelocityY(-480);
           this.burst(this.player.x, this.player.y + 20, 0xffffff, 6);
         }
       };
@@ -258,12 +270,19 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       }
 
       update() {
+        const camX = this.cameras.main.scrollX;
+        this.starsT.x = 400 + camX * 0.1;
+        this.sunI.x = 620 + camX * 0.05;
+        this.mFarT.x = 400 + camX * 0.25;
+        this.mNearT.x = 400 + camX * 0.45;
+
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         let vx = 0;
         if (this.keys?.right?.isDown || this.wasd?.D?.isDown) vx = RUN_SPEED;
+        if (vx > 0 && !body.touching.down) vx *= 1.25;
         body.setVelocityX(vx);
 
-        if (vx > 0 && body.touching.down && this.time.now - this.lastDust > 120) {
+        if (vx > 0 && body.touching.down && this.time.now - this.lastDust > 100) {
           this.lastDust = this.time.now;
           const d = this.physics.add.sprite(this.player.x - 20, this.player.y + 20, "dot") as Phaser.Physics.Arcade.Sprite;
           d.setTint(0x94a3b8);
@@ -283,7 +302,18 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
             b.setAllowGravity(false);
             b.setVelocityX(0);
           }
-          this.nextSpawnX += 350 + Math.random() * 550;
+          let gap = 220 + Math.random() * 380;
+          if (Math.random() < 0.25) {
+            const ob2 = this.obstacles.create(this.nextSpawnX + 46, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
+            ob2.setDepth(6);
+            const b2 = ob2.body as Phaser.Physics.Arcade.Body;
+            if (b2) {
+              b2.setAllowGravity(false);
+              b2.setVelocityX(0);
+            }
+            gap += 120;
+          }
+          this.nextSpawnX += gap;
         }
 
         this.obstacles.getChildren().forEach((child) => {
