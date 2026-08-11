@@ -22,12 +22,18 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
   useEffect(() => {
     if (!ref.current) return;
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     const myColor = colorIndexFor(username);
-     const channel = supabase.channel(`race-${pin}`);
+    let supabase: ReturnType<typeof createBrowserClient> | null = null;
+    let channel: any = (window as any).__quizkeenChannel;
+    let ownChannel = false;
+    if (!channel) {
+      supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      channel = supabase.channel(`race-${pin}`);
+      ownChannel = true;
+    }
 
     class LobbyScene extends Phaser.Scene {
       player!: Phaser.Physics.Arcade.Sprite;
@@ -376,7 +382,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (ownChannel && supabase) supabase.removeChannel(channel);
       game.destroy(true);
     };
   }, [pin, username]);

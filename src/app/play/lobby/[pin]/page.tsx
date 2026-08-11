@@ -29,6 +29,7 @@ function LobbyInner() {
       channel = supabase.channel(`lobby-${pin}`, {
         config: { presence: { key: name } },
       });
+      (window as any).__quizkeenChannel = channel;
 
       channel.on("presence", { event: "sync" }, () => {
         if (!channel) return;
