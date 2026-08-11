@@ -170,6 +170,10 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           this.player.setVelocity(0, 0);
           this.player.setPosition(120, 200);
           this.trail = [];
+          this.obstacles.getChildren().forEach((c) => {
+            (c as Phaser.Physics.Arcade.Sprite).destroy();
+          });
+          this.nextSpawnX = 600;
         });
 
         const finish = this.physics.add.staticImage(WORLD_END, 150, "finish");
