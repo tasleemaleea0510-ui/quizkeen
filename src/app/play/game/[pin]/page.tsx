@@ -34,6 +34,24 @@ function GameInner() {
     createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   );
   const gameRef = useRef<any>(null);
+  const accountRef = useRef("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = supabaseRef.current;
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          if (prof?.username) accountRef.current = prof.username as string;
+        }
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     const supabase = supabaseRef.current;
@@ -96,7 +114,7 @@ function GameInner() {
   function answer(i: number) {
     if (choice !== null) return;
     setChoice(i);
-    gameRef.current?.send({ type: "broadcast", event: "answer", payload: { name, choice: i } });
+    gameRef.current?.send({ type: "broadcast", event: "answer", payload: { name, choice: i, acc: accountRef.current } });
   }
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);

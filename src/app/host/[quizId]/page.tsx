@@ -27,6 +27,7 @@ export default function HostPage() {
   const lobbyRef = useRef<any>(null);
   const gameRef = useRef<any>(null);
   const answersRef = useRef<Record<string, { choice: number; t: number }>>({});
+  const accountRef = useRef<Record<string, string>>({});
   const startRef = useRef(0);
   const scoresRef = useRef<Record<string, number>>({});
   const phaseRef = useRef(phase);
@@ -55,8 +56,9 @@ export default function HostPage() {
 
     const game = supabase.channel(`game-${pin}`);
     game.on("broadcast", { event: "answer" }, (msg) => {
-      const { name, choice } = msg.payload as { name: string; choice: number };
+      const { name, choice, acc } = msg.payload as { name: string; choice: number; acc?: string };
       answersRef.current[name] = { choice, t: Date.now() };
+      if (acc) accountRef.current[name] = acc;
     });
     game.on("broadcast", { event: "sync" }, () => {
       const qz = quizRef.current;
@@ -158,8 +160,11 @@ export default function HostPage() {
     broadcast("end", { scores: scoresRef.current });
     const top = Object.entries(scoresRef.current)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([username, s], i) => ({ username, xp: s, coins: [50, 30, 20][i] || 10 }));
+      .map(([display, s], i) => ({
+        username: accountRef.current[display] || display,
+        xp: s,
+        coins: [50, 30, 20][i] || 10,
+      }));
     awardXP(top);
     setPhase("end");
   }
