@@ -27,19 +27,19 @@ export default function Home() {
         <Card>
           <CardHeader><CardTitle>🎮 Live Multiplayer</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            Teachers host with a 6-digit PIN. The whole class joins and battles live.
+            Anyone can host live quizzes & ⚔️ flashcard battles with a 6-digit PIN. The whole class joins and competes in real time.
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>🏃 Lobby Mini-Games</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            No boring waiting screens — play the jumping game with your friends while the host gets ready.
+            No boring waiting screens — race & jump with your friends in the lobby mini-game while the host gets ready.
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>🏆 XP, Coins & Levels</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            Every answer earns XP and coins. Level up and climb the leaderboard.
+            Every correct answer earns XP & coins. Level up, climb the leaderboard, and master it all with the built-in tutorial!
           </CardContent>
         </Card>
       </div>
