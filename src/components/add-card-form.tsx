@@ -19,10 +19,10 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
 
   return (
     <form action={submit} className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-lg font-bold text-white">➕ Add a card</h2>
+      <h2 className="text-lg font-bold text-white">➕ Lägg till ett kort</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <input value={front} onChange={(e) => setFront(e.target.value)} required placeholder="❓ Question (front)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
-        <input value={correct} onChange={(e) => setCorrect(e.target.value)} required placeholder="✅ Correct answer" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
+        <input value={front} onChange={(e) => setFront(e.target.value)} required placeholder="❓ Fråga (framsida)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
+        <input value={correct} onChange={(e) => setCorrect(e.target.value)} required placeholder="✅ Rätt svar" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
       </div>
 
       {battleMode ? (
@@ -33,7 +33,7 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
                 <input
                   value={w}
                   onChange={(e) => setWrongs((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))}
-                  placeholder={`❌ Fake answer ${i + 1}`}
+                  placeholder={`❌ Fejksvar ${i + 1}`}
                   className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-red-400 focus:outline-none"
                 />
                 {wrongs.length > 1 && (
@@ -44,26 +44,26 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => setWrongs((arr) => [...arr, ""])} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-indigo-300 hover:bg-slate-700">
-              ➕ Add one more fake answer
+              ➕ Lägg till ett fejksvar till
             </button>
             <button type="button" onClick={() => setBattleMode(false)} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-400 hover:bg-slate-700">
-              🙈 Never mind, solo mode
+              🙈 Strunt samma, sololäge
             </button>
           </div>
         </>
       ) : (
         <div className="mt-4 rounded-xl border border-purple-500/30 bg-purple-600/10 p-4">
           <p className="text-sm text-slate-300">
-            Hey <span className="font-bold text-purple-300">{username || "friend"}</span>! 👋 Want to host a ⚔️ Battle with this deck? Add fake answers so your players have choices to pick from!
+            Hej <span className="font-bold text-purple-300">{username || "kompis"}</span>! 👋 Ska du starta en ⚔️ strid med den här kortleken? Lägg till fejksvar så att spelarna har alternativ att välja mellan!
           </p>
           <button type="button" onClick={() => setBattleMode(true)} className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500">
-            ⚔️ Add fake answers for Battle
+            ⚔️ Lägg till fejksvar för strid
           </button>
         </div>
       )}
 
       <div className="mt-4">
-        <button className="rounded-xl bg-emerald-600 px-6 py-2 font-bold text-white hover:bg-emerald-500">💾 Add card</button>
+        <button className="rounded-xl bg-emerald-600 px-6 py-2 font-bold text-white hover:bg-emerald-500">💾 Lägg till kort</button>
       </div>
     </form>
   );

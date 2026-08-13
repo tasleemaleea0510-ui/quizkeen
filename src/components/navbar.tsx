@@ -36,7 +36,7 @@ export default function Navbar() {
                 <Button variant="ghost">Översikt</Button>
               </Link>
               <Link href="/flashcards">
-                <Button variant="ghost">🃏 Kortlekar</Button>
+                <Button variant="ghost">🃏 Gloskort</Button>
               </Link>
               <Link href="/settings">
                 <Button variant="ghost">⚙️ Inställningar</Button>
