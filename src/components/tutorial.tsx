@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 const KEY = "quizkeen_tutorial_done";
 
 const STEPS = [
-  { icon: "🎮", title: "Host a Live Quiz", text: "Press “Start Playing”, pick a quiz and get a 6-digit PIN. Share it with the whole class!" },
-  { icon: "🕹️", title: "Join with a PIN", text: "Players press “Join a Game”, type the PIN + any name, and jump straight into the lobby." },
-  { icon: "🏃", title: "Race While Waiting", text: "No boring waiting! The lobby has a mini-game — run & jump with your friends until the host starts." },
-  { icon: "❓", title: "Answer Fast!", text: "Pick from the colored buttons. Correct + fast = more points (up to 150 per question!)." },
-  { icon: "🃏", title: "Flashcards", text: "Build decks and flip cards solo to study. Planning a battle? Add fake answers too!" },
-  { icon: "⚔️", title: "Flashcard Battles", text: "Host a deck with a PIN — players see the question, race to pick the right side, and the card FLIPS to reveal the answer!" },
-  { icon: "🏆", title: "XP, Coins & Levels", text: "Every correct answer earns XP & coins. 100 XP = level up! Climb the leaderboard." },
-  { icon: "⚙️", title: "Make It Yours", text: "Change your username & password anytime in Settings." },
+  { icon: "🎮", title: "Starta en live-frågesport", text: "Tryck på “Börja spela”, välj en quiz och få en 6-siffrig PIN-kod. Dela med hela klassen!" },
+  { icon: "🕹️", title: "Gå med med en PIN-kod", text: "Spelare trycker på “Gå med i ett spel”, skriver PIN-koden + valfritt namn och hoppar in i lobbyn." },
+  { icon: "🏃", title: "Spring medan du väntar", text: "Ingen tråkig väntan! Lobbyn har ett minispel — spring & hoppa med dina vänner tills arrangören startar." },
+  { icon: "❓", title: "Svara snabbt!", text: "Välj bland de färgade knapparna. Rätt + snabbt = mer poäng (upp till 150 per fråga!)." },
+  { icon: "🃏", title: "Kortlekar", text: "Bygg kortlekar och vänd kort själv för att plugga. Ska du starta en strid? Lägg till fejk-svar också!" },
+  { icon: "⚔️", title: "Kortleksstrider", text: "Starta en strid med en PIN-kod — spelarna ser frågan, kämpar om att välja rätt sida, och kortet VÄNDS och avslöjar svaret!" },
+  { icon: "🏆", title: "XP, mynt & nivåer", text: "Varje rätt svar ger XP & mynt. 100 XP = nivå upp! Klättra på topplistan." },
+  { icon: "⚙️", title: "Gör det till ditt", text: "Byt användarnamn & lösenord när som helst i Inställningar." },
 ];
 
 export default function TutorialWidget() {
@@ -53,9 +53,9 @@ export default function TutorialWidget() {
                   ✕
                 </button>
                 <h2 className="pr-10 text-2xl font-extrabold text-white sm:text-3xl">
-                  🎓 How to play <span className="text-indigo-400">QuizKeen</span>
+                  🎓 Så spelar du <span className="text-indigo-400">QuizKeen</span>
                 </h2>
-                <p className="mt-2 text-slate-400">The 60-second tour — everything you need to dominate!</p>
+                <p className="mt-2 text-slate-400">Rundturen på 60 sekunder — allt du behöver för att dominera!</p>
                 <div className="mt-6 space-y-3">
                   {STEPS.map((s, i) => (
                     <div key={i} className="flex gap-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -68,7 +68,7 @@ export default function TutorialWidget() {
                   ))}
                 </div>
                 <button onClick={close} className="mt-6 w-full rounded-xl bg-indigo-600 py-3 text-lg font-bold text-white hover:bg-indigo-500">
-                  🚀 Let&apos;s go!
+                  🚀 Nu kör vi!
                 </button>
               </div>
             </div>

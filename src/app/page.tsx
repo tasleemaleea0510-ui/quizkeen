@@ -7,18 +7,17 @@ export default function Home() {
     <div className="mx-auto max-w-6xl px-4 py-20">
       <div className="text-center">
         <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl">
-          Learn. Play. <span className="text-indigo-400">Compete.</span>
+          Lär. Spela. <span className="text-indigo-400">Tävla.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-          QuizKeen turns your classroom into a live game show. Host quizzes with a PIN,
-          play mini-games in the lobby, earn XP and coins, and climb the leaderboard.
+          QuizKeen förvandlar ditt klassrum till en live gameshow. Starta frågesporter med en PIN-kod, spela minispel i lobbyn, samla XP och mynt, och klättra på topplistan.
         </p>
         <div className="mt-10 flex justify-center gap-4">
           <Link href="/register">
-            <Button size="lg">Start Playing — Free</Button>
+            <Button size="lg">Börja spela — Gratis</Button>
           </Link>
           <Link href="/play">
-            <Button size="lg" variant="outline">Join a Game</Button>
+            <Button size="lg" variant="outline">Gå med i ett spel</Button>
           </Link>
         </div>
       </div>
@@ -27,19 +26,19 @@ export default function Home() {
         <Card>
           <CardHeader><CardTitle>🎮 Live Multiplayer</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            Anyone can host live quizzes & ⚔️ flashcard battles with a 6-digit PIN. The whole class joins and competes in real time.
+            Vem som helst kan starta live-frågesporter & ⚔️ kortleksstrider med en 6-siffrig PIN-kod. Hela klassen går med och tävlar i realtid.
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>🏃 Lobby Mini-Games</CardTitle></CardHeader>
+          <CardHeader><CardTitle>🏃 Minispel i lobbyn</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            No boring waiting screens — race & jump with your friends in the lobby mini-game while the host gets ready.
+            Inga tråkiga vänteskärmar — spring & hoppa med dina vänner i lobbyns minispel medan arrangören gör sig redo.
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>🏆 XP, Coins & Levels</CardTitle></CardHeader>
+          <CardHeader><CardTitle>🏆 XP, mynt & nivåer</CardTitle></CardHeader>
           <CardContent className="text-slate-400">
-            Every correct answer earns XP & coins. Level up, climb the leaderboard, and master it all with the built-in tutorial!
+            Varje rätt svar ger XP & mynt. Gå upp i nivå, klättra på topplistan och bemästra allt med den inbyggda guiden!
           </CardContent>
         </Card>
       </div>

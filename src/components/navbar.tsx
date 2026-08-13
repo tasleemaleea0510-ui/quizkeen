@@ -33,13 +33,13 @@ export default function Navbar() {
             <>
               <TutorialWidget />
               <Link href="/dashboard">
-                <Button variant="ghost">Dashboard</Button>
+                <Button variant="ghost">Översikt</Button>
               </Link>
               <Link href="/flashcards">
-                <Button variant="ghost">🃏 Flashcards</Button>
+                <Button variant="ghost">🃏 Kortlekar</Button>
               </Link>
               <Link href="/settings">
-                <Button variant="ghost">⚙️ Settings</Button>
+                <Button variant="ghost">⚙️ Inställningar</Button>
               </Link>
               <Button
                 variant="outline"
@@ -48,16 +48,16 @@ export default function Navbar() {
                   window.location.href = "/";
                 }}
               >
-                Sign out
+                Logga ut
               </Button>
             </>
           ) : (
             <>
               <Link href="/login">
-                <Button variant="ghost">Login</Button>
+                <Button variant="ghost">Logga in</Button>
               </Link>
               <Link href="/register">
-                <Button>Sign up</Button>
+                <Button>Skapa konto</Button>
               </Link>
             </>
           )}

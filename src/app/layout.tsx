@@ -5,13 +5,13 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
 export const metadata: Metadata = {
-  title: "QuizKeen — Learn. Play. Compete.",
-  description: "Live multiplayer quizzes with XP, coins and mini-games.",
+      title: "QuizKeen 🎮 Lär. Spela. Tävla.",
+    description: "Live-flerspelar-quizar med XP, mynt och minispel.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="sv">
       <body className="min-h-screen bg-slate-950 text-white antialiased">
         <Providers>
           <div className="flex min-h-screen flex-col">
