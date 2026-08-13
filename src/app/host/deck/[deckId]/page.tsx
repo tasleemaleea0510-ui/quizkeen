@@ -52,10 +52,21 @@ export default function HostDeckPage() {
     getDeck(deckId).then((d) => {
       if (!d) return;
       setDeck(d);
-      questionsRef.current = shuffle(d.cards).map((c) => {
-        const wrong = shuffle(d.cards.filter((o) => o.back !== c.back).map((o) => o.back)).slice(0, 3);
-        const options = shuffle([c.back, ...wrong]);
-        return { text: c.front, options, correctIndex: options.indexOf(c.back) };
+      questionsRef.current = shuffle(d.cards).map((c, idx, arr) => {
+        const parts = c.back.split("|").filter(Boolean);
+        const correct = parts[0] ?? c.back;
+        let wrongs = parts.slice(1);
+        if (wrongs.length < 3) {
+          const others = arr
+            .filter((o) => o !== c)
+            .map((o) => o.back.split("|")[0])
+            .filter((w) => w && w !== correct && !wrongs.includes(w));
+          wrongs = [...wrongs, ...shuffle(others).slice(0, 3 - wrongs.length)];
+        } else {
+          wrongs = shuffle(wrongs).slice(0, 3);
+        }
+        const options = shuffle([correct, ...wrongs]);
+        return { text: c.front, options, correctIndex: options.indexOf(correct) };
       });
     });
   }, [deckId]);

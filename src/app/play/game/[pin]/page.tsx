@@ -28,6 +28,14 @@ function GameInner() {
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
+  const [revealFlip, setRevealFlip] = useState(false);
+  useEffect(() => {
+    if (phase === "reveal") {
+      setRevealFlip(false);
+      const t = setTimeout(() => setRevealFlip(true), 500);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { questionRef.current = question; }, [question]);
 
@@ -37,12 +45,12 @@ function GameInner() {
   const gameRef = useRef<any>(null);
   const accountRef = useRef("");
 
-    useEffect(() => {
+  useEffect(() => {
     getMyUsername().then((u) => {
       if (u) accountRef.current = u;
     });
   }, []);
-  
+
   useEffect(() => {
     const supabase = supabaseRef.current;
     const game = supabase.channel(`game-${pin}`);
@@ -139,17 +147,35 @@ function GameInner() {
       )}
 
       {phase === "reveal" && question && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{choice === correctIndex ? "🎉 CORRECT!" : "❌ Not this time!"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-slate-300">
-              Correct answer: <span className="font-bold text-emerald-400">{question.options[correctIndex!]}</span>
-            </p>
-            <p className="text-slate-400">Your score: {scores[name] ?? 0} pts</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <style>{`
+            .qk-scene { perspective: 1200px; }
+            .qk-card3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+            .qk-card3d.qk-flipped { transform: rotateY(180deg); }
+            .qk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+            .qk-back { transform: rotateY(180deg); }
+          `}</style>
+          <p className="text-center text-2xl font-extrabold text-white">
+            {choice === correctIndex ? "🎉 CORRECT!" : "❌ Not this time!"}
+          </p>
+          <div className="qk-scene mx-auto w-full max-w-xl">
+            <div className={`qk-card3d relative h-64 w-full ${revealFlip ? "qk-flipped" : ""}`}>
+              <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-6">
+                <div className="text-center">
+                  <p className="mb-2 text-xs uppercase tracking-widest text-indigo-300">Question</p>
+                  <p className="text-xl font-bold text-white">{question.text}</p>
+                </div>
+              </div>
+              <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-6">
+                <div className="text-center">
+                  <p className="mb-2 text-xs uppercase tracking-widest text-emerald-300">Answer</p>
+                  <p className="text-2xl font-bold text-white">{question.options[correctIndex!]}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-center text-slate-400">Your score: {scores[name] ?? 0} pts</p>
+        </div>
       )}
 
       {phase === "end" && (
