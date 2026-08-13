@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getMyUsername } from "@/app/settings/actions";
 
 const COLORS = [
   "bg-red-500 hover:bg-red-400",
@@ -36,23 +37,12 @@ function GameInner() {
   const gameRef = useRef<any>(null);
   const accountRef = useRef("");
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const supabase = supabaseRef.current;
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", data.user.id)
-            .maybeSingle();
-          if (prof?.username) accountRef.current = prof.username as string;
-        }
-      } catch {}
-    })();
+    useEffect(() => {
+    getMyUsername().then((u) => {
+      if (u) accountRef.current = u;
+    });
   }, []);
-
+  
   useEffect(() => {
     const supabase = supabaseRef.current;
     const game = supabase.channel(`game-${pin}`);
