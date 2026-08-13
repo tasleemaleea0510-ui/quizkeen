@@ -11,7 +11,7 @@ export default function Navbar() {
   useEffect(() => {
     if (session) {
       supabase
-        .from("profiles")
+        .from("Profile")
         .select("username")
         .eq("id", session.user.id)
         .single()
@@ -32,6 +32,9 @@ export default function Navbar() {
             <>
               <Link href="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
+              </Link>
+              <Link href="/settings">
+                <Button variant="ghost">⚙️ Settings</Button>
               </Link>
               <Button
                 variant="outline"
