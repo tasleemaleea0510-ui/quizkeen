@@ -33,6 +33,9 @@ export default function Navbar() {
               <Link href="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
               </Link>
+              <Link href="/flashcards">
+                <Button variant="ghost">🃏 Flashcards</Button>
+              </Link>
               <Link href="/settings">
                 <Button variant="ghost">⚙️ Settings</Button>
               </Link>
