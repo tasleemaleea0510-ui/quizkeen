@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import TutorialWidget from "@/components/tutorial";
 
 export default function Navbar() {
   const { supabase, session } = useSupabase();
@@ -30,6 +31,7 @@ export default function Navbar() {
         <nav className="flex items-center gap-2">
           {session ? (
             <>
+              <TutorialWidget />
               <Link href="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
               </Link>
