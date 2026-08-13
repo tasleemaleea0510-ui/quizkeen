@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import StudyDeck from "@/components/study-deck";
-import { addCard } from "../actions";
+import AddCardForm from "@/components/add-card-form";
 
 export default async function DeckPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -29,18 +29,10 @@ export default async function DeckPage({ params }: { params: { id: string } }) {
       {col.description && <p className="mt-2 text-center text-slate-400">{col.description}</p>}
 
       <div className="mt-8">
-        <StudyDeck cards={col.flashcards.map((f) => ({ id: f.id, front: f.frontText, back: f.backText }))} />
+        <StudyDeck cards={col.flashcards.map((f) => ({ id: f.id, front: f.frontText, back: f.backText.split("|")[0] }))} />
       </div>
 
-      <form action={addCard} className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="text-lg font-bold text-white">➕ Add a card</h2>
-        <input type="hidden" name="collectionId" value={col.id} />
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input name="frontText" required placeholder="Front (question)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
-          <input name="backText" required placeholder="Back (answer)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none" />
-        </div>
-        <button className="mt-4 rounded-xl bg-emerald-600 px-6 py-2 font-bold text-white hover:bg-emerald-500">💾 Add card</button>
-      </form>
+      <AddCardForm collectionId={col.id} />
     </div>
   );
 }

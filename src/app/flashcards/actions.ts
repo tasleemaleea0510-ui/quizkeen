@@ -27,11 +27,9 @@ export async function addCard(formData: FormData) {
   const collectionId = formData.get("collectionId") as string;
   const frontText = (formData.get("frontText") as string)?.trim();
   const backText = (formData.get("backText") as string)?.trim();
-  const w1 = (formData.get("wrong1") as string)?.trim();
-  const w2 = (formData.get("wrong2") as string)?.trim();
-  const w3 = (formData.get("wrong3") as string)?.trim();
+  const wrongs = (formData.getAll("wrong") as string[]).map((w) => w.trim()).filter(Boolean);
   if (!frontText || !backText) redirect(`/flashcards/${collectionId}`);
-  const combined = [backText, w1, w2, w3].filter(Boolean).join("|");
+  const combined = [backText, ...wrongs].join("|");
   await prisma.flashcard.create({ data: { collectionId, frontText, backText: combined } });
   revalidatePath(`/flashcards/${collectionId}`);
   redirect(`/flashcards/${collectionId}`);
