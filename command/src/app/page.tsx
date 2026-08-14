@@ -1,236 +1,106 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
-  resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
-  resolveMessage, approveSensitive,
-} from "../actions";
+import { unlock } from "./actions";
 
-type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number };
-
-const TABS = [
-  { id: "stats", icon: "📊", label: "Översikt" },
-  { id: "users", icon: "👥", label: "Användare" },
-  { id: "inbox", icon: "📨", label: "Inkorg" },
-  { id: "broadcast", icon: "📢", label: "Sändning" },
-  { id: "codes", icon: "🔢", label: "Koder" },
-  { id: "log", icon: "📜", label: "Logg" },
+const CARDS = [
+  {
+    kind: "OWNER" as const,
+    icon: "👑",
+    title: "ÄGARE",
+    desc: "Ange den 8-siffriga koden för att låsa upp ÄGARE-kontroller.",
+    box: "bg-indigo-600",
+    text: "text-indigo-400",
+    border: "border-indigo-500/30",
+    btn: "bg-indigo-600 hover:bg-indigo-500",
+    focus: "focus:border-indigo-400",
+    glow: "shadow-indigo-500/10",
+  },
+  {
+    kind: "ADMIN" as const,
+    icon: "🛡️",
+    title: "ADMIN",
+    desc: "Ange den 8-siffriga koden för att låsa upp ADMIN-kontroller.",
+    box: "bg-blue-600",
+    text: "text-blue-400",
+    border: "border-blue-500/30",
+    btn: "bg-blue-600 hover:bg-blue-500",
+    focus: "focus:border-blue-400",
+    glow: "shadow-blue-500/10",
+  },
+  {
+    kind: "SECURITY" as const,
+    icon: "🕵️",
+    title: "SÄKERHET",
+    desc: "Ange den 8-siffriga koden för att låsa upp SÄKERHET-kontroller.",
+    box: "bg-emerald-600",
+    text: "text-emerald-400",
+    border: "border-emerald-500/30",
+    btn: "bg-emerald-600 hover:bg-emerald-500",
+    focus: "focus:border-emerald-400",
+    glow: "shadow-emerald-500/10",
+  },
 ];
 
-export default function OwnerPage() {
+export default function Gate() {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [data, setData] = useState<any>(null);
-  const [tab, setTab] = useState("stats");
-  const [sel, setSel] = useState<User | null>(null);
-  const [q, setQ] = useState("");
-  const [info, setInfo] = useState("");
-  const [xpAmt, setXpAmt] = useState("10");
-  const [coinAmt, setCoinAmt] = useState("10");
-  const [newName, setNewName] = useState("");
-  const [banMin, setBanMin] = useState("5");
-  const [banMsg, setBanMsg] = useState("");
-  const [notify, setNotify] = useState(true);
-  const [customPw, setCustomPw] = useState("");
-  const [bc, setBc] = useState("");
-  const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
+  const [codes, setCodes] = useState<Record<string, string>>({ OWNER: "", ADMIN: "", SECURITY: "" });
+  const [errs, setErrs] = useState<Record<string, boolean>>({ OWNER: false, ADMIN: false, SECURITY: false });
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const s = JSON.parse(localStorage.getItem("cmd_session") || "null");
-    if (!s || s.role !== "OWNER") { router.push("/"); return; }
-    setSession(s);
-    load(s);
-  }, []);
-
-  async function load(s: any) {
-    const d = await getOwnerData(s);
-    if (!d) { localStorage.removeItem("cmd_session"); router.push("/"); return; }
-    setData(d);
-    setBc(d.settings.broadcast ?? "");
-    setCodes({ o: d.settings.ownerCode, a: d.settings.adminCode, sec: d.settings.securityCode });
+  async function tryUnlock(kind: "OWNER" | "ADMIN" | "SECURITY") {
+    setBusy(true);
+    const res = await unlock(codes[kind], kind);
+    setBusy(false);
+    if (res.ok) {
+      localStorage.setItem("cmd_session", JSON.stringify({ role: res.role, code: res.code }));
+      router.push(`/${res.role.toLowerCase()}`);
+    } else {
+      setErrs((e) => ({ ...e, [kind]: true }));
+    }
   }
-
-  async function run(p: Promise<any>) {
-    const r = await p;
-    if (r?.info) setInfo(r.info);
-    await load(session);
-  }
-
-  if (!data) return <div className="flex min-h-screen items-center justify-center text-slate-400">Laddar tronen... 👑</div>;
-
-  const filtered = data.users.filter((u: User) => u.username.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 border-r border-slate-800 bg-slate-900/60 p-4">
-        <p className="text-lg font-extrabold text-white">Quiz<span className="text-indigo-400">Keen</span></p>
-        <p className="mt-1 text-xs font-bold text-indigo-400">👑 ÄGARKONSOL</p>
-        <div className="mt-6 space-y-1">
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`w-full rounded-xl px-4 py-2 text-left text-sm font-bold ${tab === t.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800"}`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+      <div className="relative mx-auto max-w-xl px-4 py-16">
+        <div className="text-center">
+          <p className="text-2xl font-extrabold text-white">
+            Quiz<span className="text-indigo-400">Keen</span>
+          </p>
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+            COMMAND <span className="text-indigo-400">CENTER</span>
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">Endast för betrodda. Alla öppningar loggas. 👁️</p>
         </div>
-      </aside>
 
-      <main className="flex-1 p-8">
-        {info && (
-          <div className="mb-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm font-bold text-indigo-300">
-            {info} <button onClick={() => setInfo("")} className="ml-2 text-slate-400">✕</button>
+        {CARDS.map((c) => (
+          <div key={c.kind} className={`mt-8 rounded-3xl border ${c.border} bg-slate-900/60 p-8 text-center shadow-xl backdrop-blur ${c.glow}`}>
+            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-2xl ${c.box} text-4xl`}>{c.icon}</div>
+            <h2 className={`mt-4 text-3xl font-extrabold ${c.text}`}>{c.title}</h2>
+            <p className="mt-2 text-sm text-slate-400">{c.desc}</p>
+            <input
+              value={codes[c.kind]}
+              onChange={(e) => {
+                setCodes((p) => ({ ...p, [c.kind]: e.target.value }));
+                setErrs((p) => ({ ...p, [c.kind]: false }));
+              }}
+              maxLength={8}
+              placeholder="Ange 8-siffrig kod"
+              className={`mt-4 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-center text-white placeholder:text-slate-500 focus:outline-none ${c.focus}`}
+            />
+            {errs[c.kind] && <p className="mt-2 text-sm font-bold text-red-400">❌ Fel kod. Försök igen.</p>}
+            <button
+              onClick={() => tryUnlock(c.kind)}
+              disabled={busy}
+              className={`mt-4 w-full rounded-xl ${c.btn} py-3 text-lg font-extrabold text-white`}
+            >
+              🔓 LÅS UPP {c.title}
+            </button>
           </div>
-        )}
-
-        {tab === "stats" && (
-          <>
-            <h1 className="text-2xl font-extrabold text-white">📊 Gud-översikt</h1>
-            <div className="mt-6 grid gap-4 sm:grid-cols-4">
-              {[
-                ["👥 Användare", data.stats.users], ["🍎 Lärare", data.stats.teachers],
-                ["🎯 Quizar", data.stats.quizzes], ["🃏 Gloskortlekar", data.stats.decks],
-                ["🎮 Spel", data.stats.games], ["✨ Total XP", data.stats.totXP],
-                ["🪙 Totala mynt", data.stats.totCoins], ["📨 Olösta", data.inbox.filter((m: any) => !m.resolved).length],
-              ].map(([label, val]) => (
-                <div key={label as string} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-                  <p className="text-xs font-bold text-slate-400">{label}</p>
-                  <p className="mt-1 text-3xl font-extrabold text-indigo-400">{val}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {tab === "users" && (
-          <>
-            <h1 className="text-2xl font-extrabold text-white">👥 Användare ({data.users.length})</h1>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Sök användare..."
-              className="mt-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
-            <div className="mt-4 space-y-2">
-              {filtered.map((u: User) => (
-                <button key={u.id} onClick={() => { setSel(u); setNewName(u.username); }}
-                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${sel?.id === u.id ? "border-indigo-500 bg-indigo-500/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
-                  <span className="font-bold text-white">{u.username} {u.bannedUntil && "⛔"}</span>
-                  <span className="text-sm text-slate-400">{u.role} · Lv {u.level} · {u.xp} XP · {u.coins} 🪙</span>
-                </button>
-              ))}
-            </div>
-
-            {sel && (
-              <div className="mt-6 rounded-2xl border border-indigo-500/40 bg-slate-900/80 p-6">
-                <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">💰 XP &  mynt</p>
-                    <div className="mt-2 flex gap-2">
-                      <input value={xpAmt} onChange={(e) => setXpAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <button onClick={() => run(giveXP(session, sel.id, sel.username, parseInt(xpAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+XP</button>
-                      <button onClick={() => run(giveXP(session, sel.id, sel.username, -(parseInt(xpAmt) || 0)))} className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">-XP</button>
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <input value={coinAmt} onChange={(e) => setCoinAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <button onClick={() => run(giveCoins(session, sel.id, sel.username, parseInt(coinAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+🪙</button>
-                      <button onClick={() => run(giveCoins(session, sel.id, sel.username, -(parseInt(coinAmt) || 0)))} className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">-🪙</button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">✏️ Byt namn & 🎭 roll</p>
-                    <div className="mt-2 flex gap-2">
-                      <input value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <button onClick={() => run(renameUser(session, sel.id, sel.username, newName))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">Spara</button>
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <select id="role-sel" className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white">
-                        {["STUDENT", "TEACHER", "ADMIN", "OWNER"].map((r) => <option key={r}>{r}</option>)}
-                      </select>
-                      <button onClick={() => run(setRole(session, sel.id, sel.username, (document.getElementById("role-sel") as HTMLSelectElement).value))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">🎭</button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">⛔ Banna</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {[5, 60, 1440, 0].map((m) => (
-                        <button key={m} onClick={() => run(banUser(session, sel.username, m, banMsg))}
-                          className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">
-                          {m === 0 ? "FÖR ALLTID" : m === 5 ? "5 min" : m === 60 ? "1 tim" : "24 tim"}
-                        </button>
-                      ))}
-                    </div>
-                    <input value={banMin} onChange={(e) => setBanMin(e.target.value)} placeholder="egna minuter" className="mt-2 w-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                    <button onClick={() => run(banUser(session, sel.username, parseInt(banMin) || 5, banMsg))} className="ml-2 rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">⛔ Banna</button>
-                    <input value={banMsg} onChange={(e) => setBanMsg(e.target.value)} placeholder="meddelande (valfritt)" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                    <button onClick={() => run(unbanUser(session, sel.username))} className="mt-2 rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">✅ Unbanna</button>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">🔑 Lösenord & 📧 email</p>
-                    <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
-                      <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> 📢 Meddela med popup
-                    </label>
-                    <input value={customPw} onChange={(e) => setCustomPw(e.target.value)} placeholder="eget lösenord (valfritt, 6+ tecken)" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                    <div className="mt-2 flex gap-2">
-                      <button onClick={() => { run(resetPassword(session, sel.id, sel.username, notify, customPw)); setCustomPw(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white">🔑 Återställ</button>
-                      <button onClick={() => run(getEmail(session, sel.id))} className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-bold text-white">📧 Visa email</button>
-                    </div>
-                    <button onClick={() => { if (confirm(`RADERA ${sel.username} FÖR ALLTID?`)) run(deleteUser(session, sel.id, sel.username)); }}
-                      className="mt-3 rounded-lg bg-red-700 px-3 py-1 text-sm font-bold text-white">🗑️ RADERA ANVÄNDARE</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "inbox" && (
-          <>
-            <h1 className="text-2xl font-extrabold text-white">📨 Inkorg</h1>
-            <div className="mt-4 space-y-3">
-              {data.inbox.length === 0 && <p className="text-slate-500">Inga meddelanden än.</p>}
-              {data.inbox.map((m: any) => (
-                <div key={m.id} className={`rounded-xl border p-4 ${m.resolved ? "border-slate-800 bg-slate-900/40 opacity-60" : "border-amber-500/40 bg-amber-500/5"}`}>
-                  <p className="text-sm text-slate-400">från <b className="text-white">{m.from}</b> · om <b className="text-white">{m.about}</b></p>
-                  <p className="mt-1 whitespace-pre-wrap text-slate-200">{m.message}</p>
-                  {!m.resolved && (
-                    <div className="mt-3 flex gap-2">
-                      {m.message.startsWith("🔐") && (
-                        <button onClick={() => run(approveSensitive(session, m.id, data.users.find((u: User) => u.username === m.about)?.id ?? "", m.about))}
-                          className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">🔓 Godkänn (email + temp lösenord)</button>
-                      )}
-                      {m.message.startsWith("⛔") && (
-                        <button onClick={() => run(banUser(session, m.about, 60, "Bannad efter rapport från admin."))}
-                          className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">⛔ Banna 1 tim</button>
-                      )}
-                      <button onClick={() => run(resolveMessage(session, m.id))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">✅ Avvisa/lös</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {tab === "broadcast" && (
-          <>
-            <h1 className="text-2xl font-extrabold text-white">📢 Sändning & 🛠️ Nödläge</h1>
-            <textarea value={bc} onChange={(e) => setBc(e.target.value)} rows={3} placeholder="Skriv ett meddelande som ALLA användare ser..."
-              className="mt-4 w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => run(setBroadcast(session, bc))} className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white">📢 Sänd</button>
-              <button onClick={() => { setBc(""); run(setBroadcast(session, "")); }} className="rounded-xl bg-slate-700 px-5 py-2 font-bold text-white">🧹 Rensa</button>
-            </div>
-            <div className="mt-8 rounded-2xl border border-red-500/40 bg-red-500/5 p-6">
-              <p className="font-bold text-red-400">🛠️ Nödläge — stäng hela sajten</p>
-              <button onClick={() => run(setShutdown(session, !data.settings.shutdown))}
-                className={`mt-3 rounded-xl px-5 py-2 font-bold text-white ${data.settings.shutdown ? "bg-emerald-600" : "bg-red-600"}`}>
-                {data.settings.shutdown ? "🟢 Öppna sajten" : "⛔ STÄNG sajten"}
-              </button>
-            </div>
-          </>
-        )}
-
-        {tab === "codes" && (
-          <>
-            <h1 className="text-2xl font-extrabold text-white">🔢 Koder</h
+        ))}
+      </div>
+    </div>
+  );
+}

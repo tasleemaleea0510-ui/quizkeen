@@ -32,6 +32,7 @@ export default function OwnerPage() {
   const [banMin, setBanMin] = useState("5");
   const [banMsg, setBanMsg] = useState("");
   const [notify, setNotify] = useState(true);
+  const [customPw, setCustomPw] = useState("");
   const [bc, setBc] = useState("");
   const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
 
@@ -121,7 +122,7 @@ export default function OwnerPage() {
                 <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">💰 XP & 🪙 mynt</p>
+                    <p className="text-sm font-bold text-slate-400">💰 XP &  mynt</p>
                     <div className="mt-2 flex gap-2">
                       <input value={xpAmt} onChange={(e) => setXpAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                       <button onClick={() => run(giveXP(session, sel.id, sel.username, parseInt(xpAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+XP</button>
@@ -169,8 +170,9 @@ export default function OwnerPage() {
                     <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
                       <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> 📢 Meddela med popup
                     </label>
+                    <input value={customPw} onChange={(e) => setCustomPw(e.target.value)} placeholder="eget lösenord (valfritt, 6+ tecken)" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                     <div className="mt-2 flex gap-2">
-                      <button onClick={() => run(resetPassword(session, sel.id, sel.username, notify))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white">🔑 Återställ</button>
+                      <button onClick={() => { run(resetPassword(session, sel.id, sel.username, notify, customPw)); setCustomPw(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white">🔑 Återställ</button>
                       <button onClick={() => run(getEmail(session, sel.id))} className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-bold text-white">📧 Visa email</button>
                     </div>
                     <button onClick={() => { if (confirm(`RADERA ${sel.username} FÖR ALLTID?`)) run(deleteUser(session, sel.id, sel.username)); }}
