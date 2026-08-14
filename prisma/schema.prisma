@@ -10,17 +10,23 @@ datasource db {
 enum Role {
   STUDENT
   TEACHER
+  ADMIN
+  OWNER
 }
 
 model Profile {
-  id          String   @id
-  username    String   @unique
-  role        Role     @default(STUDENT)
-  xp          Int      @default(0)
-  coins       Int      @default(0)
-  level       Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String    @id
+  username    String    @unique
+  role        Role      @default(STUDENT)
+  xp          Int       @default(0)
+  coins       Int       @default(0)
+  level       Int       @default(1)
+  bannedUntil DateTime?
+  banMessage  String?
+  passwordNote String?
+  warnings    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   classroomsOwned    Classroom[]
   enrollments        Enrollment[]
@@ -30,6 +36,43 @@ model Profile {
   gameParticipations Participant[]
 
   @@index([role])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  username  String
+  action    String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+}
+
+model OwnerMessage {
+  id            String   @id @default(uuid())
+  fromUsername  String
+  aboutUsername String
+  message       String
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String
+  name      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AdminSettings {
+  id           Int     @id @default(1)
+  ownerCode    String
+  adminCode    String
+  securityCode String
+  broadcast    String?
+  shutdown     Boolean @default(false)
 }
 
 model Classroom {
