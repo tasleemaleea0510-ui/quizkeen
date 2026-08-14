@@ -5,7 +5,7 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { MaintenanceScreen, BanScreen, Overlays } from "@/components/owner-overlays";
+import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
 
 export const metadata: Metadata = {
   title: "QuizKeen 🎮 Lär. Spela. Tävla.",
@@ -39,6 +39,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </main>
             <Footer />
           </div>
+          <LiveBan
+            serverBanned={banned}
+            until={profile?.bannedUntil ? profile.bannedUntil.toISOString() : null}
+            message={profile?.banMessage ?? null}
+          />
           {!banned && !settings?.shutdown && (
             <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
           )}

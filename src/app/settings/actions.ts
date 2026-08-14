@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function getMyUsername(): Promise<string> {
   const supabase = await createClient();
@@ -40,7 +41,7 @@ export async function updatePassword(formData: FormData) {
   const password = formData.get("password") as string;
   if (!password || password.length < 6) redirect("/settings?msg=passshort");
 
-  const { error } = await supabase.auth.updateUser({ password });
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, { password });
   if (error) redirect(`/settings?msg=passerr&err=${encodeURIComponent(error.message)}`);
   redirect("/settings?msg=passsaved");
 }

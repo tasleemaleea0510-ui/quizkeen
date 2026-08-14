@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { clearPasswordNote, getPasswordNote } from "@/app/system/actions";
+import { useRouter } from "next/navigation";
+import { clearPasswordNote, getPasswordNote, getBanStatus } from "@/app/system/actions";
 
 export function MaintenanceScreen() {
   return (
@@ -40,6 +41,32 @@ export function BanScreen({ until, message }: { until: string; message: string |
         <p className="mt-6 text-sm text-slate-500">Fri igen om</p>
         <p className="text-5xl font-extrabold tabular-nums text-white">{left}</p>
       </div>
+    </div>
+  );
+}
+
+export function LiveBan({ serverBanned, until, message }: { serverBanned: boolean; until: string | null; message: string | null }) {
+  const router = useRouter();
+  const [liveBanned, setLiveBanned] = useState(serverBanned);
+  const [liveUntil, setLiveUntil] = useState(until);
+  const [liveMsg, setLiveMsg] = useState(message);
+
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      const s = await getBanStatus();
+      const nowBanned = !!s?.banned;
+      setLiveBanned(nowBanned);
+      setLiveUntil(s?.until ?? null);
+      setLiveMsg(s?.message ?? null);
+      if (serverBanned && !nowBanned) router.refresh();
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [serverBanned]);
+
+  if (!liveBanned || serverBanned) return null;
+  return (
+    <div className="fixed inset-0 z-[80] bg-slate-950">
+      <BanScreen until={liveUntil!} message={liveMsg} />
     </div>
   );
 }
