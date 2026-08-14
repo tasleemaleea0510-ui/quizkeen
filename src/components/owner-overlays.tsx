@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { clearPasswordNote } from "@/app/system/actions";
+import { clearPasswordNote, getPasswordNote } from "@/app/system/actions";
 
 export function MaintenanceScreen() {
   return (
@@ -45,7 +45,19 @@ export function BanScreen({ until, message }: { until: string; message: string |
 }
 
 export function Overlays({ broadcast, passwordNote }: { broadcast: string | null; passwordNote: string | null }) {
+  const [note, setNote] = useState(passwordNote);
   const [showNote, setShowNote] = useState(!!passwordNote);
+
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      const n = await getPasswordNote();
+      if (n) {
+        setNote(n);
+        setShowNote(true);
+      }
+    }, 8000);
+    return () => clearInterval(iv);
+  }, []);
 
   return createPortal(
     <>
@@ -54,12 +66,13 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
           📢 {broadcast}
         </div>
       )}
-      {showNote && passwordNote && (
+      {showNote && note && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-3xl border border-indigo-500/40 bg-slate-900 p-8 text-center shadow-2xl shadow-indigo-500/20">
             <button
               onClick={async () => {
                 setShowNote(false);
+                setNote(null);
                 await clearPasswordNote();
               }}
               className="absolute right-4 top-4 rounded-xl bg-slate-800 px-3 py-1 text-lg font-bold text-slate-300 hover:bg-red-600/30 hover:text-white"
@@ -68,7 +81,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
             </button>
             <p className="text-5xl">🔑</p>
             <h2 className="mt-3 text-xl font-extrabold text-white">Lösenordet har återställts!</h2>
-            <p className="mt-3 whitespace-pre-wrap text-slate-300">{passwordNote}</p>
+            <p className="mt-3 whitespace-pre-wrap text-slate-300">{note}</p>
           </div>
         </div>
       )}

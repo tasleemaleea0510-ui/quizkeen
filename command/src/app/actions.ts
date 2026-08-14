@@ -112,16 +112,16 @@ export async function setRole(s: S, id: string, username: string, role: string) 
   return { ok: true };
 }
 
-export async function resetPassword(s: S, id: string, username: string, notify: boolean) {
+export async function resetPassword(s: S, id: string, username: string, notify: boolean, custom: string) {
   if (!(await ok(s, "OWNER"))) return { ok: false };
-  const temp = "QK-" + Math.floor(1000 + Math.random() * 9000);
+  const temp = custom.trim().length >= 6 ? custom.trim() : "QK-" + Math.floor(1000 + Math.random() * 9000);
   const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: temp });
   if (error) return { ok: false, info: "❌ " + error.message };
   if (notify) {
     await prisma.profile.update({ where: { id }, data: { passwordNote: `Ägaren Abdullah Shafi återställde ditt lösenord. Nytt lösenord: ${temp}` } });
   }
   await log("[OWNER]", `🔑 återställde lösenord för ${username} (${notify ? "med popup" : "TYST"})`);
-  return { ok: true, info: `🔑 Nytt lösenord för ${username}: ${temp} ${notify ? "(popup skickad!)" : "(tyst läge — de vet inget 😈)"}` };
+  return { ok: true, info: `🔑 Nytt lösenord för ${username}: ${temp} ${notify ? "(popup skickad!)" : "(tyst läge 😈)"}` };
 }
 
 export async function getEmail(s: S, id: string) {
