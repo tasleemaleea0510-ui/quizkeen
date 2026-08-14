@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  OWNER
+}
+
+model Profile {
+  id          String    @id
+  username    String    @unique
+  role        Role      @default(STUDENT)
+  xp          Int       @default(0)
+  coins       Int       @default(0)
+  level       Int       @default(1)
+  bannedUntil DateTime?
+  banMessage  String?
+  passwordNote String?
+  warnings    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  classroomsOwned    Classroom[]
+  enrollments        Enrollment[]
+  quizzesCreated     Quiz[]
+  flashcardsCreated  FlashcardCollection[]
+  gamesHosted        GameSession[]
+  gameParticipations Participant[]
+
+  @@index([role])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  username  String
+  action    String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+}
+
+model OwnerMessage {
+  id            String   @id @default(uuid())
+  fromUsername  String
+  aboutUsername String
+  message       String
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String
+  name      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AdminSettings {
+  id           Int     @id @default(1)
+  ownerCode    String
+  adminCode    String
+  securityCode String
+  broadcast    String?
+  shutdown     Boolean @default(false)
+}
+
+model Classroom {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  joinCode    String       @unique
+  ownerId     String
+  createdAt   DateTime     @default(now())
+
+  owner       Profile      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  assignments Assignment[]
+
+  @@index([ownerId])
+}
+
+model Enrollment {
+  id          String   @id @default(uuid())
+  classroomId String
+  studentId   String
+  enrolledAt  DateTime @default(now())
+
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student     Profile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, studentId])
+}
+
+model Quiz {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  creatorId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  creator     Profile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  gameSessions GameSession[]
+  assignments  Assignment[]
+
+  @@index([creatorId])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+model Question {
+  id        String       @id @default(uuid())
+  quizId    String
+  type      QuestionType @default(MULTIPLE_CHOICE)
+  text      String
+  points    Int          @default(10)
+  timeLimit Int          @default(30)
+
+  quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers   Answer[]
+
+  @@index([quizId])
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model FlashcardCollection {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  creatorId   String
+  createdAt   DateTime    @default(now())
+
+  creator     Profile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  flashcards  Flashcard[]
+
+  @@index([creatorId])
+}
+
+model Flashcard {
+  id           String             @id @default(uuid())
+  collectionId String
+  frontText    String
+  backText     String
+
+  collection   FlashcardCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId])
+}
+
+model Assignment {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  classroomId String
+  quizId      String?
+  createdAt   DateTime @default(now())
+
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quiz        Quiz?     @relation(fields: [quizId], references: [id], onDelete: SetNull)
+}
+
+enum GameStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model GameSession {
+  id        String     @id @default(uuid())
+  pin       String     @unique
+  status    GameStatus @default(WAITING)
+  quizId    String
+  hostId    String
+  createdAt DateTime   @default(now())
+
+  quiz       Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  host       Profile      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  participants Participant[]
+
+  @@index([status])
+  @@index([pin])
+}
+
+model Participant {
+  id           String      @id @default(uuid())
+  gameSessionId String
+  studentId    String
+  score        Int         @default(0)
+  joinedAt     DateTime    @default(now())
+
+  gameSession  GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  student      Profile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([gameSessionId, studentId])
+}
