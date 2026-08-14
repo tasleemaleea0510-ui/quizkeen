@@ -12,13 +12,13 @@ const MESSAGES: Record<string, { text: string; ok: boolean }> = {
   saved: { text: "✅ Användarnamn uppdaterat!", ok: true },
   passshort: { text: "❌ Lösenordet måste vara minst 6 tecken.", ok: false },
   passsaved: { text: "✅ Lösenord bytt!", ok: true },
-  passerr: { text: "❌ Kunde inte byta lösenord. Försök igen.", ok: false },
+  passerr: { text: "❌ Kunde inte byta lösenord just nu. Försök igen om en stund.", ok: false },
 };
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: { msg?: string };
+  searchParams: { msg?: string; err?: string };
 }) {
   const supabase = await createClient();
   const {
@@ -30,6 +30,7 @@ export default async function SettingsPage({
   if (!profile) redirect("/register");
 
   const msg = searchParams.msg ? MESSAGES[searchParams.msg] : undefined;
+  const isRate = !!searchParams.err && /rate|limit|many|attempt/i.test(searchParams.err);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
@@ -45,6 +46,14 @@ export default async function SettingsPage({
         >
           {msg.text}
         </div>
+      )}
+
+      {searchParams.err && (
+        <p className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs text-slate-400">
+          {isRate
+            ? "⏳ Supabase-spärr: för många lösenordsbyten på kort tid. Vänta ~10 minuter och försök igen — ditt konto är fortfarande säkert! 🔒"
+            : `🔍 Debug: ${searchParams.err}`}
+        </p>
       )}
 
       <Card>

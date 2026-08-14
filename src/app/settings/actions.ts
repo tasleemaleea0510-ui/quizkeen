@@ -41,6 +41,6 @@ export async function updatePassword(formData: FormData) {
   if (!password || password.length < 6) redirect("/settings?msg=passshort");
 
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) redirect("/settings?msg=passerr");
+  if (error) redirect(`/settings?msg=passerr&err=${encodeURIComponent(error.message)}`);
   redirect("/settings?msg=passsaved");
 }
