@@ -25,15 +25,15 @@ export default async function FlashcardsPage() {
       </div>
 
       <form action={createCollection} className="mt-10 rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600/20 via-slate-900 to-purple-600/20 p-6 shadow-xl shadow-indigo-500/10">
-        <h2 className="text-lg font-bold text-white">✨ Skapa en ny kortlek</h2>
+        <h2 className="text-lg font-bold text-white">✨ Skapa nya gloskort</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input name="title" required placeholder="Kortlekens namn (t.ex. Bio kap. 4)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
+          <input name="title" required placeholder="Kortens namn (t.ex. Bio kap. 4)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
           <input name="description" placeholder="Beskrivning (valfritt)" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
         </div>
-        <button className="mt-4 w-full rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-500">🚀 Skapa kortlek</button>
+        <button className="mt-4 w-full rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-500">🚀 Skapa gloskort</button>
       </form>
 
-      <h2 className="mt-10 text-xl font-bold text-white">📚 Dina kortlekar ({collections.length})</h2>
+      <h2 className="mt-10 text-xl font-bold text-white">📚 Dina gloskort ({collections.length})</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {collections.map((c) => (
           <div key={c.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition-all hover:-translate-y-1 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10">
@@ -52,7 +52,7 @@ export default async function FlashcardsPage() {
           </div>
         ))}
         {collections.length === 0 && (
-          <p className="text-slate-500">Inga kortlekar än — skapa din första här ovanför! ☝️</p>
+          <p className="text-slate-500">Inga gloskort än — skapa dina första här ovanför! ☝️</p>
         )}
       </div>
     </div>

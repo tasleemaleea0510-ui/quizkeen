@@ -54,7 +54,7 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
       ) : (
         <div className="mt-4 rounded-xl border border-purple-500/30 bg-purple-600/10 p-4">
           <p className="text-sm text-slate-300">
-            Hej <span className="font-bold text-purple-300">{username || "kompis"}</span>! 👋 Ska du starta en ⚔️ strid med den här kortleken? Lägg till fejksvar så att spelarna har alternativ att välja mellan!
+            Hej <span className="font-bold text-purple-300">{username || "kompis"}</span>! 👋 Ska du starta en ⚔️ strid med den här gloskorten? Lägg till fejksvar så att spelarna har alternativ att välja mellan!
           </p>
           <button type="button" onClick={() => setBattleMode(true)} className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500">
             ⚔️ Lägg till fejksvar för strid

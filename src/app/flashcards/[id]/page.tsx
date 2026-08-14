@@ -21,7 +21,7 @@ export default async function DeckPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex items-center justify-between">
-        <Link href="/flashcards" className="text-slate-400 hover:text-white">⬅️ Alla kortlekar</Link>
+        <Link href="/flashcards" className="text-slate-400 hover:text-white">⬅️ Alla gloskort</Link>
         <div className="flex items-center gap-2">
           <Link href={`/host/deck/${col.id}`} className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500">⚔️ Starta strid</Link>
           <span className="rounded-full bg-indigo-600/20 px-3 py-1 text-xs font-bold text-indigo-300">{col.flashcards.length} kort</span>
