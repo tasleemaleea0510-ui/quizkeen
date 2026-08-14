@@ -9,7 +9,7 @@ function LobbyInner() {
   const params = useParams();
   const search = useSearchParams();
   const pin = params.pin as string;
-  const name = search.get("name") || "Player";
+  const name = search.get("name") || "Spelare";
   const [players, setPlayers] = useState<string[]>([]);
   const supabaseRef = useRef(
     createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -70,7 +70,7 @@ function LobbyInner() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="text-center">
-        <p className="text-slate-400">Game PIN</p>
+        <p className="text-slate-400">PIN-kod</p>
         <p className="text-5xl font-extrabold tracking-widest text-indigo-400">{pin}</p>
       </div>
       <div className="mt-8">
@@ -78,7 +78,7 @@ function LobbyInner() {
       </div>
       <Card className="mt-8">
         <CardHeader>
-          <CardTitle>👥 Players ({players.length})</CardTitle>
+          <CardTitle>👥 Spelare ({players.length})</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {players.map((p) => (
@@ -89,7 +89,7 @@ function LobbyInner() {
         </CardContent>
       </Card>
       <p className="mt-6 text-center text-sm text-slate-500">
-        Waiting for the host to start... play the mini-game meanwhile! 🏃
+        Väntar på att arrangören startar... spela minispelet under tiden! 🏃
       </p>
     </div>
   );
@@ -97,7 +97,7 @@ function LobbyInner() {
 
 export default function LobbyPage() {
   return (
-    <Suspense fallback={<div className="py-20 text-center text-slate-400">Loading lobby...</div>}>
+    <Suspense fallback={<div className="py-20 text-center text-slate-400">Laddar lobbyn...</div>}>
       <LobbyInner />
     </Suspense>
   );

@@ -51,7 +51,11 @@ export default function HostPage() {
     lobby.on("presence", { event: "sync" }, () => {
       setPlayers(Object.keys(lobby.presenceState()));
     });
-    lobby.subscribe();
+        lobby.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        lobby.track({ role: "host" });
+      }
+    });
     lobbyRef.current = lobby;
 
     const game = supabase.channel(`game-${pin}`);

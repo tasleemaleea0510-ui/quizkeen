@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { updateUsername, updatePassword } from "./actions";
 
 const MESSAGES: Record<string, { text: string; ok: boolean }> = {
-  taken: { text: "❌ That username is already taken — someone got there first!", ok: false },
-  short: { text: "❌ Username must be at least 3 characters.", ok: false },
-  saved: { text: "✅ Username updated!", ok: true },
-  passshort: { text: "❌ Password must be at least 6 characters.", ok: false },
-  passsaved: { text: "✅ Password changed!", ok: true },
-  passerr: { text: "❌ Couldn't change the password. Try again.", ok: false },
+  taken: { text: "❌ Det användarnamnet är redan upptaget — någon var snabbare!", ok: false },
+  short: { text: "❌ Användarnamnet måste vara minst 3 tecken.", ok: false },
+  saved: { text: "✅ Användarnamn uppdaterat!", ok: true },
+  passshort: { text: "❌ Lösenordet måste vara minst 6 tecken.", ok: false },
+  passsaved: { text: "✅ Lösenord bytt!", ok: true },
+  passerr: { text: "❌ Kunde inte byta lösenord. Försök igen.", ok: false },
 };
 
 export default async function SettingsPage({
@@ -33,7 +33,7 @@ export default async function SettingsPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
-      <h1 className="text-3xl font-extrabold">⚙️ Settings</h1>
+      <h1 className="text-3xl font-extrabold">⚙️ Inställningar</h1>
 
       {msg && (
         <div
@@ -48,16 +48,16 @@ export default async function SettingsPage({
       )}
 
       <Card>
-        <CardHeader><CardTitle>👤 Profile</CardTitle></CardHeader>
+        <CardHeader><CardTitle>👤 Profil</CardTitle></CardHeader>
         <CardContent className="space-y-1">
-          <p><span className="text-slate-400">Username:</span> <b>{profile.username}</b></p>
-          <p><span className="text-slate-400">Role:</span> <b>{profile.role === "TEACHER" ? "🍎 Teacher" : "🎒 Student"}</b></p>
-          <p><span className="text-slate-400">Joined:</span> <b>{profile.createdAt.toLocaleDateString()}</b></p>
+          <p><span className="text-slate-400">Användarnamn:</span> <b>{profile.username}</b></p>
+          <p><span className="text-slate-400">Roll:</span> <b>{profile.role === "TEACHER" ? "🍎 Lärare" : "🎒 Elev"}</b></p>
+          <p><span className="text-slate-400">Gick med:</span> <b>{profile.createdAt.toLocaleDateString("sv-SE")}</b></p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>📊 Stats</CardTitle></CardHeader>
+        <CardHeader><CardTitle>📊 Statistik</CardTitle></CardHeader>
         <CardContent className="flex gap-8 text-2xl font-extrabold">
           <span className="text-indigo-400">Lv {profile.level}</span>
           <span className="text-emerald-400">{profile.xp} XP</span>
@@ -66,21 +66,21 @@ export default async function SettingsPage({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>✏️ Change Username</CardTitle></CardHeader>
+        <CardHeader><CardTitle>✏️ Byt användarnamn</CardTitle></CardHeader>
         <CardContent>
           <form action={updateUsername} className="flex gap-2">
             <Input name="username" defaultValue={profile.username} minLength={3} required />
-            <Button type="submit">💾 Save</Button>
+            <Button type="submit">💾 Spara</Button>
           </form>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>🔑 Change Password</CardTitle></CardHeader>
+        <CardHeader><CardTitle>🔑 Byt lösenord</CardTitle></CardHeader>
         <CardContent>
           <form action={updatePassword} className="flex gap-2">
-            <Input name="password" type="password" placeholder="New password (6+ characters)" minLength={6} required />
-            <Button type="submit">🔒 Update</Button>
+            <Input name="password" type="password" placeholder="Nytt lösenord (6+ tecken)" minLength={6} required />
+            <Button type="submit">🔒 Uppdatera</Button>
           </form>
         </CardContent>
       </Card>
