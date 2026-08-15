@@ -151,7 +151,7 @@ export default function OwnerPage() {
                     </div>
                     <div className="mt-2 flex gap-2">
                       <select id="role-sel" className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white">
-                        {["STUDENT", "TEACHER", "ADMIN", "OWNER"].map((r) => <option key={r}>{r}</option>)}
+                        {["STUDENT", "TEACHER", "ADMIN", "OWNER", "SECURITY"].map((r) => <option key={r}>{r}</option>)}
                       </select>
                       <button onClick={() => run(setRole(session, sel.id, sel.username, (document.getElementById("role-sel") as HTMLSelectElement).value))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">🎭</button>
                     </div>
