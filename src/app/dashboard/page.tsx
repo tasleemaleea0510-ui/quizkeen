@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ROLE_THEME, rankTheme } from "@/lib/roles";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -16,6 +17,7 @@ export default async function DashboardPage() {
   if (!profile) redirect("/register");
 
   const isTeacher = profile.role === "TEACHER";
+  const myTheme = ROLE_THEME[profile.role];
 
   const quizzes = await prisma.quiz.findMany({
     where: { creatorId: user.id },
@@ -31,7 +33,7 @@ export default async function DashboardPage() {
   const topPlayers = await prisma.profile.findMany({
     orderBy: { xp: "desc" },
     take: 5,
-    select: { username: true, xp: true, level: true },
+    select: { username: true, xp: true, level: true, role: true },
   });
 
   return (
@@ -39,10 +41,10 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold">
-            Hej, {profile.username}! {isTeacher ? "🍎" : "🎒"}
+            Hej, <span className={`${myTheme.color} ${myTheme.glow ?? ""}`}>{myTheme.badge} {profile.username}</span>!
           </h1>
           <p className="text-slate-400">
-            {isTeacher ? "Lärarpanel" : `Nivå ${profile.level}-elev`}
+            {isTeacher ? "🍎 Lärarpanel" : `Nivå ${profile.level}-elev`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -96,14 +98,17 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader><CardTitle>🏆 Toppspelare</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {topPlayers.map((p, i) => (
-              <div key={p.username} className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2">
-                <span>
-                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {p.username}
-                </span>
-                <span className="text-slate-400">Lv {p.level} · {p.xp} XP</span>
-              </div>
-            ))}
+            {topPlayers.map((p, i) => {
+              const t = rankTheme(i, p.role);
+              return (
+                <div key={p.username} className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+                  <span className={`font-extrabold ${t.color} ${t.glow ?? ""}`}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {t.badge} {p.username}
+                  </span>
+                  <span className="text-slate-400">Lv {p.level} · {p.xp} XP</span>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 

@@ -6,10 +6,23 @@ import { clearPasswordNote, getPasswordNote, getBanStatus } from "@/app/system/a
 
 export function MaintenanceScreen() {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-      <p className="text-6xl">🛠️</p>
-      <h1 className="mt-4 text-3xl font-extrabold text-white">QuizKeen är under underhåll</h1>
-      <p className="mt-2 text-slate-400">Vi bygger något fantastiskt — snart tillbaka!</p>
+    <div className="relative flex min-h-[70vh] flex-col items-center justify-center overflow-hidden px-4 text-center">
+      <div className="pointer-events-none absolute inset-0">
+        {[...Array(14)].map((_, i) => (
+          <span
+            key={i}
+            className="absolute animate-pulse text-2xl"
+            style={{ left: `${(i * 71) % 100}%`, top: `${(i * 37) % 100}%`, animationDelay: `${i * 0.25}s` }}
+          >
+            ✨
+          </span>
+        ))}
+      </div>
+      <p className="animate-spin text-7xl" style={{ animationDuration: "4s" }}>⚙️</p>
+      <h1 className="mt-6 text-4xl font-extrabold text-white sm:text-5xl">
+        Quiz<span className="animate-pulse text-indigo-400">Keen</span> är under underhåll
+      </h1>
+      <p className="mt-3 text-slate-400">Ägaren bygger något fantastiskt — snart tillbaka! 👑</p>
     </div>
   );
 }
@@ -92,8 +105,15 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   return createPortal(
     <>
       {broadcast && (
-        <div className="fixed left-0 right-0 top-16 z-30 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-sm font-bold text-amber-300 backdrop-blur">
-          📢 {broadcast}
+        <div className="fixed left-0 right-0 top-16 z-30 overflow-hidden border-b border-amber-500/40 bg-gradient-to-r from-amber-600/20 via-amber-400/10 to-amber-600/20 backdrop-blur">
+          <style>{`
+            .qk-marquee { width: max-content; animation: qk-scroll 16s linear infinite; }
+            @keyframes qk-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+          `}</style>
+          <div className="qk-marquee flex whitespace-nowrap py-2 text-sm font-extrabold text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.7)]">
+            <span className="px-8">📢 {broadcast}</span>
+            <span className="px-8">📢 {broadcast}</span>
+          </div>
         </div>
       )}
       {showNote && note && (

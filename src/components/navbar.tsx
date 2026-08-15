@@ -4,23 +4,26 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
+import { ROLE_THEME } from "@/lib/roles";
 
 export default function Navbar() {
   const { supabase, session } = useSupabase();
-  const [username, setUsername] = useState<string | null>(null);
+  const [me, setMe] = useState<{ username: string; role: string } | null>(null);
 
   useEffect(() => {
     if (session) {
       supabase
         .from("Profile")
-        .select("username")
+        .select("username, role")
         .eq("id", session.user.id)
         .single()
-        .then(({ data }) => setUsername(data?.username ?? null));
+        .then(({ data }) => setMe(data ? { username: data.username, role: data.role } : null));
     } else {
-      setUsername(null);
+      setMe(null);
     }
   }, [session, supabase]);
+
+  const theme = ROLE_THEME[me?.role ?? "STUDENT"];
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
@@ -31,6 +34,11 @@ export default function Navbar() {
         <nav className="flex items-center gap-2">
           {session ? (
             <>
+              {me && (
+                <span className={`hidden items-center gap-1 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-sm font-extrabold sm:flex ${theme.color} ${theme.glow ?? ""}`}>
+                  {theme.badge} {me.username}
+                </span>
+              )}
               <TutorialWidget />
               <Link href="/dashboard">
                 <Button variant="ghost">Översikt</Button>

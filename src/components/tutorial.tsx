@@ -13,6 +13,9 @@ const STEPS = [
   { icon: "🃏", title: "Kortlekar", text: "Bygg kortlekar och vänd kort själv för att plugga. Ska du starta en strid? Lägg till fejk-svar också!" },
   { icon: "⚔️", title: "Kortleksstrider", text: "Starta en strid med en PIN-kod — spelarna ser frågan, kämpar om att välja rätt sida, och kortet VÄNDS och avslöjar svaret!" },
   { icon: "🏆", title: "XP, mynt & nivåer", text: "Varje rätt svar ger XP & mynt. 100 XP = nivå upp! Klättra på topplistan." },
+  { icon: "🎭", title: "Roller & färger", text: "👑 ÄGARE = glänsande GULD · 🛡️ ADMIN = röd · 🕵️ SÄKERHET = ljusblå · 🍎 LÄRARE = mörkblå · 🎒 ELEV = grå. Din färg syns bredvid ditt namn ÖVERALLT på sajten!" },
+  { icon: "🌈", title: "Toppliste-färger", text: "1:a plats = glödande GRÖN · 2:a = lila · 3:e = mörkgul. MEN staff (ägare/admin/säkerhet) behåller ALLTID sin rollfärg — respekt!" },
+  { icon: "🍎", title: "Lärarkrafter", text: "Lärare kan skapa klassrum, ge läxor, se klassens statistik och dela med sig XP. Elever kan inte — det är därför det är en KRAFT!" },
   { icon: "⚙️", title: "Gör det till ditt", text: "Byt användarnamn & lösenord när som helst i Inställningar." },
 ];
 
