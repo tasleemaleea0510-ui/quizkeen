@@ -58,7 +58,10 @@ export function LiveBan({ serverBanned, until, message }: { serverBanned: boolea
       setLiveBanned(nowBanned);
       setLiveUntil(s?.until ?? null);
       setLiveMsg(s?.message ?? null);
-      if (serverBanned && !nowBanned) router.refresh();
+      if (serverBanned && !nowBanned) {
+        window.location.reload();
+        return;
+      }
     }, 5000);
     return () => clearInterval(iv);
   }, [serverBanned]);

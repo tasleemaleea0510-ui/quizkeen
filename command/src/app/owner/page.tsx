@@ -52,8 +52,12 @@ export default function OwnerPage() {
   }
 
   async function run(p: Promise<any>) {
+    setBusy(true);
     const r = await p;
+    setBusy(false);
     if (r?.info) setInfo(r.info);
+    else if (r?.ok) setInfo("✅ Klart!");
+    else if (r && r.ok === false) setInfo("❌ Fungerade inte!");
     await load(session);
   }
 
@@ -77,6 +81,9 @@ export default function OwnerPage() {
       </aside>
 
       <main className="flex-1 p-8">
+        {busy && (
+          <div className="fixed bottom-4 right-4 z-50 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white shadow-2xl">⏳ Jobbar...</div>
+        )}
         {info && (
           <div className="mb-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm font-bold text-indigo-300">
             {info} <button onClick={() => setInfo("")} className="ml-2 text-slate-400">✕</button>

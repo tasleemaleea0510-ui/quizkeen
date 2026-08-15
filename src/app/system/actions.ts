@@ -26,6 +26,15 @@ export async function getBanStatus() {
   return { banned: true, until: p.bannedUntil.toISOString(), message: p.banMessage };
 }
 
+export async function getProfileStats() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const p = await prisma.profile.findUnique({ where: { id: user.id }, select: { xp: true, coins: true, level: true } });
+  if (!p) return null;
+  return { xp: p.xp, coins: p.coins, level: p.level };
+}
+
 export async function logActivity(username: string, action: string) {
   await prisma.activity.create({ data: { username, action } });
 }
