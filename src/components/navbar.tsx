@@ -43,6 +43,9 @@ export default function Navbar() {
               <Link href="/dashboard">
                 <Button variant="ghost">Översikt</Button>
               </Link>
+              <Link href="/classroom">
+                <Button variant="ghost">🏫 Klassrum</Button>
+              </Link>
               <Link href="/flashcards">
                 <Button variant="ghost">🃏 Gloskort</Button>
               </Link>

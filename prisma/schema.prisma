@@ -30,6 +30,7 @@ model Profile {
   updatedAt   DateTime  @updatedAt
 
   classroomsOwned    Classroom[]
+    classroomsCoTaught Classroom[] @relation("CoTaught")
   enrollments        Enrollment[]
   quizzesCreated     Quiz[]
   flashcardsCreated  FlashcardCollection[]
@@ -85,6 +86,8 @@ model Classroom {
   createdAt   DateTime     @default(now())
 
   owner       Profile      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+    coTeacherId String?
+  coTeacher   Profile?     @relation("CoTaught", fields: [coTeacherId], references: [id], onDelete: SetNull)
   enrollments Enrollment[]
   assignments Assignment[]
 
