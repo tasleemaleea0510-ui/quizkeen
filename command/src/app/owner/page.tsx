@@ -26,6 +26,7 @@ export default function OwnerPage() {
   const [sel, setSel] = useState<User | null>(null);
   const [q, setQ] = useState("");
   const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
   const [xpAmt, setXpAmt] = useState("10");
   const [coinAmt, setCoinAmt] = useState("10");
   const [newName, setNewName] = useState("");
