@@ -60,7 +60,7 @@ export async function createAssignment(formData: FormData): Promise<void> {
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) return;
   const due = formData.get("dueDate") as string;
-  const bonus = parseInt(formData.get("bonusXP") as string) || 20;
+  const bonus = Math.max(0, Math.min(500, parseInt(formData.get("bonusXP") as string) || 20));
   const provlage = formData.get("provlage") === "on";
   await prisma.assignment.create({
     data: {
