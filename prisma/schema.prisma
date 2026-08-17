@@ -30,12 +30,13 @@ model Profile {
   updatedAt   DateTime  @updatedAt
 
   classroomsOwned    Classroom[]
-    classroomsCoTaught Classroom[] @relation("CoTaught")
+  classroomsCoTaught Classroom[] @relation("CoTaught")
   enrollments        Enrollment[]
   quizzesCreated     Quiz[]
   flashcardsCreated  FlashcardCollection[]
   gamesHosted        GameSession[]
   gameParticipations Participant[]
+  completions        AssignmentCompletion[]
 
   @@index([role])
 }
@@ -78,18 +79,19 @@ model AdminSettings {
 }
 
 model Classroom {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
-  joinCode    String       @unique
+  joinCode    String   @unique
   ownerId     String
-  createdAt   DateTime     @default(now())
+  coTeacherId String?
+  createdAt   DateTime @default(now())
 
   owner       Profile      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-    coTeacherId String?
   coTeacher   Profile?     @relation("CoTaught", fields: [coTeacherId], references: [id], onDelete: SetNull)
   enrollments Enrollment[]
   assignments Assignment[]
+  quizzes     Quiz[]
 
   @@index([ownerId])
 }
@@ -107,15 +109,18 @@ model Enrollment {
 }
 
 model Quiz {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   description String?
   creatorId   String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  isPrivate   Boolean  @default(false)
+  classroomId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  creator     Profile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  questions   Question[]
+  creator      Profile       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  classroom    Classroom?    @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  questions    Question[]
   gameSessions GameSession[]
   assignments  Assignment[]
 
@@ -177,16 +182,32 @@ model Flashcard {
 }
 
 model Assignment {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String?
   dueDate     DateTime?
   classroomId String
   quizId      String?
-  createdAt   DateTime @default(now())
+  bonusXP     Int       @default(20)
+  provlage    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
 
-  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  quiz        Quiz?     @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quiz        Quiz?      @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  completions AssignmentCompletion[]
+}
+
+model AssignmentCompletion {
+  id           String     @id @default(uuid())
+  assignmentId String
+  studentId    String
+  score        Int        @default(0)
+  completedAt  DateTime   @default(now())
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      Profile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
 }
 
 enum GameStatus {
@@ -203,8 +224,8 @@ model GameSession {
   hostId    String
   createdAt DateTime   @default(now())
 
-  quiz       Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  host       Profile      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  quiz       Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  host       Profile       @relation(fields: [hostId], references: [id], onDelete: Cascade)
   participants Participant[]
 
   @@index([status])
@@ -212,11 +233,11 @@ model GameSession {
 }
 
 model Participant {
-  id           String      @id @default(uuid())
+  id            String      @id @default(uuid())
   gameSessionId String
-  studentId    String
-  score        Int         @default(0)
-  joinedAt     DateTime    @default(now())
+  studentId     String
+  score         Int         @default(0)
+  joinedAt      DateTime    @default(now())
 
   gameSession  GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
   student      Profile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
