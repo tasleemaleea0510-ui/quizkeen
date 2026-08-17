@@ -38,6 +38,7 @@ model Profile {
   gamesHosted        GameSession[]
   gameParticipations Participant[]
   completions        AssignmentCompletion[]
+  targetedAssignments Assignment[]
 
   @@index([role])
 }
@@ -192,10 +193,12 @@ model Assignment {
   quizId      String?
   bonusXP     Int       @default(20)
   provlage    Boolean   @default(false)
+  targetStudentId String?
   createdAt   DateTime  @default(now())
 
   classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   quiz        Quiz?      @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  targetStudent Profile? @relation(fields: [targetStudentId], references: [id], onDelete: Cascade)
   completions AssignmentCompletion[]
 }
 

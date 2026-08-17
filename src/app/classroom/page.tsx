@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import CopyButton from "@/components/copy-button";
-import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate, deleteAssignment } from "./actions";
+import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate, deleteAssignment, clearAssignments } from "./actions";
 
 export default async function ClassroomPage() {
   const supabase = await createClient();
@@ -22,7 +22,7 @@ export default async function ClassroomPage() {
       enrollments: { include: { student: true } },
       owner: true,
       coTeacher: true,
-      assignments: { include: { _count: { select: { completions: true } } }, orderBy: { createdAt: "desc" } },
+      assignments: { include: { _count: { select: { completions: true } }, targetStudent: true }, orderBy: { createdAt: "desc" } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -60,7 +60,7 @@ export default async function ClassroomPage() {
                 <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-300">
                   <li>🏫 <b>Skapa ett klassrum</b> nedan — du får en join-kod direkt.</li>
                   <li>🔑 <b>Dela koden</b> med eleverna — de går med via 🏫 Klassrum → "Gå med".</li>
-                  <li>📝 <b>Ge ut läxor</b> — välj en quiz, sätt deadline + bonus-XP, eller ⏱️ prov-läge (1 försök + shuffle = anti-fusk!).</li>
+                  <li>📝 <b>Ge ut läxor</b> — till HELA klassen eller 🎯 en specifik elev. Deadline + bonus-XP eller ⏱️ prov-läge!</li>
                   <li>🔒 <b>Privata quizar</b> — lås en quiz till klassen så bara dina elever ser den.</li>
                   <li>📊 <b>Öppna 📊 Analys</b> i menyn — se vem som slarvar 😴, ge 🎁 +5 XP och ⚠️ varningar (3 st = ägaren meddelas!).</li>
                   <li>📢 <b>Klass-meddelande</b> — syns som blå banderoll LIVE för alla dina elever!</li>
@@ -117,6 +117,12 @@ export default async function ClassroomPage() {
                           {myQuizzes.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
                         </select>
                         <div className="flex flex-wrap items-center gap-2">
+                          <select name="studentId" className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white">
+                            <option value="">👥 Hela klassen</option>
+                            {room.enrollments.map((e) => (
+                              <option key={e.id} value={e.studentId}>🎯 {e.student.username}</option>
+                            ))}
+                          </select>
                           <input type="date" name="dueDate" className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                           <input type="number" name="bonusXP" defaultValue={20} placeholder="bonus-XP" className="w-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                           <label className="flex items-center gap-1 text-xs text-slate-300">
@@ -128,13 +134,21 @@ export default async function ClassroomPage() {
                     </div>
 
                     <div className="rounded-xl border border-slate-800 p-3">
-                      <p className="text-sm font-bold text-blue-400">📚 Läxor ({room.assignments.length})</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-blue-400">📚 Läxor ({room.assignments.length})</p>
+                        {room.assignments.length > 0 && (
+                          <form action={clearAssignments}>
+                            <input type="hidden" name="classroomId" value={room.id} />
+                            <button type="submit" className="rounded bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white">🧹 Rensa alla</button>
+                          </form>
+                        )}
+                      </div>
                       <div className="qk-scroll mt-2 max-h-44 space-y-1 overflow-y-auto pr-1">
                         {room.assignments.length === 0 && <p className="text-xs text-slate-500">Inga läxor ännu.</p>}
                         {room.assignments.map((a) => (
                           <div key={a.id} className="flex items-center justify-between rounded-lg bg-slate-950/60 px-3 py-1.5 text-xs text-slate-400">
                             <span>
-                              {a.title} {a.provlage && "⏱️"} · {a._count.completions}/{room.enrollments.length} klara
+                              {a.title} {a.provlage && "⏱️"} {a.targetStudent && <span className="font-bold text-amber-400">🎯 {a.targetStudent.username}</span>} · {a._count.completions}/{room.enrollments.length} klara
                               {a.dueDate && <span className="text-slate-500"> · senast {new Date(a.dueDate).toLocaleDateString("sv-SE")}</span>}
                             </span>
                             <form action={deleteAssignment}>
@@ -175,7 +189,7 @@ export default async function ClassroomPage() {
                         <form action={addCoTeacher} className="mt-2 flex gap-2">
                           <input type="hidden" name="roomId" value={room.id} />
                           <Input name="username" placeholder="Lärarens användarnamn" className="max-w-xs" />
-                          <Button type="submit" variant="outline">🧑‍🏫 Bjud in</Button>
+                          <Button type="submit" variant="outline">🧑‍ Bjud in</Button>
                         </form>
                       ) : (
                         <p className="mt-2 text-xs text-slate-500">Endast klassrummets ägare kan bjuda in med-lärare.</p>
@@ -205,8 +219,10 @@ export default async function ClassroomPage() {
 
               <h3 className="mt-4 font-bold text-blue-400">📬 Dina läxor</h3>
               <div className="mt-2 space-y-2">
-                {e.classroom.assignments.length === 0 && <p className="text-sm text-slate-500">Inga läxor än — njut medan du kan 😏</p>}
-                {e.classroom.assignments.map((a) => (
+                {e.classroom.assignments.filter((a) => !a.targetStudentId || a.targetStudentId === user.id).length === 0 && (
+                  <p className="text-sm text-slate-500">Inga läxor än — njut medan du kan 😏</p>
+                )}
+                {e.classroom.assignments.filter((a) => !a.targetStudentId || a.targetStudentId === user.id).map((a) => (
                   <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
                     <div>
                       <p className="font-bold">{a.title} {a.provlage && <span className="text-xs text-amber-400">⏱️ PROV-LÄGE</span>}</p>

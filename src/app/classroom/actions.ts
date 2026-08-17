@@ -62,6 +62,7 @@ export async function createAssignment(formData: FormData): Promise<void> {
   const due = formData.get("dueDate") as string;
   const bonus = Math.max(0, Math.min(500, parseInt(formData.get("bonusXP") as string) || 20));
   const provlage = formData.get("provlage") === "on";
+  const target = (formData.get("studentId") as string) || null;
   await prisma.assignment.create({
     data: {
       title: `📝 ${quiz.title}`,
@@ -70,6 +71,7 @@ export async function createAssignment(formData: FormData): Promise<void> {
       dueDate: due ? new Date(due) : null,
       bonusXP: bonus,
       provlage,
+      targetStudentId: target,
     },
   });
   revalidatePath("/classroom");
@@ -101,6 +103,7 @@ export async function getLexa(assignmentId: string) {
     where: { classroomId_studentId: { classroomId: a.classroomId, studentId: user.id } },
   });
   if (!enrolled) return null;
+  if (a.targetStudentId && a.targetStudentId !== user.id) return null;
   const done = await prisma.assignmentCompletion.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId: user.id } },
   });
@@ -148,6 +151,7 @@ export async function completeLexa(assignmentId: string, correct: number, total:
   }
   return { ok: true, score, xp };
 }
+
 export async function giveStudentXP(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -216,6 +220,7 @@ export async function getMyClassMessages(): Promise<string | null> {
   const msgs = enr.map((e) => e.classroom.message).filter(Boolean) as string[];
   return msgs.length > 0 ? msgs.join(" · ") : null;
 }
+
 export async function deleteAssignment(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -225,5 +230,16 @@ export async function deleteAssignment(formData: FormData): Promise<void> {
   if (!a) return;
   if (a.classroom.ownerId !== user.id && a.classroom.coTeacherId !== user.id) return;
   await prisma.assignment.delete({ where: { id: assignmentId } });
+  revalidatePath("/classroom");
+}
+
+export async function clearAssignments(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const classroomId = formData.get("classroomId") as string;
+  const room = await prisma.classroom.findUnique({ where: { id: classroomId } });
+  if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
+  await prisma.assignment.deleteMany({ where: { classroomId } });
   revalidatePath("/classroom");
 }
