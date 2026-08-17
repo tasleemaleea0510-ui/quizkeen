@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate } from "./actions";
 import CopyButton from "@/components/copy-button";
+import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate, deleteAssignment } from "./actions";
 
 export default async function ClassroomPage() {
   const supabase = await createClient();
@@ -53,7 +53,7 @@ export default async function ClassroomPage() {
 
       {isTeacher ? (
         <>
-                  {myRooms.length === 0 && (
+          {myRooms.length === 0 && (
             <Card className="mt-6 border-emerald-500/40 bg-emerald-500/5">
               <CardHeader><CardTitle className="text-emerald-400">🚀 Kom igång som lärare</CardTitle></CardHeader>
               <CardContent>
@@ -68,6 +68,7 @@ export default async function ClassroomPage() {
               </CardContent>
             </Card>
           )}
+
           <Card className="mt-6 border-blue-500/40">
             <CardHeader><CardTitle className="text-blue-500">✨ Skapa nytt klassrum</CardTitle></CardHeader>
             <CardContent>
@@ -80,21 +81,27 @@ export default async function ClassroomPage() {
             </CardContent>
           </Card>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
             {myRooms.map((room) => {
               const privateQuizzes = myQuizzes.filter((q) => q.isPrivate && q.classroomId === room.id);
               const publicQuizzes = myQuizzes.filter((q) => !q.isPrivate);
               return (
                 <Card key={room.id} className="border-blue-500/30">
-                  <CardHeader><CardTitle>🏫 {room.name}</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-lg">
+                      <span>🏫 {room.name}</span>
+                      <span className="text-xs font-bold text-slate-400">👥 {room.enrollments.length} elever</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
                     {room.description && <p className="text-sm text-slate-400">{room.description}</p>}
+
                     <div className="flex items-center gap-2 rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2">
                       <span className="text-sm text-slate-300">Join-kod:</span>
                       <span className="text-xl font-extrabold tracking-widest text-blue-300">{room.joinCode}</span>
                       <CopyButton text={room.joinCode} />
                     </div>
-                    <p className="text-sm font-bold text-slate-300">👥 Elever ({room.enrollments.length})</p>
+
                     <div className="flex flex-wrap gap-1">
                       {room.enrollments.length === 0 && <p className="text-xs text-slate-500">Inga elever än — dela koden!</p>}
                       {room.enrollments.map((e) => (
@@ -109,27 +116,38 @@ export default async function ClassroomPage() {
                         <select name="quizId" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white">
                           {myQuizzes.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
                         </select>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input type="date" name="dueDate" className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                           <input type="number" name="bonusXP" defaultValue={20} placeholder="bonus-XP" className="w-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                           <label className="flex items-center gap-1 text-xs text-slate-300">
-                            <input type="checkbox" name="provlage" /> ⏱️ Prov-läge (1 försök, shuffle)
+                            <input type="checkbox" name="provlage" /> ⏱️ Prov-läge
                           </label>
                         </div>
                         <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-500">📝 Ge ut läxa</Button>
                       </form>
-                      <div className="mt-3 space-y-1">
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 p-3">
+                      <p className="text-sm font-bold text-blue-400">📚 Läxor ({room.assignments.length})</p>
+                      <div className="qk-scroll mt-2 max-h-44 space-y-1 overflow-y-auto pr-1">
+                        {room.assignments.length === 0 && <p className="text-xs text-slate-500">Inga läxor ännu.</p>}
                         {room.assignments.map((a) => (
-                          <p key={a.id} className="text-xs text-slate-400">
-                            {a.title} {a.provlage && "⏱️"} · {a._count.completions}/{room.enrollments.length} klara
-                            {a.dueDate && <span className="text-slate-500"> · senast {new Date(a.dueDate).toLocaleDateString("sv-SE")}</span>}
-                          </p>
+                          <div key={a.id} className="flex items-center justify-between rounded-lg bg-slate-950/60 px-3 py-1.5 text-xs text-slate-400">
+                            <span>
+                              {a.title} {a.provlage && "⏱️"} · {a._count.completions}/{room.enrollments.length} klara
+                              {a.dueDate && <span className="text-slate-500"> · senast {new Date(a.dueDate).toLocaleDateString("sv-SE")}</span>}
+                            </span>
+                            <form action={deleteAssignment}>
+                              <input type="hidden" name="assignmentId" value={a.id} />
+                              <button type="submit" title="Radera läxa" className="ml-2 rounded bg-red-600/20 px-2 py-0.5 font-bold text-red-400 hover:bg-red-600 hover:text-white">🗑️</button>
+                            </form>
+                          </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-slate-800 p-3">
-                      <p className="text-sm font-bold text-blue-400">🔒 Privata quizar (endast denna klass)</p>
+                    <details className="rounded-xl border border-slate-800 p-3">
+                      <summary className="cursor-pointer text-sm font-bold text-blue-400">🔒 Privata quizar ({privateQuizzes.length})</summary>
                       <form action={setQuizPrivate} className="mt-2 flex gap-2">
                         <input type="hidden" name="classroomId" value={room.id} />
                         <input type="hidden" name="on" value="1" />
@@ -145,20 +163,24 @@ export default async function ClassroomPage() {
                             <input type="hidden" name="on" value="0" />
                             <input type="hidden" name="quizId" value={q.id} />
                             <span>🔒 {q.title}</span>
-                            <button type="submit" className="rounded bg-slate-800 px-2 py-0.5 font-bold text-slate-300">🔓 Gör offentlig</button>
+                            <button type="submit" className="rounded bg-slate-800 px-2 py-0.5 font-bold text-slate-300">🔓 Offentlig</button>
                           </form>
                         ))}
                       </div>
-                    </div>
+                    </details>
 
-                    {room.ownerId === user.id && (
-                      <form action={addCoTeacher} className="flex gap-2">
-                        <input type="hidden" name="roomId" value={room.id} />
-                        <Input name="username" placeholder="Bjud in med-lärare (användarnamn)" className="max-w-xs" />
-                        <Button type="submit" variant="outline">🧑‍ Bjud in</Button>
-                      </form>
-                    )}
-                    {room.coTeacher && <p className="text-xs text-slate-400">🧑‍🏫 Med-lärare: <b className="text-blue-300">{room.coTeacher.username}</b></p>}
+                    <details className="rounded-xl border border-slate-800 p-3">
+                      <summary className="cursor-pointer text-sm font-bold text-blue-400">🧑‍ Med-lärare {room.coTeacher && `· ${room.coTeacher.username}`}</summary>
+                      {room.ownerId === user.id ? (
+                        <form action={addCoTeacher} className="mt-2 flex gap-2">
+                          <input type="hidden" name="roomId" value={room.id} />
+                          <Input name="username" placeholder="Lärarens användarnamn" className="max-w-xs" />
+                          <Button type="submit" variant="outline">🧑‍🏫 Bjud in</Button>
+                        </form>
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-500">Endast klassrummets ägare kan bjuda in med-lärare.</p>
+                      )}
+                    </details>
                   </CardContent>
                 </Card>
               );
