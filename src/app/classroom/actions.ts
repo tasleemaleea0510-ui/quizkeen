@@ -227,14 +227,3 @@ export async function deleteAssignment(formData: FormData): Promise<void> {
   await prisma.assignment.delete({ where: { id: assignmentId } });
   revalidatePath("/classroom");
 }
-export async function deleteAssignment(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  const assignmentId = formData.get("assignmentId") as string;
-  const a = await prisma.assignment.findUnique({ where: { id: assignmentId }, include: { classroom: true } });
-  if (!a) return;
-  if (a.classroom.ownerId !== user.id && a.classroom.coTeacherId !== user.id) return;
-  await prisma.assignment.delete({ where: { id: assignmentId } });
-  revalidatePath("/classroom");
-}
