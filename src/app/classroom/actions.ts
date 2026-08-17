@@ -148,3 +148,71 @@ export async function completeLexa(assignmentId: string, correct: number, total:
   }
   return { ok: true, score, xp };
 }
+export async function giveStudentXP(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const studentId = formData.get("studentId") as string;
+  const classroomId = formData.get("classroomId") as string;
+  const room = await prisma.classroom.findUnique({ where: { id: classroomId } });
+  if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
+  const student = await prisma.profile.findUnique({ where: { id: studentId } });
+  if (!student) return;
+  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
+  if (student.lastGiftAt && student.lastGiftAt > dayAgo) return;
+  const newXp = student.xp + 5;
+  await prisma.profile.update({
+    where: { id: studentId },
+    data: { xp: newXp, level: Math.floor(newXp / 100) + 1, lastGiftAt: new Date() },
+  });
+  revalidatePath("/classroom/analytics");
+}
+
+export async function warnStudent(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const teacher = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (!teacher || teacher.role !== "TEACHER") return;
+  const studentId = formData.get("studentId") as string;
+  const classroomId = formData.get("classroomId") as string;
+  const room = await prisma.classroom.findUnique({ where: { id: classroomId } });
+  if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
+  const student = await prisma.profile.findUnique({ where: { id: studentId } });
+  if (!student) return;
+  const w = student.warnings + 1;
+  if (w >= 3) {
+    await prisma.profile.update({ where: { id: studentId }, data: { warnings: 0 } });
+    await prisma.ownerMessage.create({
+      data: {
+        fromUsername: teacher.username,
+        aboutUsername: student.username,
+        message: `🚨 3 VARNINGAR från lärare ${teacher.username} — eleven ${student.username} kan behöva en ägarkoll!`,
+      },
+    });
+  } else {
+    await prisma.profile.update({ where: { id: studentId }, data: { warnings: w } });
+  }
+  revalidatePath("/classroom/analytics");
+}
+
+export async function setClassMessage(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const classroomId = formData.get("classroomId") as string;
+  const room = await prisma.classroom.findUnique({ where: { id: classroomId } });
+  if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
+  const text = (formData.get("message") as string)?.trim();
+  await prisma.classroom.update({ where: { id: classroomId }, data: { message: text || null } });
+  revalidatePath("/classroom/analytics");
+}
+
+export async function getMyClassMessages(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const enr = await prisma.enrollment.findMany({ where: { studentId: user.id }, include: { classroom: true } });
+  const msgs = enr.map((e) => e.classroom.message).filter(Boolean) as string[];
+  return msgs.length > 0 ? msgs.join(" · ") : null;
+}

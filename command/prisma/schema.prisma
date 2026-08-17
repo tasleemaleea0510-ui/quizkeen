@@ -26,6 +26,7 @@ model Profile {
   banMessage  String?
   passwordNote String?
   warnings    Int       @default(0)
+  lastGiftAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -85,6 +86,7 @@ model Classroom {
   joinCode    String   @unique
   ownerId     String
   coTeacherId String?
+  message     String?
   createdAt   DateTime @default(now())
 
   owner       Profile      @relation(fields: [ownerId], references: [id], onDelete: Cascade)

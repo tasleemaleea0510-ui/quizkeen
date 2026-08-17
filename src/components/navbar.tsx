@@ -46,6 +46,11 @@ export default function Navbar() {
               <Link href="/classroom">
                 <Button variant="ghost">🏫 Klassrum</Button>
               </Link>
+                {me?.role === "TEACHER" && (
+                <Link href="/classroom/analytics">
+                  <Button variant="ghost">📊 Analys</Button>
+                </Link>
+              )}
               <Link href="/flashcards">
                 <Button variant="ghost">🃏 Gloskort</Button>
               </Link>

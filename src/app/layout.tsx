@@ -4,6 +4,7 @@ import Providers from "@/components/providers";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import LiveStats from "@/components/live-stats";
+import ClassBanner from "@/components/class-banner";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Footer />
           </div>
           <LiveStats initial={profile ? { xp: profile.xp, coins: profile.coins, level: profile.level } : null} />
+           <ClassBanner />
           <LiveBan
             serverBanned={banned}
             until={profile?.bannedUntil ? profile.bannedUntil.toISOString() : null}
