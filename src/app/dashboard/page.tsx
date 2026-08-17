@@ -4,7 +4,22 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ROLE_THEME, rankTheme } from "@/lib/roles";
+
+function roleTheme(role: string) {
+  if (role === "OWNER") return { cls: "text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.9)]", badge: "👑", label: "ÄGARE" };
+  if (role === "ADMIN") return { cls: "text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.7)]", badge: "🛡️", label: "ADMIN" };
+  if (role === "SECURITY") return { cls: "text-sky-300 drop-shadow-[0_0_5px_rgba(125,211,252,0.7)]", badge: "🕵️", label: "SÄKERHET" };
+  if (role === "TEACHER") return { cls: "text-blue-500", badge: "🍎", label: "LÄRARE" };
+  return { cls: "text-slate-300", badge: "🎒", label: "ELEV" };
+}
+
+function rowTheme(i: number, role: string) {
+  if (role === "OWNER" || role === "ADMIN" || role === "SECURITY" || role === "TEACHER") return roleTheme(role);
+  if (i === 0) return { cls: "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.9)]", badge: "🌟", label: "" };
+  if (i === 1) return { cls: "text-purple-400", badge: "", label: "" };
+  if (i === 2) return { cls: "text-yellow-600", badge: "", label: "" };
+  return roleTheme("STUDENT");
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -16,8 +31,13 @@ export default async function DashboardPage() {
   const profile = await prisma.profile.findUnique({ where: { id: user.id } });
   if (!profile) redirect("/register");
 
-  const isTeacher = profile.role === "TEACHER";
-  const myTheme = ROLE_THEME[profile.role];
+  const me = roleTheme(profile.role);
+  const subtitle =
+    profile.role === "OWNER" ? "👑 ÄGARE — tronens väktare" :
+    profile.role === "ADMIN" ? "🛡️ ADMIN — ordningens väktare" :
+    profile.role === "SECURITY" ? "🕵️ SÄKERHET — alltid på vakt" :
+    profile.role === "TEACHER" ? "🍎 Lärarpanel" :
+    `Nivå ${profile.level}-elev`;
 
   const quizzes = await prisma.quiz.findMany({
     where: { creatorId: user.id },
@@ -41,14 +61,12 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold">
-            Hej, <span className={`${myTheme.color} ${myTheme.glow ?? ""}`}>{myTheme.badge} {profile.username}</span>!
+            Hej, <span className={`${me.cls}`}>{me.badge} {profile.username}</span>!
           </h1>
-          <p className="text-slate-400">
-            {isTeacher ? "🍎 Lärarpanel" : `Nivå ${profile.level}-elev`}
-          </p>
+          <p className="text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!isTeacher && (
+          {profile.role !== "TEACHER" && (
             <Link href="/play">
               <Button size="lg">🎮 Gå med i ett spel</Button>
             </Link>
@@ -99,10 +117,10 @@ export default async function DashboardPage() {
           <CardHeader><CardTitle>🏆 Toppspelare</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {topPlayers.map((p, i) => {
-              const t = rankTheme(i, p.role);
+              const t = rowTheme(i, p.role);
               return (
                 <div key={p.username} className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2">
-                  <span className={`font-extrabold ${t.color} ${t.glow ?? ""}`}>
+                  <span className={`font-extrabold ${t.cls}`}>
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {t.badge} {p.username}
                   </span>
                   <span className="text-slate-400">Lv {p.level} · {p.xp} XP</span>
