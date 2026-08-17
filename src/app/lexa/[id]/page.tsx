@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getLexa, completeLexa } from "@/app/classroom/actions";
 
@@ -13,12 +13,14 @@ export default function LexaPage() {
   const [correct, setCorrect] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [result, setResult] = useState<{ score: number; xp: number } | null>(null);
+  const lock = useRef(false);
 
   useEffect(() => {
     getLexa(params.id as string).then((d) => setData(d));
   }, [params.id]);
 
   if (!data) return <div className="py-20 text-center text-slate-400">Laddar läxa...</div>;
+
   if (!started && data.doneScore !== null)
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
@@ -54,13 +56,15 @@ export default function LexaPage() {
 
   const q = data.questions[i];
 
-  async function pick(a: Q["answers"][number]) {
-    if (picked) return;
+  function pick(a: Q["answers"][number]) {
+    if (lock.current) return;
+    lock.current = true;
     setPicked(a.id);
     const ok = a.isCorrect;
     const newCorrect = correct + (ok ? 1 : 0);
     if (ok) setCorrect(newCorrect);
     setTimeout(async () => {
+      lock.current = false;
       setPicked(null);
       if (i + 1 < data!.questions.length) {
         setI(i + 1);
@@ -80,6 +84,7 @@ export default function LexaPage() {
           <button
             key={a.id}
             onClick={() => pick(a)}
+            disabled={!!picked}
             className={`rounded-xl border px-4 py-4 text-left font-bold transition ${
               picked === a.id
                 ? a.isCorrect

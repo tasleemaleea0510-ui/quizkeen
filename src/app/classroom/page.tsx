@@ -53,6 +53,21 @@ export default async function ClassroomPage() {
 
       {isTeacher ? (
         <>
+                  {myRooms.length === 0 && (
+            <Card className="mt-6 border-emerald-500/40 bg-emerald-500/5">
+              <CardHeader><CardTitle className="text-emerald-400">🚀 Kom igång som lärare</CardTitle></CardHeader>
+              <CardContent>
+                <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-300">
+                  <li>🏫 <b>Skapa ett klassrum</b> nedan — du får en join-kod direkt.</li>
+                  <li>🔑 <b>Dela koden</b> med eleverna — de går med via 🏫 Klassrum → "Gå med".</li>
+                  <li>📝 <b>Ge ut läxor</b> — välj en quiz, sätt deadline + bonus-XP, eller ⏱️ prov-läge (1 försök + shuffle = anti-fusk!).</li>
+                  <li>🔒 <b>Privata quizar</b> — lås en quiz till klassen så bara dina elever ser den.</li>
+                  <li>📊 <b>Öppna 📊 Analys</b> i menyn — se vem som slarvar 😴, ge 🎁 +5 XP och ⚠️ varningar (3 st = ägaren meddelas!).</li>
+                  <li>📢 <b>Klass-meddelande</b> — syns som blå banderoll LIVE för alla dina elever!</li>
+                </ol>
+              </CardContent>
+            </Card>
+          )}
           <Card className="mt-6 border-blue-500/40">
             <CardHeader><CardTitle className="text-blue-500">✨ Skapa nytt klassrum</CardTitle></CardHeader>
             <CardContent>
