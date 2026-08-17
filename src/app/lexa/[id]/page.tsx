@@ -14,6 +14,7 @@ export default function LexaPage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [result, setResult] = useState<{ score: number; xp: number } | null>(null);
   const lock = useRef(false);
+  const sent = useRef(false);
 
   useEffect(() => {
     getLexa(params.id as string).then((d) => setData(d));
@@ -68,7 +69,8 @@ export default function LexaPage() {
       setPicked(null);
       if (i + 1 < data!.questions.length) {
         setI(i + 1);
-      } else {
+      } else if (!sent.current) {
+        sent.current = true;
         const r = await completeLexa(params.id as string, newCorrect, data!.questions.length);
         setResult({ score: r?.score ?? 0, xp: r?.xp ?? 0 });
       }

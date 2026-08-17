@@ -134,7 +134,7 @@ export async function completeLexa(assignmentId: string, correct: number, total:
   const done = await prisma.assignmentCompletion.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId: user.id } },
   });
-  if (done) return { ok: false, msg: a.provlage ? "❌ Prov-läge: endast ETT försök!" : "Redan gjord!" };
+  if (done) return { ok: false, score: done.score, xp: 0, already: true };
   const score = Math.round((correct / Math.max(1, total)) * 100);
   const xp = correct * 10 + a.bonusXP;
   await prisma.assignmentCompletion.create({ data: { assignmentId, studentId: user.id, score } });
