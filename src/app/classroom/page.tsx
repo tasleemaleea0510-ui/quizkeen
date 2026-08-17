@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate } from "./actions";
+import CopyButton from "@/components/copy-button";
 
 export default async function ClassroomPage() {
   const supabase = await createClient();
@@ -76,7 +77,7 @@ export default async function ClassroomPage() {
                     <div className="flex items-center gap-2 rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2">
                       <span className="text-sm text-slate-300">Join-kod:</span>
                       <span className="text-xl font-extrabold tracking-widest text-blue-300">{room.joinCode}</span>
-                      <button onClick={() => navigator.clipboard.writeText(room.joinCode)} className="ml-auto rounded-lg bg-blue-600 px-3 py-1 text-xs font-bold text-white">📋 Kopiera</button>
+                      <CopyButton text={room.joinCode} />
                     </div>
                     <p className="text-sm font-bold text-slate-300">👥 Elever ({room.enrollments.length})</p>
                     <div className="flex flex-wrap gap-1">
