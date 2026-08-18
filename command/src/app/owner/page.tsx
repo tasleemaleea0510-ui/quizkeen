@@ -66,7 +66,7 @@ export default function OwnerPage() {
     await load(session);
   }
 
-  if (!data) return <div className="flex min-h-screen items-center justify-center text-slate-400">Laddar tronen... 👑</div>;
+  if (!data) return <div className="flex min-h-screen items-center justify-center text-amber-300">Laddar tronen... 👑</div>;
 
   const filtered = data.users.filter((u: User) => u.username.toLowerCase().includes(q.toLowerCase()));
   const pending = (extra?.requests ?? []).filter((r: any) => r.status === "PENDING");
@@ -74,13 +74,19 @@ export default function OwnerPage() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 border-r border-slate-800 bg-slate-900/60 p-4">
-        <p className="text-lg font-extrabold text-white">Quiz<span className="text-indigo-400">Keen</span></p>
-        <p className="mt-1 text-xs font-bold text-indigo-400">👑 ÄGARKONSOL</p>
+      <style>{`
+        .gold-glow{box-shadow:0 0 28px rgba(245,158,11,.22)}
+        .gold-title{text-shadow:0 0 14px rgba(252,211,77,.85)}
+        .gold-bg{background:radial-gradient(900px 300px at 50% -60px, rgba(245,158,11,.14), transparent)}
+      `}</style>
+
+      <aside className="gold-bg w-56 shrink-0 border-r border-amber-500/20 bg-slate-900/60 p-4">
+        <p className="text-lg font-extrabold text-white">Quiz<span className="text-amber-300">Keen</span></p>
+        <p className="gold-title mt-1 text-xs font-extrabold text-amber-300">👑 ÄGARKONSOL</p>
         <div className="mt-6 space-y-1">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`relative w-full rounded-xl px-4 py-2 text-left text-sm font-bold ${tab === t.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800"}`}>
+              className={`relative w-full rounded-xl px-4 py-2 text-left text-sm font-bold ${tab === t.id ? "bg-amber-600 text-white" : "text-slate-400 hover:bg-slate-800"}`}>
               {t.icon} {t.label}
               {t.id === "requests" && pending.length > 0 && (
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-red-600 px-2 text-xs font-extrabold text-white">{pending.length}</span>
@@ -90,19 +96,20 @@ export default function OwnerPage() {
         </div>
       </aside>
 
-      <main className="flex-1 p-8">
+      <main className="gold-bg flex-1 p-8">
         {busy && (
-          <div className="fixed bottom-4 right-4 z-50 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white shadow-2xl">⏳ Jobbar...</div>
+          <div className="gold-glow fixed bottom-4 right-4 z-50 rounded-xl bg-amber-600 px-4 py-2 text-sm font-extrabold text-white">⏳ Jobbar...</div>
         )}
         {info && (
-          <div className="mb-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-3 text-sm font-bold text-indigo-300">
+          <div className="gold-glow mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300">
             {info} <button onClick={() => setInfo("")} className="ml-2 text-slate-400">✕</button>
           </div>
         )}
 
         {tab === "stats" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">📊 Gud-översikt</h1>
+            <h1 className="gold-title text-3xl font-extrabold text-amber-300">👑 GULD-TRONEN</h1>
+            <p className="mt-1 text-sm text-slate-400">Allt ditt rike, i ett ögonkast. Endast för betrodda. Alla öppningar loggas. 👁️</p>
             <div className="mt-6 grid gap-4 sm:grid-cols-4">
               {[
                 ["👥 Användare", data.stats.users], ["🍎 Lärare", data.stats.teachers],
@@ -110,9 +117,9 @@ export default function OwnerPage() {
                 ["🎮 Spel", data.stats.games], ["✨ Total XP", data.stats.totXP],
                 ["🪙 Totala mynt", data.stats.totCoins], ["🙏 Väntande begäranden", pending.length],
               ].map(([label, val]) => (
-                <div key={label as string} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <div key={label as string} className="gold-glow rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5">
                   <p className="text-xs font-bold text-slate-400">{label}</p>
-                  <p className="mt-1 text-3xl font-extrabold text-indigo-400">{val}</p>
+                  <p className="mt-1 text-3xl font-extrabold text-amber-300">{val}</p>
                 </div>
               ))}
             </div>
@@ -121,14 +128,14 @@ export default function OwnerPage() {
 
         {tab === "requests" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">🙏 Ban-begäranden från admins</h1>
-            <p className="mt-1 text-sm text-slate-400">En admin vill banna någon längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge. 👑</p>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">🙏 Ban-begäranden från admins</h1>
+            <p className="mt-1 text-sm text-slate-400">En admin vill banna längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge. 👑</p>
 
             <h2 className="mt-6 text-lg font-extrabold text-amber-300">⏳ Väntande ({pending.length})</h2>
             <div className="mt-3 space-y-3">
               {pending.length === 0 && <p className="text-slate-500">Inga väntande begäranden. Alla admins sköter sig! 😎</p>}
               {pending.map((r: any) => (
-                <div key={r.id} className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
+                <div key={r.id} className="gold-glow rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
                   <p className="font-bold text-white">
                     ⛔ <b>{r.target}</b> <span className="text-sm font-normal text-slate-400">· begärd av {r.admin} · ville ha {r.minutes <= 0 ? "FÖR ALLTID" : r.minutes + " min"}</span>
                   </p>
@@ -173,13 +180,13 @@ export default function OwnerPage() {
 
         {tab === "users" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">👥 Användare ({data.users.length})</h1>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">👥 Användare ({data.users.length})</h1>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Sök användare..."
-              className="mt-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
+              className="mt-4 w-full max-w-md rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none" />
             <div className="mt-4 space-y-2">
               {filtered.map((u: User) => (
                 <button key={u.id} onClick={() => { setSel(u); setNewName(u.username); }}
-                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${sel?.id === u.id ? "border-indigo-500 bg-indigo-500/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
+                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${sel?.id === u.id ? "border-amber-500 bg-amber-500/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
                   <span className="font-bold text-white">{u.username} {u.bannedUntil && "⛔"}</span>
                   <span className="text-sm text-slate-400">{u.role} · Lv {u.level} · {u.xp} XP · {u.coins} 🪙</span>
                 </button>
@@ -187,7 +194,7 @@ export default function OwnerPage() {
             </div>
 
             {sel && (
-              <div className="mt-6 rounded-2xl border border-indigo-500/40 bg-slate-900/80 p-6">
+              <div className="gold-glow mt-6 rounded-2xl border border-amber-500/40 bg-slate-900/80 p-6">
                 <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 p-4">
@@ -208,13 +215,13 @@ export default function OwnerPage() {
                     <p className="text-sm font-bold text-slate-400">✏️ Byt namn & 🎭 roll</p>
                     <div className="mt-2 flex gap-2">
                       <input value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <button onClick={() => run(renameUser(session, sel.id, sel.username, newName))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">Spara</button>
+                      <button onClick={() => run(renameUser(session, sel.id, sel.username, newName))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">Spara</button>
                     </div>
                     <div className="mt-2 flex gap-2">
                       <select id="role-sel" className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white">
                         {["STUDENT", "TEACHER", "ADMIN", "OWNER", "SECURITY"].map((r) => <option key={r}>{r}</option>)}
                       </select>
-                      <button onClick={() => run(setRole(session, sel.id, sel.username, (document.getElementById("role-sel") as HTMLSelectElement).value))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">🎭</button>
+                      <button onClick={() => run(setRole(session, sel.id, sel.username, (document.getElementById("role-sel") as HTMLSelectElement).value))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🎭</button>
                     </div>
                   </div>
 
@@ -241,7 +248,7 @@ export default function OwnerPage() {
                     </label>
                     <input value={customPw} onChange={(e) => setCustomPw(e.target.value)} placeholder="eget lösenord (valfritt, 6+ tecken)" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                     <div className="mt-2 flex gap-2">
-                      <button onClick={() => { run(resetPassword(session, sel.id, sel.username, notify, customPw)); setCustomPw(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white">🔑 Återställ</button>
+                      <button onClick={() => { run(resetPassword(session, sel.id, sel.username, notify, customPw)); setCustomPw(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🔑 Återställ</button>
                       <button onClick={() => run(getEmail(session, sel.id))} className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-bold text-white">📧 Visa email</button>
                     </div>
                     <button onClick={() => { if (confirm(`RADERA ${sel.username} FÖR ALLTID?`)) run(deleteUser(session, sel.id, sel.username)); }}
@@ -255,7 +262,7 @@ export default function OwnerPage() {
 
         {tab === "inbox" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">📨 Inkorg</h1>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">📨 Inkorg</h1>
             <div className="mt-4 space-y-3">
               {data.inbox.length === 0 && <p className="text-slate-500">Inga meddelanden än.</p>}
               {data.inbox.map((m: any) => (
@@ -279,11 +286,11 @@ export default function OwnerPage() {
 
         {tab === "broadcast" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">📢 Sändning & 🛠️ Nödläge</h1>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">📢 Sändning & 🛠️ Nödläge</h1>
             <textarea value={bc} onChange={(e) => setBc(e.target.value)} rows={3} placeholder="Skriv ett meddelande som ALLA användare ser..."
-              className="mt-4 w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" />
+              className="mt-4 w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none" />
             <div className="mt-3 flex gap-2">
-              <button onClick={() => run(setBroadcast(session, bc))} className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white">📢 Sänd</button>
+              <button onClick={() => run(setBroadcast(session, bc))} className="rounded-xl bg-amber-600 px-5 py-2 font-bold text-white hover:bg-amber-500">📢 Sänd</button>
               <button onClick={() => { setBc(""); run(setBroadcast(session, "")); }} className="rounded-xl bg-slate-700 px-5 py-2 font-bold text-white">🧹 Rensa</button>
             </div>
             <div className="mt-8 rounded-2xl border border-red-500/40 bg-red-500/5 p-6">
@@ -298,28 +305,28 @@ export default function OwnerPage() {
 
         {tab === "codes" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">🔢 Koder</h1>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">🔢 Koder</h1>
             <div className="mt-4 max-w-md space-y-3">
               {[["o", "👑 Ägarkod"], ["a", "🛡️ Admin-kod"], ["sec", "🕵️ Säkerhetskod"]].map(([k, label]) => (
                 <div key={k as string}>
                   <p className="text-sm font-bold text-slate-400">{label}</p>
                   <input value={(codes as any)[k as string]} onChange={(e) => setCodes((c) => ({ ...c, [k as string]: e.target.value }))}
-                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-white focus:border-indigo-400 focus:outline-none" />
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-white focus:border-amber-400 focus:outline-none" />
                 </div>
               ))}
               <button onClick={async () => { const r: any = await changeCodes(session, codes.o, codes.a, codes.sec); if (r?.newOwner) localStorage.setItem("cmd_session", JSON.stringify({ role: "OWNER", code: r.newOwner })); run(Promise.resolve(r)); }}
-                className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white">💾 Spara koder</button>
+                className="rounded-xl bg-amber-600 px-5 py-2 font-bold text-white hover:bg-amber-500">💾 Spara koder</button>
             </div>
           </>
         )}
 
         {tab === "log" && (
           <>
-            <h1 className="text-2xl font-extrabold text-white">📜 Logg</h1>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">📜 Logg</h1>
             <div className="mt-4 space-y-1">
               {data.log.map((l: any, i: number) => (
                 <p key={i} className="rounded-lg bg-slate-900/60 px-4 py-2 text-sm text-slate-300">
-                  <b className={l.username.startsWith("[") ? "text-indigo-400" : "text-white"}>{l.username}</b> {l.action}
+                  <b className={l.username.startsWith("[") ? "text-amber-300" : "text-white"}>{l.username}</b> {l.action}
                   <span className="ml-2 text-xs text-slate-500">{new Date(l.createdAt).toLocaleString("sv-SE")}</span>
                 </p>
               ))}
