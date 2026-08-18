@@ -248,12 +248,18 @@ export async function approveBanRequest(s: S, requestId: string, minutes: number
   await log("[OWNER]", `✅ godkände admin-ban på ${req.targetUsername} (${minutes} min)`);
   return { ok: true, info: `✅ ${req.targetUsername} bannad i ${minutes <= 0 ? "ALLTID" : minutes + " min"}!` };
 }
-
-export async function rejectBanRequest(s: S, requestId: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
-  const req = await prisma.banRequest.findUnique({ where: { id: requestId } });
-  if (!req || req.status !== "PENDING") return { ok: false };
-  await prisma.banRequest.update({ where: { id: requestId }, data: { status: "REJECTED" } });
-  await log("[OWNER]", `❌ avslog admin-ban på ${req.targetUsername}`);
-  return { ok: true, info: `❌ Begäran för ${req.targetUsername} avslagen.` };
+export async function adminGiveXP(s: S, id: string, username: string, amt: number) {
+  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  const target = await prisma.profile.findUnique({ where: { id } });
+  if (!target || (target.role !== "STUDENT" && target.role !== "TEACHER")) return { ok: false, info: "❌ Kan inte ge XP till staff!" };
+  const capped = Math.max(1, Math.min(500, amt));
+  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
+  const todayGifts = await prisma.activity.count({
+    where: { username: "[ADMIN]", action: { contains: ` gav ${username}` }, createdAt: { gte: dayAgo } },
+  });
+  if (todayGifts >= 3) return { ok: false, info: `❌ Max 3 gåvor/dag till ${username}! Be ägaren om mer.` };
+  const newXp = target.xp + capped;
+  await prisma.profile.update({ where: { id }, data: { xp: newXp, level: Math.floor(newXp / 100) + 1 } });
+  await log("[ADMIN]", `🎁 gav ${capped} XP till ${username}`);
+  return { ok: true, info: `🎁 Gav ${capped} XP till ${username}!` };
 }

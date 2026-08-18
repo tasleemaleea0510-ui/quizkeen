@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminData, adminBan, adminUnban, resolveMessage, adminRequestBan } from "../actions";
+import { getAdminData, adminBan, adminUnban, resolveMessage, adminRequestBan, adminGiveXP } from "../actions";
 
 type S = { role: string; code: string };
 const QUICK = [
@@ -39,7 +39,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-6xl">
         <div className="red-glow rounded-3xl border border-red-500/40 bg-red-500/5 p-6">
           <h1 className="red-title text-3xl font-extrabold text-red-400">🛡️ ADMIN — RED COMMAND</h1>
-          <p className="mt-1 text-sm text-slate-400">Snabb-ban: 5 min / 1 tim / 1 dag. Vill du banna längre? <b className="text-amber-400">Be ägaren om lov!</b> 👑 Allt loggas. 👁️</p>
+          <p className="mt-1 text-sm text-slate-400">🎁 Belöna (max 500, 3/dag) · ⛔ Banna (5min/1tim/1dag) · längre än så? <b className="text-amber-400">Be ägaren om lov!</b> 👑 Allt loggas. 👁️</p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
             <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-300">👥 {data.users.length} användare</span>
             <span className="rounded-full bg-slate-900 px-3 py-1 text-red-400">⛔ {banned} bannade</span>
@@ -65,6 +65,22 @@ export default function AdminPage() {
                         <button onClick={async () => { await adminUnban(s, u.username); setInfo(`✅ ${u.username} är fri igen!`); refresh(); }} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white">✅ Unbanna</button>
                       ) : (
                         <div className="flex flex-wrap gap-1">
+                          {[50, 200, 500].map((g) => (
+                            <button key={g} onClick={async () => { const r = await adminGiveXP(s, u.id, u.username, g); setInfo(r.info || ""); refresh(); }} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-500">🎁 +{g}</button>
+                          ))}
+                          <input
+                            type="number"
+                            placeholder="+XP (max 500)"
+                            className="w-24 rounded-lg border border-emerald-500/40 bg-slate-950 px-2 py-1 text-xs text-white"
+                            onKeyDown={async (e) => {
+                              if (e.key === "Enter") {
+                                const v = parseInt((e.target as HTMLInputElement).value) || 0;
+                                const r = await adminGiveXP(s, u.id, u.username, v);
+                                setInfo(r.info || "");
+                                refresh();
+                              }
+                            }}
+                          />
                           {QUICK.map((q) => (
                             <button key={q.min} onClick={async () => { await adminBan(s, u.username, q.min, ""); setInfo(`⛔ ${u.username} bannad ${q.label}!`); refresh(); }} className="rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white hover:bg-red-500">⛔ {q.label}</button>
                           ))}
