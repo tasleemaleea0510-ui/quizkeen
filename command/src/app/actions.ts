@@ -183,3 +183,36 @@ export async function approveSensitive(s: S, messageId: string, id: string, user
   await log("[OWNER]", `🔐 godkände känslig begäran för ${username}`);
   return { ok: true };
 }
+export async function getAdminData(s: S) {
+  if (!(await ok(s, "ADMIN"))) return null;
+  const [users, act, inbox] = await Promise.all([
+    prisma.profile.findMany({ orderBy: { xp: "desc" } }),
+    prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 40 }),
+    prisma.ownerMessage.findMany({ where: { resolved: false }, orderBy: { createdAt: "desc" }, take: 20 }),
+  ]);
+  return {
+    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, coins: u.coins, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null })),
+    log: act.map((l) => ({ username: l.username, action: l.action, createdAt: l.createdAt.toISOString() })),
+    inbox: inbox.map((m) => ({ id: m.id, from: m.fromUsername, about: m.aboutUsername, message: m.message, createdAt: m.createdAt.toISOString() })),
+  };
+}
+
+export async function adminBan(s: S, username: string, minutes: number, message: string) {
+  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  const target = await prisma.profile.findUnique({ where: { username } });
+  if (!target || (target.role !== "STUDENT" && target.role !== "TEACHER")) return { ok: false, info: "❌ Admins kan inte banna staff!" };
+  const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
+  await prisma.profile.updateMany({
+    where: { username },
+    data: { bannedUntil: until, banMessage: message || `Du har blivit bannad av en ADMIN${minutes > 0 ? ` i ${minutes} minuter` : " FÖR ALLTID"}.` },
+  });
+  await log("[ADMIN]", `⛔ bannade ${username} (${minutes <= 0 ? "FOREVER" : minutes + " min"})`);
+  return { ok: true };
+}
+
+export async function adminUnban(s: S, username: string) {
+  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  await prisma.profile.updateMany({ where: { username }, data: { bannedUntil: null, banMessage: null } });
+  await log("[ADMIN]", `✅ unbannade ${username}`);
+  return { ok: true };
+}

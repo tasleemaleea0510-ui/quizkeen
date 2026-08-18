@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CopyButton from "@/components/copy-button";
 
 function roleTheme(role: string) {
   if (role === "OWNER") return { cls: "text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.9)]", badge: "👑", label: "ÄGARE" };
@@ -32,21 +33,9 @@ export default async function DashboardPage() {
   if (!profile) redirect("/register");
 
   const me = roleTheme(profile.role);
-  const subtitle =
-    profile.role === "OWNER" ? "👑 ÄGARE — tronens väktare" :
-    profile.role === "ADMIN" ? "🛡️ ADMIN — ordningens väktare" :
-    profile.role === "SECURITY" ? "🕵️ SÄKERHET — alltid på vakt" :
-    profile.role === "TEACHER" ? "🍎 Lärarpanel" :
-    `Nivå ${profile.level}-elev`;
 
   const quizzes = await prisma.quiz.findMany({
     where: { creatorId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const collections = await prisma.flashcardCollection.findMany({
-    where: { creatorId: user.id },
-    include: { _count: { select: { flashcards: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -55,6 +44,119 @@ export default async function DashboardPage() {
     take: 5,
     select: { username: true, xp: true, level: true, role: true },
   });
+
+  if (profile.role === "TEACHER") {
+    const rooms = await prisma.classroom.findMany({
+      where: { OR: [{ ownerId: user.id }, { coTeacherId: user.id }] },
+      include: {
+        enrollments: { include: { student: true } },
+        assignments: { include: { _count: { select: { completions: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const students = rooms.reduce((a, r) => a + r.enrollments.length, 0);
+    const laxor = rooms.reduce((a, r) => a + r.assignments.length, 0);
+    const varningar = rooms.reduce((a, r) => a + r.enrollments.reduce((b, e) => b + e.student.warnings, 0), 0);
+
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="rounded-3xl border border-blue-500/40 bg-blue-500/5 p-6">
+          <h1 className="text-3xl font-extrabold text-blue-500">🍎 Lärarpanel — {profile.username}</h1>
+          <p className="mt-1 text-sm text-slate-400">Ditt klassrum. Dina krafter. Elever ser ALDRIG det här. 🔒</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/classroom"><Button className="bg-blue-600 hover:bg-blue-500">🏫 Klassrum</Button></Link>
+            <Link href="/classroom/analytics"><Button className="bg-blue-600 hover:bg-blue-500">📊 Analys</Button></Link>
+            <Link href="/dashboard/quizzes/new"><Button variant="outline">➕ Ny quiz</Button></Link>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 sm:grid-cols-4">
+          <Card className="border-blue-500/30">
+            <CardHeader><CardTitle>🏫 Klassrum</CardTitle></CardHeader>
+            <CardContent className="text-4xl font-extrabold text-blue-400">{rooms.length}</CardContent>
+          </Card>
+          <Card className="border-blue-500/30">
+            <CardHeader><CardTitle>👥 Elever</CardTitle></CardHeader>
+            <CardContent className="text-4xl font-extrabold text-blue-400">{students}</CardContent>
+          </Card>
+          <Card className="border-blue-500/30">
+            <CardHeader><CardTitle>📝 Läxor</CardTitle></CardHeader>
+            <CardContent className="text-4xl font-extrabold text-blue-400">{laxor}</CardContent>
+          </Card>
+          <Card className="border-blue-500/30">
+            <CardHeader><CardTitle>⚠️ Varningar</CardTitle></CardHeader>
+            <CardContent className="text-4xl font-extrabold text-amber-400">{varningar}</CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <Card className="border-blue-500/30">
+            <CardHeader><CardTitle>🏫 Dina klassrum</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {rooms.length === 0 && <p className="text-slate-400">Inga klassrum än — skapa ditt första! 🏫</p>}
+              {rooms.map((r) => (
+                <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-white">{r.name}</p>
+                    <span className="text-xs text-slate-400">👥 {r.enrollments.length} · 📝 {r.assignments.length}</span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Join-kod:</span>
+                    <span className="font-extrabold tracking-widest text-blue-300">{r.joinCode}</span>
+                    <CopyButton text={r.joinCode} />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>🎯 Dina quizar</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {quizzes.length === 0 && <p className="text-slate-400">Inga quizar än — skapa din första!</p>}
+              {quizzes.map((q) => (
+                <div key={q.id} className="flex items-center justify-between rounded-lg border border-slate-800 p-3">
+                  <span className="font-semibold">{q.title}</span>
+                  <Link href={`/host/${q.id}`}>
+                    <Button size="sm">▶ Starta</Button>
+                  </Link>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle>🏆 Toppspelare</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {topPlayers.map((p, i) => {
+                const t = rowTheme(i, p.role);
+                return (
+                  <div key={p.username} className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2">
+                    <span className={`font-extrabold ${t.cls}`}>
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {t.badge} {p.username}
+                    </span>
+                    <span className="text-slate-400">Lv {p.level} · {p.xp} XP</span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const collections = await prisma.flashcardCollection.findMany({
+    where: { creatorId: user.id },
+    include: { _count: { select: { flashcards: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const subtitle =
+    profile.role === "OWNER" ? "👑 ÄGARE — tronens väktare" :
+    profile.role === "ADMIN" ? "🛡️ ADMIN — ordningens väktare" :
+    profile.role === "SECURITY" ? "🕵️ SÄKERHET — alltid på vakt" :
+    `Nivå ${profile.level}-elev`;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -66,11 +168,9 @@ export default async function DashboardPage() {
           <p className="text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {profile.role !== "TEACHER" && (
-            <Link href="/play">
-              <Button size="lg">🎮 Gå med i ett spel</Button>
-            </Link>
-          )}
+          <Link href="/play">
+            <Button size="lg">🎮 Gå med i ett spel</Button>
+          </Link>
           <Link href="/dashboard/quizzes/new">
             <Button>➕ Ny quiz</Button>
           </Link>

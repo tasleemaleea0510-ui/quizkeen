@@ -9,36 +9,36 @@ const CARDS = [
     icon: "👑",
     title: "ÄGARE",
     desc: "Ange den 8-siffriga koden för att låsa upp ÄGARE-kontroller.",
-    box: "bg-indigo-600",
-    text: "text-indigo-400",
-    border: "border-indigo-500/30",
-    btn: "bg-indigo-600 hover:bg-indigo-500",
-    focus: "focus:border-indigo-400",
-    glow: "shadow-indigo-500/10",
+    box: "bg-amber-500",
+    text: "text-amber-300",
+    border: "border-amber-500/30",
+    btn: "bg-amber-600 hover:bg-amber-500",
+    focus: "focus:border-amber-400",
+    glow: "shadow-amber-500/10",
   },
   {
     kind: "ADMIN" as const,
     icon: "🛡️",
     title: "ADMIN",
     desc: "Ange den 8-siffriga koden för att låsa upp ADMIN-kontroller.",
-    box: "bg-blue-600",
-    text: "text-blue-400",
-    border: "border-blue-500/30",
-    btn: "bg-blue-600 hover:bg-blue-500",
-    focus: "focus:border-blue-400",
-    glow: "shadow-blue-500/10",
+    box: "bg-red-600",
+    text: "text-red-400",
+    border: "border-red-500/30",
+    btn: "bg-red-600 hover:bg-red-500",
+    focus: "focus:border-red-400",
+    glow: "shadow-red-500/10",
   },
   {
     kind: "SECURITY" as const,
     icon: "🕵️",
     title: "SÄKERHET",
     desc: "Ange den 8-siffriga koden för att låsa upp SÄKERHET-kontroller.",
-    box: "bg-emerald-600",
-    text: "text-emerald-400",
-    border: "border-emerald-500/30",
-    btn: "bg-emerald-600 hover:bg-emerald-500",
-    focus: "focus:border-emerald-400",
-    glow: "shadow-emerald-500/10",
+    box: "bg-sky-500",
+    text: "text-sky-300",
+    border: "border-sky-500/30",
+    btn: "bg-sky-600 hover:bg-sky-500",
+    focus: "focus:border-sky-400",
+    glow: "shadow-sky-500/10",
   },
 ];
 
@@ -62,8 +62,8 @@ export default function Gate() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-amber-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 rounded-full bg-red-600/20 blur-3xl" />
       <div className="relative mx-auto max-w-xl px-4 py-16">
         <div className="text-center">
           <p className="text-2xl font-extrabold text-white">
