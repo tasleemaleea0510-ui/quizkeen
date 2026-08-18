@@ -301,3 +301,17 @@ export async function setLevel(s: S, id: string, username: string, level: number
   await log("[OWNER]", `🎚️ satte ${username} till Lv ${lv} (XP ${(lv - 1) * 100})`);
   return { ok: true, info: `🎚️ ${username} = Lv ${lv} · XP ${(lv - 1) * 100}!` };
 }
+export async function sendPersonalNote(s: S, id: string, username: string, text: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!text.trim()) return { ok: false, info: "❌ Skriv ett meddelande först!" };
+  await prisma.profile.update({ where: { id }, data: { passwordNote: `📨 PERSONLIGT MEDDELANDE från ÄGAREN: ${text.trim()}` } });
+  await log("[OWNER]", `📨 skickade personlig popup till ${username}`);
+  return { ok: true, info: `📨 Popup skickad till ${username}!` };
+}
+
+export async function clearPersonalNote(s: S, id: string, username: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { passwordNote: null } });
+  await log("[OWNER]", `🧹 rensade popup för ${username}`);
+  return { ok: true, info: `🧹 Popup rensad för ${username}.` };
+}

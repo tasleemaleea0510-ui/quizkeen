@@ -5,7 +5,7 @@ import {
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,
-  resetXP, resetCoins, resetAll, setLevel,
+  resetXP, resetCoins, resetAll, setLevel, sendPersonalNote, clearPersonalNote,
 } from "../actions";
 
 type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number };
@@ -41,6 +41,7 @@ export default function OwnerPage() {
   const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
   const [approveMin, setApproveMin] = useState<Record<string, string>>({});
   const [lvl, setLvl] = useState("1");
+  const [pNote, setPNote] = useState("");
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem("cmd_session") || "null");
@@ -264,6 +265,14 @@ export default function OwnerPage() {
                     </div>
                     <button onClick={() => { if (confirm(`RADERA ${sel.username} FÖR ALLTID?`)) run(deleteUser(session, sel.id, sel.username)); }}
                       className="mt-3 rounded-lg bg-red-700 px-3 py-1 text-sm font-bold text-white">🗑️ RADERA ANVÄNDARE</button>
+                    <div className="mt-3 border-t border-slate-800 pt-3">
+                      <p className="text-sm font-bold text-slate-400">📨 Personligt meddelande (popup för BARA denna användare)</p>
+                      <textarea value={pNote} onChange={(e) => setPNote(e.target.value)} rows={2} placeholder="Skriv något bara denna personen ser..." className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => { run(sendPersonalNote(session, sel.id, sel.username, pNote)); setPNote(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">📨 Skicka popup</button>
+                        <button onClick={() => run(clearPersonalNote(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🧹 Rensa popup</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
