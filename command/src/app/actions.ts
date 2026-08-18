@@ -216,3 +216,44 @@ export async function adminUnban(s: S, username: string) {
   await log("[ADMIN]", `✅ unbannade ${username}`);
   return { ok: true };
 }
+export async function adminRequestBan(s: S, targetUsername: string, minutes: number, reason: string) {
+  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  const target = await prisma.profile.findUnique({ where: { username: targetUsername } });
+  if (!target || (target.role !== "STUDENT" && target.role !== "TEACHER")) return { ok: false, info: "❌ Kan inte banna staff!" };
+  const admin = await prisma.profile.findFirst({ where: { id: (s as any)._id } }).catch(() => null);
+  const adminName = "[ADMIN]";
+  await prisma.banRequest.create({
+    data: { adminUsername: adminName, targetUsername, minutes, reason: reason.trim() || null, status: "PENDING" },
+  });
+  await log("[ADMIN]", `🙏 bad om ban på ${targetUsername} (${minutes} min)`);
+  return { ok: true, info: "🙏 Begäran skickad till ägaren! Vänta på godkännande." };
+}
+
+export async function getOwnerExtra(s: S) {
+  if (!(await ok(s, "OWNER"))) return null;
+  const reqs = await prisma.banRequest.findMany({ orderBy: { createdAt: "desc" }, take: 30 });
+  return { requests: reqs.map((r) => ({ id: r.id, admin: r.adminUsername, target: r.targetUsername, reason: r.reason, minutes: r.minutes, status: r.status, createdAt: r.createdAt.toISOString() })) };
+}
+
+export async function approveBanRequest(s: S, requestId: string, minutes: number) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  const req = await prisma.banRequest.findUnique({ where: { id: requestId } });
+  if (!req || req.status !== "PENDING") return { ok: false, info: "❌ Redan hanterad!" };
+  const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
+  await prisma.profile.updateMany({
+    where: { username: req.targetUsername },
+    data: { bannedUntil: until, banMessage: `Du har blivit bannad (godkänt av ÄGAREN efter admin-begäran)${minutes > 0 ? ` i ${minutes} minuter` : " FÖR ALLTID"}.` },
+  });
+  await prisma.banRequest.update({ where: { id: requestId }, data: { status: "APPROVED" } });
+  await log("[OWNER]", `✅ godkände admin-ban på ${req.targetUsername} (${minutes} min)`);
+  return { ok: true, info: `✅ ${req.targetUsername} bannad i ${minutes <= 0 ? "ALLTID" : minutes + " min"}!` };
+}
+
+export async function rejectBanRequest(s: S, requestId: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  const req = await prisma.banRequest.findUnique({ where: { id: requestId } });
+  if (!req || req.status !== "PENDING") return { ok: false };
+  await prisma.banRequest.update({ where: { id: requestId }, data: { status: "REJECTED" } });
+  await log("[OWNER]", `❌ avslog admin-ban på ${req.targetUsername}`);
+  return { ok: true, info: `❌ Begäran för ${req.targetUsername} avslagen.` };
+}

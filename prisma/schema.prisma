@@ -249,3 +249,14 @@ model Participant {
 
   @@unique([gameSessionId, studentId])
 }
+model BanRequest {
+  id            String   @id @default(uuid())
+  adminUsername String
+  targetUsername String
+  reason        String?
+  minutes       Int
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  @@index([status])
+}
