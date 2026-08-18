@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import {
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
-  resolveMessage, approveSensitive,
+  resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,
 } from "../actions";
 
 type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number };
 
 const TABS = [
   { id: "stats", icon: "📊", label: "Översikt" },
+  { id: "requests", icon: "🙏", label: "Ban-begäranden" },
   { id: "users", icon: "👥", label: "Användare" },
   { id: "inbox", icon: "📨", label: "Inkorg" },
   { id: "broadcast", icon: "📢", label: "Sändning" },
@@ -22,6 +23,7 @@ export default function OwnerPage() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [data, setData] = useState<any>(null);
+  const [extra, setExtra] = useState<any>(null);
   const [tab, setTab] = useState("stats");
   const [sel, setSel] = useState<User | null>(null);
   const [q, setQ] = useState("");
@@ -36,6 +38,7 @@ export default function OwnerPage() {
   const [customPw, setCustomPw] = useState("");
   const [bc, setBc] = useState("");
   const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
+  const [approveMin, setApproveMin] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem("cmd_session") || "null");
@@ -45,9 +48,10 @@ export default function OwnerPage() {
   }, []);
 
   async function load(s: any) {
-    const d = await getOwnerData(s);
+    const [d, ex] = await Promise.all([getOwnerData(s), getOwnerExtra(s)]);
     if (!d) { localStorage.removeItem("cmd_session"); router.push("/"); return; }
     setData(d);
+    setExtra(ex);
     setBc(d.settings.broadcast ?? "");
     setCodes({ o: d.settings.ownerCode, a: d.settings.adminCode, sec: d.settings.securityCode });
   }
@@ -65,6 +69,8 @@ export default function OwnerPage() {
   if (!data) return <div className="flex min-h-screen items-center justify-center text-slate-400">Laddar tronen... 👑</div>;
 
   const filtered = data.users.filter((u: User) => u.username.toLowerCase().includes(q.toLowerCase()));
+  const pending = (extra?.requests ?? []).filter((r: any) => r.status === "PENDING");
+  const handled = (extra?.requests ?? []).filter((r: any) => r.status !== "PENDING");
 
   return (
     <div className="flex min-h-screen">
@@ -74,8 +80,11 @@ export default function OwnerPage() {
         <div className="mt-6 space-y-1">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`w-full rounded-xl px-4 py-2 text-left text-sm font-bold ${tab === t.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800"}`}>
+              className={`relative w-full rounded-xl px-4 py-2 text-left text-sm font-bold ${tab === t.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800"}`}>
               {t.icon} {t.label}
+              {t.id === "requests" && pending.length > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-red-600 px-2 text-xs font-extrabold text-white">{pending.length}</span>
+              )}
             </button>
           ))}
         </div>
@@ -99,7 +108,7 @@ export default function OwnerPage() {
                 ["👥 Användare", data.stats.users], ["🍎 Lärare", data.stats.teachers],
                 ["🎯 Quizar", data.stats.quizzes], ["🃏 Gloskortlekar", data.stats.decks],
                 ["🎮 Spel", data.stats.games], ["✨ Total XP", data.stats.totXP],
-                ["🪙 Totala mynt", data.stats.totCoins], ["📨 Olösta", data.inbox.filter((m: any) => !m.resolved).length],
+                ["🪙 Totala mynt", data.stats.totCoins], ["🙏 Väntande begäranden", pending.length],
               ].map(([label, val]) => (
                 <div key={label as string} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
                   <p className="text-xs font-bold text-slate-400">{label}</p>
@@ -107,6 +116,58 @@ export default function OwnerPage() {
                 </div>
               ))}
             </div>
+          </>
+        )}
+
+        {tab === "requests" && (
+          <>
+            <h1 className="text-2xl font-extrabold text-white">🙏 Ban-begäranden från admins</h1>
+            <p className="mt-1 text-sm text-slate-400">En admin vill banna någon längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge. 👑</p>
+
+            <h2 className="mt-6 text-lg font-extrabold text-amber-300">⏳ Väntande ({pending.length})</h2>
+            <div className="mt-3 space-y-3">
+              {pending.length === 0 && <p className="text-slate-500">Inga väntande begäranden. Alla admins sköter sig! 😎</p>}
+              {pending.map((r: any) => (
+                <div key={r.id} className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
+                  <p className="font-bold text-white">
+                    ⛔ <b>{r.target}</b> <span className="text-sm font-normal text-slate-400">· begärd av {r.admin} · ville ha {r.minutes <= 0 ? "FÖR ALLTID" : r.minutes + " min"}</span>
+                  </p>
+                  {r.reason && <p className="mt-1 text-sm text-slate-300">💬 "{r.reason}"</p>}
+                  <p className="mt-1 text-xs text-slate-500">{new Date(r.createdAt).toLocaleString("sv-SE")}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-slate-400">Godkänn i:</span>
+                    {[60, 1440, 2880, 10080].map((m) => (
+                      <button key={m} onClick={() => run(approveBanRequest(session, r.id, m))}
+                        className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white hover:bg-emerald-500">
+                        ✅ {m === 60 ? "1 tim" : m === 1440 ? "1 dag" : m === 2880 ? "2 dagar" : "1 vecka"}
+                      </button>
+                    ))}
+                    <input value={approveMin[r.id] ?? ""} onChange={(e) => setApproveMin((p) => ({ ...p, [r.id]: e.target.value }))}
+                      type="number" placeholder="egna min" className="w-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
+                    <button onClick={() => run(approveBanRequest(session, r.id, parseInt(approveMin[r.id] || "0") || 0))}
+                      className="rounded-lg bg-emerald-700 px-3 py-1 text-sm font-bold text-white">✅ Egen tid</button>
+                    <button onClick={() => run(approveBanRequest(session, r.id, 0))}
+                      className="rounded-lg bg-red-700 px-3 py-1 text-sm font-bold text-white">✅ FÖR ALLTID</button>
+                    <button onClick={() => run(rejectBanRequest(session, r.id))}
+                      className="rounded-lg border border-slate-600 px-3 py-1 text-sm font-bold text-slate-300 hover:bg-slate-800">❌ Avslå</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {handled.length > 0 && (
+              <>
+                <h2 className="mt-8 text-lg font-extrabold text-slate-400">📜 Hanterade</h2>
+                <div className="mt-3 space-y-2">
+                  {handled.map((r: any) => (
+                    <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm text-slate-400">
+                      <b className="text-white">{r.target}</b> — {r.status === "APPROVED" ? <span className="font-bold text-emerald-400">✅ Godkänd</span> : <span className="font-bold text-red-400">❌ Avslagen</span>}
+                      <span className="ml-2 text-xs text-slate-500">· {new Date(r.createdAt).toLocaleString("sv-SE")}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -130,7 +191,7 @@ export default function OwnerPage() {
                 <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">💰 XP &  mynt</p>
+                    <p className="text-sm font-bold text-slate-400">💰 XP & mynt</p>
                     <div className="mt-2 flex gap-2">
                       <input value={xpAmt} onChange={(e) => setXpAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                       <button onClick={() => run(giveXP(session, sel.id, sel.username, parseInt(xpAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+XP</button>
@@ -206,10 +267,6 @@ export default function OwnerPage() {
                       {m.message.startsWith("🔐") && (
                         <button onClick={() => run(approveSensitive(session, m.id, data.users.find((u: User) => u.username === m.about)?.id ?? "", m.about))}
                           className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">🔓 Godkänn (email + temp lösenord)</button>
-                      )}
-                      {m.message.startsWith("⛔") && (
-                        <button onClick={() => run(banUser(session, m.about, 60, "Bannad efter rapport från admin."))}
-                          className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">⛔ Banna 1 tim</button>
                       )}
                       <button onClick={() => run(resolveMessage(session, m.id))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">✅ Avvisa/lös</button>
                     </div>
