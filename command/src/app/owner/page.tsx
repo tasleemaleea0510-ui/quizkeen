@@ -5,6 +5,7 @@ import {
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,
+  resetXP, resetCoins, resetAll, setLevel,
 } from "../actions";
 
 type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number };
@@ -39,6 +40,7 @@ export default function OwnerPage() {
   const [bc, setBc] = useState("");
   const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
   const [approveMin, setApproveMin] = useState<Record<string, string>>({});
+  const [lvl, setLvl] = useState("1");
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem("cmd_session") || "null");
@@ -198,7 +200,7 @@ export default function OwnerPage() {
                 <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 p-4">
-                    <p className="text-sm font-bold text-slate-400">💰 XP & mynt</p>
+                    <p className="text-sm font-bold text-slate-400">💰 XP & mynt & 🎚️ nivå</p>
                     <div className="mt-2 flex gap-2">
                       <input value={xpAmt} onChange={(e) => setXpAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                       <button onClick={() => run(giveXP(session, sel.id, sel.username, parseInt(xpAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+XP</button>
@@ -208,6 +210,15 @@ export default function OwnerPage() {
                       <input value={coinAmt} onChange={(e) => setCoinAmt(e.target.value)} className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
                       <button onClick={() => run(giveCoins(session, sel.id, sel.username, parseInt(coinAmt) || 0))} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">+🪙</button>
                       <button onClick={() => run(giveCoins(session, sel.id, sel.username, -(parseInt(coinAmt) || 0)))} className="rounded-lg bg-red-600 px-3 py-1 text-sm font-bold text-white">-🪙</button>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <input value={lvl} onChange={(e) => setLvl(e.target.value)} type="number" placeholder="nivå" className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
+                      <button onClick={() => run(setLevel(session, sel.id, sel.username, parseInt(lvl) || 1))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🎚️ Sätt nivå (XP följer!)</button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-800 pt-3">
+                      <button onClick={() => run(resetXP(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🔄 Reset XP</button>
+                      <button onClick={() => run(resetCoins(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🔄 Reset mynt</button>
+                      <button onClick={() => { if (confirm(`TOTAL-RESET ${sel.username}? (XP + mynt + varningar)`)) run(resetAll(session, sel.id, sel.username)); }} className="rounded-lg bg-red-700 px-3 py-1 text-sm font-bold text-white">☢️ Reset ALLT</button>
                     </div>
                   </div>
 

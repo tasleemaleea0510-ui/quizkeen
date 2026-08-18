@@ -273,3 +273,31 @@ export async function rejectBanRequest(s: S, requestId: string) {
   await log("[OWNER]", `❌ avslog admin-ban på ${req.targetUsername}`);
   return { ok: true, info: `❌ Begäran för ${req.targetUsername} avslagen.` };
 }
+export async function resetXP(s: S, id: string, username: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { xp: 0, level: 1 } });
+  await log("[OWNER]", `🔄 nollställde XP för ${username}`);
+  return { ok: true, info: `🔄 ${username}: XP = 0 · Lv 1!` };
+}
+
+export async function resetCoins(s: S, id: string, username: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { coins: 0 } });
+  await log("[OWNER]", `🔄 nollställde mynt för ${username}`);
+  return { ok: true, info: `🔄 ${username}: mynt = 0!` };
+}
+
+export async function resetAll(s: S, id: string, username: string) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { xp: 0, level: 1, coins: 0, warnings: 0 } });
+  await log("[OWNER]", `☢️ TOTAL-RESET av ${username}`);
+  return { ok: true, info: `☢️ ${username}: TOTAL-RESET (XP + mynt + varningar)!` };
+}
+
+export async function setLevel(s: S, id: string, username: string, level: number) {
+  if (!(await ok(s, "OWNER"))) return { ok: false };
+  const lv = Math.max(1, Math.min(100000, level));
+  await prisma.profile.update({ where: { id }, data: { level: lv, xp: (lv - 1) * 100 } });
+  await log("[OWNER]", `🎚️ satte ${username} till Lv ${lv} (XP ${(lv - 1) * 100})`);
+  return { ok: true, info: `🎚️ ${username} = Lv ${lv} · XP ${(lv - 1) * 100}!` };
+}
