@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminData, adminBan, adminUnban, resolveMessage, adminRequestBan, adminGiveXP } from "../actions";
+import StaffChat from "@/components/staff-chat";
 
 type S = { role: string; code: string };
 const QUICK = [
@@ -94,6 +95,11 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+              <h2 className="text-xl font-extrabold text-white">💬 Chat</h2>
+              <div className="mt-3"><StaffChat s={s} accent="bg-red-600" /></div>
+            </div>
+
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
               <h2 className="text-xl font-extrabold text-white">📬 Inkorg</h2>
               <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">

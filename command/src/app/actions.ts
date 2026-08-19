@@ -315,3 +315,63 @@ export async function clearPersonalNote(s: S, id: string, username: string) {
   await log("[OWNER]", `🧹 rensade popup för ${username}`);
   return { ok: true, info: `🧹 Popup rensad för ${username}.` };
 }
+export async function getChats(s: S, channel: string) {
+  if (!(await ok(s, "STAFF"))) return null;
+  const allowed = channel === "STAFF" || channel.split("|").includes(s.role);
+  if (!allowed) return null;
+  const msgs = await prisma.staffChat.findMany({ where: { channel }, orderBy: { createdAt: "desc" }, take: 50 });
+  return msgs.reverse().map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
+}
+
+export async function sendChat(s: S, channel: string, text: string) {
+  if (!(await ok(s, "STAFF"))) return { ok: false };
+  const allowed = channel === "STAFF" || channel.split("|").includes(s.role);
+  if (!allowed || !text.trim()) return { ok: false };
+  await prisma.staffChat.create({ data: { channel, fromRole: s.role, text: text.trim().slice(0, 500) } });
+  return { ok: true };
+}
+
+export async function getSecurityData(s: S) {
+  if (!(await ok(s, "SECURITY"))) return null;
+  const [users, act] = await Promise.all([
+    prisma.profile.findMany({ orderBy: { xp: "desc" } }),
+    prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 40 }),
+  ]);
+  return {
+    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, warnings: u.warnings, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null })),
+    log: act.map((l) => ({ username: l.username, action: l.action, createdAt: l.createdAt.toISOString() })),
+  };
+}
+
+export async function secWarn(s: S, id: string, username: string) {
+  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  const target = await prisma.profile.findUnique({ where: { id } });
+  if (!target || (target.role !== "STUDENT" && target.role !== "TEACHER")) return { ok: false, info: "❌ Kan inte varna staff!" };
+  const w = target.warnings + 1;
+  if (w >= 3) {
+    await prisma.profile.update({ where: { id }, data: { warnings: 0 } });
+    await prisma.ownerMessage.create({ data: { fromUsername: "[SECURITY]", aboutUsername: username, message: `🚨 3 VARNINGAR från SÄKERHET — ${username} behöver en ägarkoll!` } });
+  } else {
+    await prisma.profile.update({ where: { id }, data: { warnings: w } });
+  }
+  await log("[SECURITY]", `⚠️ varnade ${username} (${w >= 3 ? "3 → ägaren!" : w + "/3"})`);
+  return { ok: true, info: `⚠️ ${username} varnad (${w >= 3 ? "skickad till ägaren!" : w + "/3"})` };
+}
+
+export async function secBan(s: S, username: string, minutes: number) {
+  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  const target = await prisma.profile.findUnique({ where: { username } });
+  if (!target || (target.role !== "STUDENT" && target.role !== "TEACHER")) return { ok: false, info: "❌ Kan inte banna staff!" };
+  const m = minutes === 60 ? 60 : 5;
+  const until = new Date(Date.now() + m * 60000);
+  await prisma.profile.updateMany({ where: { username }, data: { bannedUntil: until, banMessage: `Du har blivit bannad av SÄKERHET i ${m} minuter.` } });
+  await log("[SECURITY]", `⛔ kylde ner ${username} (${m} min)`);
+  return { ok: true, info: `⛔ ${username} nedkyld i ${m} min!` };
+}
+
+export async function secUnban(s: S, username: string) {
+  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  await prisma.profile.updateMany({ where: { username }, data: { bannedUntil: null, banMessage: null } });
+  await log("[SECURITY]", `✅ släppte ${username}`);
+  return { ok: true, info: `✅ ${username} är fri!` };
+}

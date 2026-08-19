@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+import StaffChat from "@/components/staff-chat";
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,
@@ -13,6 +14,7 @@ type User = { id: string; username: string; role: string; level: number; xp: num
 const TABS = [
   { id: "stats", icon: "📊", label: "Översikt" },
   { id: "requests", icon: "🙏", label: "Ban-begäranden" },
+  { id: "chat", icon: "💬", label: "Chat" },
   { id: "users", icon: "👥", label: "Användare" },
   { id: "inbox", icon: "📨", label: "Inkorg" },
   { id: "broadcast", icon: "📢", label: "Sändning" },
@@ -280,6 +282,12 @@ export default function OwnerPage() {
           </>
         )}
 
+        {tab === "chat" && (
+          <>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">💬 Stabs-chat</h1>
+            <div className="mt-4 max-w-2xl"><StaffChat s={session} accent="bg-amber-600" /></div>
+          </>
+        )}
         {tab === "inbox" && (
           <>
             <h1 className="gold-title text-2xl font-extrabold text-amber-300">📨 Inkorg</h1>

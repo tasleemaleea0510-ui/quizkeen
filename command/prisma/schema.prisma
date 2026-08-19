@@ -260,3 +260,12 @@ model BanRequest {
 
   @@index([status])
 }
+model StaffChat {
+  id        String   @id @default(uuid())
+  channel   String
+  fromRole  String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([channel])
+}
