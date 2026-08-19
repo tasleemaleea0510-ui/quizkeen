@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+async function ulog(who: string, action: string) {
+  await prisma.activity.create({ data: { username: who, action } });
+}
+
 export async function createClassroom(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,6 +19,7 @@ export async function createClassroom(formData: FormData): Promise<void> {
   await prisma.classroom.create({
     data: { name, description: (formData.get("description") as string)?.trim() || null, joinCode, ownerId: user.id },
   });
+  await ulog(profile.username, `🏫 skapade klassrummet ${name}`);
   revalidatePath("/classroom");
 }
 
@@ -30,6 +35,8 @@ export async function joinClassroom(formData: FormData): Promise<void> {
   });
   if (existing) return;
   await prisma.enrollment.create({ data: { classroomId: room.id, studentId: user.id } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `🔑 gick med i klassrummet ${room.name}`);
   revalidatePath("/classroom");
 }
 
@@ -44,6 +51,8 @@ export async function addCoTeacher(formData: FormData): Promise<void> {
   const teacher = await prisma.profile.findUnique({ where: { username } });
   if (!teacher || teacher.role !== "TEACHER") return;
   await prisma.classroom.update({ where: { id: roomId }, data: { coTeacherId: teacher.id } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `🧑‍🏫 bjöd in ${username} som med-lärare i ${room.name}`);
   revalidatePath("/classroom");
 }
 
@@ -74,6 +83,7 @@ export async function createAssignment(formData: FormData): Promise<void> {
       targetStudentId: target,
     },
   });
+  await ulog(profile.username, `📝 gav ut läxan ${quiz.title} till ${room.name}${target ? " (🎯 en specifik elev)" : ""}${provlage ? " ⏱️ prov-läge" : ""}`);
   revalidatePath("/classroom");
 }
 
@@ -87,6 +97,8 @@ export async function setQuizPrivate(formData: FormData): Promise<void> {
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz || quiz.creatorId !== user.id) return;
   await prisma.quiz.update({ where: { id: quizId }, data: { isPrivate: on, classroomId: on ? classroomId : null } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `${on ? "🔒 låste" : "🔓 låste upp"} quizzen ${quiz.title}`);
   revalidatePath("/classroom");
 }
 
@@ -104,6 +116,8 @@ export async function getLexa(assignmentId: string) {
   });
   if (!enrolled) return null;
   if (a.targetStudentId && a.targetStudentId !== user.id) return null;
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `👀 öppnade läxan ${a.title}`);
   const done = await prisma.assignmentCompletion.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId: user.id } },
   });
@@ -148,6 +162,7 @@ export async function completeLexa(assignmentId: string, correct: number, total:
       where: { id: user.id },
       data: { xp: newXp, coins: p.coins + correct * 2, level: Math.floor(newXp / 100) + 1 },
     });
+    await ulog(p.username, `✅ klarade läxan ${a.title} → ${score}% (${correct}/${total} rätt, +${xp} XP)`);
   }
   return { ok: true, score, xp };
 }
@@ -169,6 +184,8 @@ export async function giveStudentXP(formData: FormData): Promise<void> {
     where: { id: studentId },
     data: { xp: newXp, level: Math.floor(newXp / 100) + 1, lastGiftAt: new Date() },
   });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `🎁 gav +5 XP till ${student.username}`);
   revalidatePath("/classroom/analytics");
 }
 
@@ -197,6 +214,7 @@ export async function warnStudent(formData: FormData): Promise<void> {
   } else {
     await prisma.profile.update({ where: { id: studentId }, data: { warnings: w } });
   }
+  await ulog(teacher.username, `⚠️ varnade ${student.username} (${w >= 3 ? "3 → ägaren!" : w + "/3"})`);
   revalidatePath("/classroom/analytics");
 }
 
@@ -209,6 +227,8 @@ export async function setClassMessage(formData: FormData): Promise<void> {
   if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
   const text = (formData.get("message") as string)?.trim();
   await prisma.classroom.update({ where: { id: classroomId }, data: { message: text || null } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `📢 satte klass-meddelande i ${room.name}: "${text ?? ""}"`);
   revalidatePath("/classroom/analytics");
 }
 
@@ -230,6 +250,8 @@ export async function deleteAssignment(formData: FormData): Promise<void> {
   if (!a) return;
   if (a.classroom.ownerId !== user.id && a.classroom.coTeacherId !== user.id) return;
   await prisma.assignment.delete({ where: { id: assignmentId } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `🗑️ raderade läxan ${a.title}`);
   revalidatePath("/classroom");
 }
 
@@ -241,5 +263,7 @@ export async function clearAssignments(formData: FormData): Promise<void> {
   const room = await prisma.classroom.findUnique({ where: { id: classroomId } });
   if (!room || (room.ownerId !== user.id && room.coTeacherId !== user.id)) return;
   await prisma.assignment.deleteMany({ where: { classroomId } });
+  const prof = await prisma.profile.findUnique({ where: { id: user.id } });
+  await ulog(prof?.username ?? "okänd", `🧹 RENSADE ALLA läxor i ${room.name}`);
   revalidatePath("/classroom");
 }
