@@ -128,10 +128,12 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
               className="absolute right-4 top-4 rounded-xl bg-slate-800 px-3 py-1 text-lg font-bold text-slate-300 hover:bg-red-600/30 hover:text-white"
             >
               ✕
-            </button
-            
-            {note?.startsWith("📨") ? "📨 MEDDELANDE FRÅN ÄGAREN!" : "🔑 Lösenordet har återställts!"}
+            </button>
             <p className="text-5xl">{note?.startsWith("📨") ? "📨" : "🔑"}</p>
+            <h2 className="mt-4 text-2xl font-extrabold text-white">
+              {note?.startsWith("📨") ? "📨 MEDDELANDE FRÅN ÄGAREN!" : "🔑 Lösenordet har återställts!"}
+            </h2>
+            <p className="mt-3 whitespace-pre-wrap text-slate-300">{note}</p>
           </div>
         </div>
       )}
