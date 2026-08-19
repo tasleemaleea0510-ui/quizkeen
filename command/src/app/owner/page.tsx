@@ -5,7 +5,7 @@ import StaffChat from "../../components/staff-chat";
 import {
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
-  resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,
+  getOwnerExtra, approveBanRequest, rejectBanRequest,
   resetXP, resetCoins, resetAll, setLevel, sendPersonalNote, clearPersonalNote,
 } from "../actions";
 
@@ -134,7 +134,6 @@ export default function OwnerPage() {
           <>
             <h1 className="gold-title text-2xl font-extrabold text-amber-300">🙏 Ban-begäranden från admins</h1>
             <p className="mt-1 text-sm text-slate-400">En admin vill banna längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge. 👑</p>
-
             <h2 className="mt-6 text-lg font-extrabold text-amber-300">⏳ Väntande ({pending.length})</h2>
             <div className="mt-3 space-y-3">
               {pending.length === 0 && <p className="text-slate-500">Inga väntande begäranden. Alla admins sköter sig! 😎</p>}
@@ -165,7 +164,6 @@ export default function OwnerPage() {
                 </div>
               ))}
             </div>
-
             {handled.length > 0 && (
               <>
                 <h2 className="mt-8 text-lg font-extrabold text-slate-400">📜 Hanterade</h2>
@@ -179,6 +177,13 @@ export default function OwnerPage() {
                 </div>
               </>
             )}
+          </>
+        )}
+
+        {tab === "chat" && (
+          <>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">💬 Stabs-chat</h1>
+            <div className="mt-4 max-w-2xl"><StaffChat s={session} accent="bg-amber-600" /></div>
           </>
         )}
 
@@ -278,35 +283,6 @@ export default function OwnerPage() {
                 </div>
               </div>
             )}
-          </>
-        )}
-
-        {tab === "chat" && (
-          <>
-            <h1 className="gold-title text-2xl font-extrabold text-amber-300">💬 Stabs-chat</h1>
-            <div className="mt-4 max-w-2xl"><StaffChat s={session} accent="bg-amber-600" /></div>
-          </>
-        )}
-          <>
-            <h1 className="gold-title text-2xl font-extrabold text-amber-300">📨 Inkorg</h1>
-            <div className="mt-4 space-y-3">
-              {data.inbox.length === 0 && <p className="text-slate-500">Inga meddelanden än.</p>}
-              {data.inbox.map((m: any) => (
-                <div key={m.id} className={`rounded-xl border p-4 ${m.resolved ? "border-slate-800 bg-slate-900/40 opacity-60" : "border-amber-500/40 bg-amber-500/5"}`}>
-                  <p className="text-sm text-slate-400">från <b className="text-white">{m.from}</b> · om <b className="text-white">{m.about}</b></p>
-                  <p className="mt-1 whitespace-pre-wrap text-slate-200">{m.message}</p>
-                  {!m.resolved && (
-                    <div className="mt-3 flex gap-2">
-                      {m.message.startsWith("🔐") && (
-                        <button onClick={() => run(approveSensitive(session, m.id, data.users.find((u: User) => u.username === m.about)?.id ?? "", m.about))}
-                          className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">🔓 Godkänn (email + temp lösenord)</button>
-                      )}
-                      <button onClick={() => run(resolveMessage(session, m.id))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">✅ Avvisa/lös</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
           </>
         )}
 
