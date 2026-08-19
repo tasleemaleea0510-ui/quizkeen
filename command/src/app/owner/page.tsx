@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import StaffChat from "../../components/staff-chat";
 import {
-import StaffChat from "@/components/staff-chat";
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   resolveMessage, approveSensitive, getOwnerExtra, approveBanRequest, rejectBanRequest,

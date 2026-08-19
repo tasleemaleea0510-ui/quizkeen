@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSecurityData, secWarn, secBan, secUnban } from "../actions";
-import StaffChat from "@/components/staff-chat";
+import StaffChat from "../../components/staff-chat";
 
 type S = { role: string; code: string };
 

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminData, adminBan, adminUnban, resolveMessage, adminRequestBan, adminGiveXP } from "../actions";
-import StaffChat from "@/components/staff-chat";
+import StaffChat from "../../components/staff-chat";
 
 type S = { role: string; code: string };
 const QUICK = [
