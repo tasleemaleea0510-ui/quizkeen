@@ -120,7 +120,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-3xl border border-indigo-500/40 bg-slate-900 p-8 text-center shadow-2xl shadow-indigo-500/20">
             <button
- batch 72 fix5             onClick={async () => {
+              onClick={async () => {
                 setShowNote(false);
                 setNote(null);
                 await clearPasswordNote();
