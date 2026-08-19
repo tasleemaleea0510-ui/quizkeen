@@ -6,17 +6,17 @@ type S = { role: string; code: string };
 
 const CHANNELS: Record<string, { id: string; label: string }[]> = {
   OWNER: [
-    { id: "STAFF", label: "👥 Hela staben" },
+    { id: "STAFF", label: "👥 Hela chatten" },
     { id: "OWNER|ADMIN", label: "👑+️ Admins" },
     { id: "OWNER|SECURITY", label: "👑+🕵️ Säkerhet" },
   ],
   ADMIN: [
-    { id: "STAFF", label: "👥 Hela staben" },
+    { id: "STAFF", label: "👥 Hela chatten" },
     { id: "OWNER|ADMIN", label: "🛡️+👑 Ägaren" },
     { id: "ADMIN|SECURITY", label: "🛡️+🕵️ Säkerhet" },
   ],
   SECURITY: [
-    { id: "STAFF", label: "👥 Hela staben" },
+    { id: "STAFF", label: "👥 Hela chatten" },
     { id: "OWNER|SECURITY", label: "🕵️+👑 Ägaren" },
     { id: "ADMIN|SECURITY", label: "🕵️+🛡️ Admins" },
   ],

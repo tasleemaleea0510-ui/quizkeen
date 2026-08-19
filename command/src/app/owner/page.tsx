@@ -16,7 +16,6 @@ const TABS = [
   { id: "requests", icon: "🙏", label: "Ban-begäranden" },
   { id: "chat", icon: "💬", label: "Chat" },
   { id: "users", icon: "👥", label: "Användare" },
-  { id: "inbox", icon: "📨", label: "Inkorg" },
   { id: "broadcast", icon: "📢", label: "Sändning" },
   { id: "codes", icon: "🔢", label: "Koder" },
   { id: "log", icon: "📜", label: "Logg" },
@@ -288,7 +287,6 @@ export default function OwnerPage() {
             <div className="mt-4 max-w-2xl"><StaffChat s={session} accent="bg-amber-600" /></div>
           </>
         )}
-        {tab === "inbox" && (
           <>
             <h1 className="gold-title text-2xl font-extrabold text-amber-300">📨 Inkorg</h1>
             <div className="mt-4 space-y-3">

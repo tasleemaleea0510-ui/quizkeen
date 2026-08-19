@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminData, adminBan, adminUnban, resolveMessage, adminRequestBan, adminGiveXP } from "../actions";
+import { getAdminData, adminBan, adminUnban, adminRequestBan, adminGiveXP } from "../actions";
 import StaffChat from "../../components/staff-chat";
 
 type S = { role: string; code: string };
@@ -44,13 +44,12 @@ export default function AdminPage() {
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
             <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-300">👥 {data.users.length} användare</span>
             <span className="rounded-full bg-slate-900 px-3 py-1 text-red-400">⛔ {banned} bannade</span>
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-300">📬 {data.inbox.length} olösta</span>
           </div>
         </div>
 
         {info && <div className="mt-4 rounded-xl border border-red-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-red-300">{info}</div>}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-3">
           <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-2">
             <h2 className="text-xl font-extrabold text-white">👥 Användare</h2>
             <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-1">
@@ -98,20 +97,6 @@ export default function AdminPage() {
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
               <h2 className="text-xl font-extrabold text-white">💬 Chat</h2>
               <div className="mt-3"><StaffChat s={s} accent="bg-red-600" /></div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-              <h2 className="text-xl font-extrabold text-white">📬 Inkorg</h2>
-              <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
-                {data.inbox.length === 0 && <p className="text-sm text-slate-500">Inget olöst. Skönt! 😎</p>}
-                {data.inbox.map((m: any) => (
-                  <div key={m.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300">
-                    <p className="font-bold text-white">{m.from} → {m.about}</p>
-                    <p className="mt-1">{m.message}</p>
-                    <button onClick={async () => { await resolveMessage(s, m.id); refresh(); }} className="mt-2 rounded-lg bg-red-600/20 px-2 py-1 font-bold text-red-400">✅ Lös</button>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
