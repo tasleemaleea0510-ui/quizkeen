@@ -375,3 +375,9 @@ export async function secUnban(s: S, username: string) {
   await log("[SECURITY]", `✅ släppte ${username}`);
   return { ok: true, info: `✅ ${username} är fri!` };
 }
+export async function adminSetBroadcast(s: S, text: string) {
+  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  await prisma.adminSettings.update({ where: { id: 1 }, data: { broadcast: text.trim() || null } });
+  await log("[ADMIN]", text.trim() ? `📢 sände ut: "${text.trim()}"` : "🧹 rensade sändningen");
+  return { ok: true, info: text.trim() ? "📢 Sändning ute till HELA sajten!" : "🧹 Sändning rensad!" };
+}

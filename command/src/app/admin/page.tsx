@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminData, adminBan, adminUnban, adminRequestBan, adminGiveXP } from "../actions";
+import { getAdminData, adminBan, adminUnban, adminRequestBan, adminGiveXP, adminSetBroadcast } from "../actions";
 import StaffChat from "../../components/staff-chat";
 
 type S = { role: string; code: string };
@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [s, setS] = useState<S | null>(null);
   const [data, setData] = useState<any>(null);
   const [info, setInfo] = useState("");
+  const [bc, setBc] = useState("");
   const [askFor, setAskFor] = useState<string | null>(null);
   const [askMin, setAskMin] = useState(2880);
   const [askReason, setAskReason] = useState("");
@@ -94,6 +95,16 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+              <h2 className="text-xl font-extrabold text-white">📢 Global sändning</h2>
+              <p className="mt-1 text-xs text-slate-500">ALLA användare ser detta som en gul banderoll. Ägaren ser i loggen när du sänder. 👁️</p>
+              <textarea value={bc} onChange={(e) => setBc(e.target.value)} rows={2} placeholder="Skriv ett meddelande till HELA sajten..." className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-white placeholder:text-slate-500" />
+              <div className="mt-2 flex gap-2">
+                <button onClick={async () => { const r = await adminSetBroadcast(s, bc); setInfo(r.info || "📢 Sänt!"); setBc(""); refresh(); }} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500">📢 Sänd</button>
+                <button onClick={async () => { setBc(""); await adminSetBroadcast(s, ""); setInfo("🧹 Sändning rensad!"); refresh(); }} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white">🧹 Rensa</button>
+              </div>
+            </div>
+
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
               <h2 className="text-xl font-extrabold text-white">💬 Chat</h2>
               <div className="mt-3"><StaffChat s={s} accent="bg-red-600" /></div>
