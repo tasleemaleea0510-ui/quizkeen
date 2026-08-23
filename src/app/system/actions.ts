@@ -38,3 +38,7 @@ export async function getProfileStats() {
 export async function logActivity(username: string, action: string) {
   await prisma.activity.create({ data: { username, action } });
 }
+export async function getBroadcast() {
+  const s = await prisma.adminSettings.findUnique({ where: { id: 1 } });
+  return s?.broadcast ?? null;
+}

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { clearPasswordNote, getPasswordNote, getBanStatus } from "@/app/system/actions";
+import { clearPasswordNote, getPasswordNote, getBanStatus, getBroadcast } from "@/app/system/actions";
 
 export function MaintenanceScreen() {
   return (
@@ -88,31 +88,34 @@ export function LiveBan({ serverBanned, until, message }: { serverBanned: boolea
 }
 
 export function Overlays({ broadcast, passwordNote }: { broadcast: string | null; passwordNote: string | null }) {
+  const [bc, setBc] = useState(broadcast);
   const [note, setNote] = useState(passwordNote);
   const [showNote, setShowNote] = useState(!!passwordNote);
 
   useEffect(() => {
     const iv = setInterval(async () => {
-      const n = await getPasswordNote();
+      const [n, b] = await Promise.all([getPasswordNote(), getBroadcast()]);
       if (n) {
         setNote(n);
         setShowNote(true);
       }
+      setBc(b);
     }, 8000);
     return () => clearInterval(iv);
   }, []);
 
   return createPortal(
     <>
-      {broadcast && (
+      {bc && (
         <div className="fixed left-0 right-0 top-16 z-30 overflow-hidden border-b border-amber-500/40 bg-gradient-to-r from-amber-600/20 via-amber-400/10 to-amber-600/20 backdrop-blur">
           <style>{`
             .qk-marquee { width: max-content; animation: qk-scroll 16s linear infinite; }
             @keyframes qk-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
           `}</style>
           <div className="qk-marquee flex whitespace-nowrap py-2 text-sm font-extrabold text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.7)]">
-            <span className="px-8">📢 {broadcast}</span>
-            <span className="px-8">📢 {broadcast}</span>
+            {[...Array(8)].map((_, i) => (
+              <span key={i} className="px-8">📢 {bc}</span>
+            ))}
           </div>
         </div>
       )}
