@@ -113,7 +113,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
             @keyframes qk-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
           `}</style>
           <div className="qk-marquee flex whitespace-nowrap py-2 text-sm font-extrabold text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.7)]">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(24)].map((_, i) => (
               <span key={i} className="px-8">📢 {bc}</span>
             ))}
           </div>
