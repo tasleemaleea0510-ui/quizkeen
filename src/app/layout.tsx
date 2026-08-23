@@ -8,6 +8,7 @@ import ClassBanner from "@/components/class-banner";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
+import StudentChatBubble from "@/components/student-chat";
 
 export const metadata: Metadata = {
   title: "QuizKeen 🎮 Lär. Spela. Tävla.",
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             message={profile?.banMessage ?? null}
           />
           {!banned && !settings?.shutdown && (
+            
             <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
           )}
         </Providers>

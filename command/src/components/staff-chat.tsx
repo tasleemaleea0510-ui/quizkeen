@@ -7,18 +7,21 @@ type S = { role: string; code: string };
 const CHANNELS: Record<string, { id: string; label: string }[]> = {
   OWNER: [
     { id: "STAFF", label: "👥 Hela chatten" },
-    { id: "OWNER|ADMIN", label: "👑+️ Admins" },
+    { id: "OWNER|ADMIN", label: "👑+🛡️ Admins" },
     { id: "OWNER|SECURITY", label: "👑+🕵️ Säkerhet" },
+    { id: "STU|OWNER", label: "🎓 Elever → dig" },
   ],
   ADMIN: [
     { id: "STAFF", label: "👥 Hela chatten" },
     { id: "OWNER|ADMIN", label: "🛡️+👑 Ägaren" },
     { id: "ADMIN|SECURITY", label: "🛡️+🕵️ Säkerhet" },
+    { id: "STU|ADMIN", label: "🎓 Elever → dig" },
   ],
   SECURITY: [
     { id: "STAFF", label: "👥 Hela chatten" },
     { id: "OWNER|SECURITY", label: "🕵️+👑 Ägaren" },
     { id: "ADMIN|SECURITY", label: "🕵️+🛡️ Admins" },
+    { id: "STU|SECURITY", label: "🎓 Elever → dig" },
   ],
 };
 
@@ -69,7 +72,7 @@ export default function StaffChat({ s, accent }: { s: S; accent: string }) {
         {msgs.length === 0 && <p className="text-xs text-slate-500">Inga meddelanden ännu — säj hej! 👋</p>}
         {msgs.map((m) => (
           <div key={m.id} className="rounded-lg bg-slate-900/60 px-3 py-2 text-xs">
-            <p className={`font-extrabold ${ROLE_STYLE[m.from] ?? "text-slate-300"}`}>
+            <p className={`font-extrabold ${ROLE_STYLE[m.from] ?? (m.from.startsWith("🎓") ? "text-emerald-300" : "text-slate-300")}`}>
               {ROLE_ICON[m.from] ?? ""} {m.from} <span className="ml-1 font-normal text-slate-600">{new Date(m.createdAt).toLocaleTimeString("sv-SE")}</span>
             </p>
             <p className="mt-0.5 text-slate-200">{m.text}</p>

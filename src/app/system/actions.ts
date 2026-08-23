@@ -42,3 +42,28 @@ export async function getBroadcast() {
   const s = await prisma.adminSettings.findUnique({ where: { id: 1 } });
   return s?.broadcast ?? null;
 }
+export async function studentSendChat(targetRole: string, text: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const p = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (!p) return { ok: false };
+  if (!["OWNER", "ADMIN", "SECURITY"].includes(targetRole)) return { ok: false };
+  if (!text.trim()) return { ok: false };
+  await prisma.staffChat.create({ data: { channel: `STU|${targetRole}`, fromRole: `🎓 ${p.username}`, text: text.trim().slice(0, 500) } });
+  return { ok: true };
+}
+export async function studentGetChats(targetRole: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const p = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (!p) return null;
+  if (!["OWNER", "ADMIN", "SECURITY"].includes(targetRole)) return null;
+  const msgs = await prisma.staffChat.findMany({
+    where: { channel: `STU|${targetRole}`, OR: [{ fromRole: `🎓 ${p.username}` }, { fromRole: targetRole }] },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+  });
+  return msgs.map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
+}
