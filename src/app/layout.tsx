@@ -43,15 +43,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Footer />
           </div>
           <LiveStats initial={profile ? { xp: profile.xp, coins: profile.coins, level: profile.level } : null} />
-           <ClassBanner />
+          <ClassBanner />
           <LiveBan
             serverBanned={banned}
             until={profile?.bannedUntil ? profile.bannedUntil.toISOString() : null}
             message={profile?.banMessage ?? null}
           />
           {!banned && !settings?.shutdown && (
-            <StudentChatBubble />
-            <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
+            <>
+              <StudentChatBubble />
+              <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
+            </>
           )}
         </Providers>
       </body>
