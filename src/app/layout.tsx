@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             message={profile?.banMessage ?? null}
           />
           {!banned && !settings?.shutdown && (
-            
+            <StudentChatBubble />
             <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
           )}
         </Providers>
