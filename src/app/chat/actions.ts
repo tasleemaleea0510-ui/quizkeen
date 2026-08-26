@@ -12,9 +12,9 @@ async function me() {
 async function canSee(p: any, channel: string): Promise<boolean> {
   if (["OWNER", "ADMIN", "SECURITY"].includes(p.role)) return true;
   if (channel.startsWith("CLASS|")) {
-    const room = await prisma.classroom.findUnique({ where: { id: channel.slice(6) }, include: { students: true } });
+    const room = await prisma.classroom.findUnique({ where: { id: channel.slice(6) }, include: { enrollments: true } });
     if (!room) return false;
-    return room.ownerId === p.id || room.coTeacherId === p.id || room.students.some((s) => s.studentId === p.id);
+    return room.ownerId === p.id || room.coTeacherId === p.id || room.enrollments.some((s) => s.studentId === p.id);
   }
   if (channel.startsWith("TS|") || channel.startsWith("DM|")) {
     const parts = channel.split("|");
@@ -33,10 +33,10 @@ export async function getChatHub() {
   if (p.role === "TEACHER" || p.role === "OWNER") {
     const rooms = await prisma.classroom.findMany({
       where: p.role === "TEACHER" ? { OR: [{ ownerId: p.id }, { coTeacherId: p.id }] } : {},
-      include: { students: { include: { student: { select: { username: true } } } } },
+      include: { enrollments: { include: { student: { select: { username: true } } } } },
     });
     const set = new Set<string>();
-    rooms.forEach((r) => r.students.forEach((s) => set.add(s.student.username)));
+    rooms.forEach((r) => r.enrollments.forEach((s) => set.add(s.student.username)));
     students = [...set];
   }
   const reqs = await prisma.chatRequest.findMany({ where: { OR: [{ toUser: p.username }, { fromUser: p.username }] }, orderBy: { createdAt: "desc" }, take: 30 });
