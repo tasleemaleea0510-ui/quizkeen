@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getChatHub, getChat, sendTo, requestChat, respondChat } from "./actions";
 
-const EMOJIS = ["😂", "🔥", "", "❤️", "😮", "🤝", "", "🏆"];
+const EMOJIS = ["😂", "🔥", "", "❤️", "😮", "🤝", "😭", "🏆", "😎", "", "😡", "👀", "", "🙏", "👑", "", "", "😴", "", "💯"];
 
 export default function ChatPage() {
   const [hub, setHub] = useState<any>(null);
@@ -16,18 +16,26 @@ export default function ChatPage() {
 
   useEffect(() => {
     let on = true;
-    async function pullHub() { const h = await getChatHub(); if (on && h) setHub(h); }
+    async function pullHub() {
+      if (document.hidden) return;
+      const h = await getChatHub();
+      if (on && h) setHub(h);
+    }
     pullHub();
-    const iv = setInterval(pullHub, 5000);
+    const iv = setInterval(pullHub, 10000);
     return () => { on = false; clearInterval(iv); };
   }, []);
 
   useEffect(() => {
     if (!chan) return;
     let on = true;
-    async function pull() { const m = await getChat(chan!); if (on && m) setMsgs(m); }
+    async function pull() {
+      if (document.hidden) return;
+      const m = await getChat(chan!);
+      if (on && m) setMsgs(m);
+    }
     pull();
-    const iv = setInterval(pull, 4000);
+    const iv = setInterval(pull, 6000);
     return () => { on = false; clearInterval(iv); };
   }, [chan]);
 
@@ -41,7 +49,8 @@ export default function ChatPage() {
     convos.push({ chan: `CLASS|${c.id}`, label: `🏫 ${c.name} — klass-chatten` });
     convos.push({ chan: `TS|${c.teacher}|${me}`, label: `🍎 ${c.teacher} (privat)` });
   });
-  hub.students.forEach((s: string) => convos.push({ chan: `TS|${me}|${s}`, label: `🎓 ${s} (privat)` }));
+  const teacherNames = hub.classes.map((c: any) => c.teacher);
+  hub.students.forEach((s: string) => { if (!teacherNames.includes(s)) convos.push({ chan: `TS|${me}|${s}`, label: `🎓 ${s} (privat)` }); });
   convos.push({ chan: "STU|OWNER", label: "👑 Ägaren" });
   convos.push({ chan: "STU|ADMIN", label: "🛡️ Admin" });
   convos.push({ chan: "STU|SECURITY", label: "🕵️ Säkerhet" });
@@ -64,7 +73,7 @@ export default function ChatPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-extrabold text-white">💬 Chat</h1>
-      <p className="mt-1 text-sm text-slate-400">Klass-chattar · privat med lärare & vänner · personalen. Schack-stil, QuizKeen-känsla. ♟️</p>
+      <p className="mt-1 text-sm text-slate-400">Klass-chattar · privat med lärare & vänner · personalen.</p>
       {info && <div className="mt-3 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-sm font-bold text-indigo-300">{info} <button onClick={() => setInfo("")}>✕</button></div>}
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-3">
@@ -120,9 +129,9 @@ export default function ChatPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-2 flex gap-1">
+              <div className="mt-2 flex flex-wrap gap-1">
                 {EMOJIS.map((e) => (
-                  <button key={e} onClick={() => send(e)} className="rounded-lg bg-slate-800 px-2 py-1 text-lg hover:bg-slate-700">{e}</button>
+                  <button key={e} onClick={() => setText((t) => t + e)} className="rounded-lg bg-slate-800 px-2 py-1 text-lg hover:bg-slate-700">{e}</button>
                 ))}
               </div>
               <div className="mt-2 flex gap-2">
