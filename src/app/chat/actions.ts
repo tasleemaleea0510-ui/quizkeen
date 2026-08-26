@@ -37,7 +37,7 @@ export async function getChatHub() {
     });
     const set = new Set<string>();
     rooms.forEach((r) => r.enrollments.forEach((s) => set.add(s.student.username)));
-    students = [...set];
+    students = Array.from(set);
   }
   const reqs = await prisma.chatRequest.findMany({ where: { OR: [{ toUser: p.username }, { fromUser: p.username }] }, orderBy: { createdAt: "desc" }, take: 30 });
   return {
