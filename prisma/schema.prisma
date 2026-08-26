@@ -269,3 +269,12 @@ model StaffChat {
 
   @@index([channel])
 }
+model ChatRequest {
+  id        String   @id @default(uuid())
+  fromUser  String
+  toUser    String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+
+  @@index([toUser])
+}
