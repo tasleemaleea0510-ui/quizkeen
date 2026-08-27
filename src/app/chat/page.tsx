@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getChatHub, getChat, sendTo, requestChat, respondChat } from "./actions";
 
-const EMOJIS = ["😂", "🔥", "", "❤️", "😮", "🤝", "😭", "🏆", "😎", "🎉", "😡", "👀", "", "🙏", "👑", "😊", "🥳", "😴", "🤯", "💯"];
+const EMOJIS = ["\uD83D\uDE02", "\uD83D\uDD25", "\uD83D\uDC4D", "\u2764\uFE0F", "\uD83D\uDE2E", "\uD83E\uDD1D", "\uD83D\uDE2D", "\uD83C\uDFC6", "\uD83D\uDE0E", "\uD83C\uDF89", "\uD83D\uDE21", "\uD83D\uDC40", "\uD83D\uDC80", "\uD83D\uDE4F", "\uD83D\uDC51", "\uD83D\uDE0A", "\uD83E\uDD73", "\uD83D\uDE34", "\uD83E\uDD2F", "\uD83D\uDCAF"];
 
 export default function ChatPage() {
   const [hub, setHub] = useState<any>(null);
