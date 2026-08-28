@@ -67,3 +67,52 @@ export async function studentGetChats(targetRole: string) {
   });
   return msgs.map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
 }
+export async function getRenameRequest() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+  const p = await prisma.profile.findUnique({ where: { id: user.id } });
+  return !!p?.renameRequested;
+}
+export async function acceptRename(newName: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, info: "❌ Inte inloggad!" };
+  const n = newName.trim();
+  if (n.length < 3 || n.length > 20) return { ok: false, info: "❌ 3-20 tecken!" };
+  const existing = await prisma.profile.findUnique({ where: { username: n } });
+  if (existing && existing.id !== user.id) return { ok: false, info: "❌ Namnet är upptaget!" };
+  await prisma.profile.update({ where: { id: user.id }, data: { username: n, renameRequested: false } });
+  return { ok: true, info: "✅ Nytt namn sparat!" };
+}
+export async function pingPresence(path: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  await prisma.profile.update({ where: { id: user.id }, data: { lastSeenAt: new Date(), livePath: path } });
+  return { ok: true };
+}
+export async function getLiveState() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const p = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (!p) return null;
+  return { tos: !!p.tosAccepted, live: { requested: !!p.liveRequested, staffPeerId: p.livePeerId } };
+}
+
+export async function acceptTos() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  await prisma.profile.update({ where: { id: user.id }, data: { tosAccepted: true } });
+  return { ok: true };
+}
+
+export async function declineLive() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  await prisma.profile.update({ where: { id: user.id }, data: { liveRequested: false, livePeerId: null } });
+  return { ok: true };
+}

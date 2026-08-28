@@ -26,6 +26,12 @@ model Profile {
   banMessage  String?
   passwordNote String?
   warnings    Int       @default(0)
+  renameRequested Boolean @default(false)
+  lastSeenAt  DateTime?
+  livePath    String?
+  tosAccepted   Boolean  @default(false)
+  liveRequested Boolean  @default(false)
+  livePeerId    String?
   lastGiftAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -194,7 +200,7 @@ model Assignment {
   bonusXP     Int       @default(20)
   provlage    Boolean   @default(false)
   targetStudentId String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
   classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   quiz        Quiz?      @relation(fields: [quizId], references: [id], onDelete: SetNull)
@@ -245,10 +251,11 @@ model Participant {
   joinedAt      DateTime    @default(now())
 
   gameSession  GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-  student      Profile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student     Profile      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([gameSessionId, studentId])
 }
+
 model BanRequest {
   id            String   @id @default(uuid())
   adminUsername String
@@ -260,6 +267,7 @@ model BanRequest {
 
   @@index([status])
 }
+
 model StaffChat {
   id        String   @id @default(uuid())
   channel   String
@@ -269,6 +277,7 @@ model StaffChat {
 
   @@index([channel])
 }
+
 model ChatRequest {
   id        String   @id @default(uuid())
   fromUser  String

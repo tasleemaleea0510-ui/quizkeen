@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffChat from "../../components/staff-chat";
+import LiveViewer from "../../components/live-viewer";
 import {
   getOwnerData, banUser, unbanUser, giveXP, giveCoins, renameUser, setRole,
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   getOwnerExtra, approveBanRequest, rejectBanRequest,
   resetXP, resetCoins, resetAll, setLevel, sendPersonalNote, clearPersonalNote,
+  requestRename,
+  requestLive,
 } from "../actions";
 
-type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number };
+type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number; lastSeenAt: string | null; livePath: string | null };
 
 const TABS = [
   { id: "stats", icon: "📊", label: "Översikt" },
@@ -28,6 +31,7 @@ export default function OwnerPage() {
   const [extra, setExtra] = useState<any>(null);
   const [tab, setTab] = useState("stats");
   const [sel, setSel] = useState<User | null>(null);
+  const [liveFor, setLiveFor] = useState<any>(null);
   const [q, setQ] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,6 +53,8 @@ export default function OwnerPage() {
     if (!s || s.role !== "OWNER") { router.push("/"); return; }
     setSession(s);
     load(s);
+    const iv = setInterval(() => load(s), 20000);
+    return () => clearInterval(iv);
   }, []);
 
   async function load(s: any) {
@@ -101,6 +107,7 @@ export default function OwnerPage() {
       </aside>
 
       <main className="gold-bg flex-1 p-8">
+        {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
         {busy && (
           <div className="gold-glow fixed bottom-4 right-4 z-50 rounded-xl bg-amber-600 px-4 py-2 text-sm font-extrabold text-white">⏳ Jobbar...</div>
         )}
@@ -196,7 +203,7 @@ export default function OwnerPage() {
               {filtered.map((u: User) => (
                 <button key={u.id} onClick={() => { setSel(u); setNewName(u.username); }}
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${sel?.id === u.id ? "border-amber-500 bg-amber-500/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
-                  <span className="font-bold text-white">{u.username} {u.bannedUntil && "⛔"}</span>
+                  <span className="font-bold text-white">{u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000 ? "🟢" : "⚪"} {u.username} {u.bannedUntil && "⛔"} {u.livePath && <span className="ml-2 rounded bg-emerald-500/10 px-1 text-xs text-emerald-400">👀 {u.livePath}</span>}</span>
                   <span className="text-sm text-slate-400">{u.role} · Lv {u.level} · {u.xp} XP · {u.coins} 🪙</span>
                 </button>
               ))}
@@ -241,6 +248,11 @@ export default function OwnerPage() {
                       </select>
                       <button onClick={() => run(setRole(session, sel.id, sel.username, (document.getElementById("role-sel") as HTMLSelectElement).value))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🎭</button>
                     </div>
+                    <div className="mt-3 border-t border-slate-800 pt-3">
+                      <p className="text-sm font-bold text-slate-400">🎥 LIVE-skärmdelning</p>
+                      <button onClick={async () => { const pid = "qk-staff-" + Date.now(); await requestLive(session, sel.id, sel.username, pid); setLiveFor({ username: sel.username, pid }); setInfo(`🎥 Förfrågan skickad till ${sel.username}!`); }}
+                        className="mt-2 w-full rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-500">🎥 Be om LIVE-skärm</button>
+                    </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-800 p-4">
@@ -277,6 +289,7 @@ export default function OwnerPage() {
                       <div className="mt-2 flex gap-2">
                         <button onClick={() => { run(sendPersonalNote(session, sel.id, sel.username, pNote)); setPNote(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">📨 Skicka popup</button>
                         <button onClick={() => run(clearPersonalNote(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🧹 Rensa popup</button>
+                        <button onClick={() => run(requestRename(session, sel.id, sel.username))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">✏️ Be om namnbyte (LÅSER sajten)</button>
                       </div>
                     </div>
                   </div>

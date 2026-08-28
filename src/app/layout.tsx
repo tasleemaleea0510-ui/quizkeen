@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
 import StudentChatBubble from "@/components/student-chat";
+import PresencePing from "@/components/presence-ping";
+import LiveShareClient from "@/components/live-share-client";
 
 export const metadata: Metadata = {
   title: "QuizKeen 🎮 Lär. Spela. Tävla.",
@@ -52,6 +54,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {!banned && !settings?.shutdown && (
             <>
               <StudentChatBubble />
+              <PresencePing />
+              <LiveShareClient />
               <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
             </>
           )}

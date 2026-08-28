@@ -27,6 +27,8 @@ export default function AdminPage() {
     if (!sess || sess.role !== "ADMIN") { router.replace("/"); return; }
     setS(sess);
     getAdminData(sess).then((d) => (d ? setData(d) : router.replace("/")));
+    const iv = setInterval(() => getAdminData(sess).then((d) => d && setData(d)), 20000);
+    return () => clearInterval(iv);
   }, [router]);
 
   async function refresh() { if (s) setData(await getAdminData(s)); }
@@ -58,7 +60,7 @@ export default function AdminPage() {
                 <div key={u.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold text-white">
-                      {u.username} <span className="ml-1 text-xs text-slate-500">{u.role} · Lv {u.level} · {u.xp} XP</span>
+                      {u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000 ? "🟢" : "⚪"} {u.username} <span className="ml-1 text-xs text-slate-500">{u.role} · Lv {u.level} · {u.xp} XP</span> {u.livePath && <span className="ml-2 rounded bg-emerald-500/10 px-1 text-xs text-emerald-400">👀 {u.livePath}</span>}
                       {u.bannedUntil && <span className="ml-2 rounded-full bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400">⛔ BANNAD</span>}
                     </p>
                     {(u.role === "STUDENT" || u.role === "TEACHER") &&

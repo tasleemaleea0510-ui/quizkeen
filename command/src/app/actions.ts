@@ -381,3 +381,15 @@ export async function adminSetBroadcast(s: S, text: string) {
   await log("[ADMIN]", text.trim() ? `📢 sände ut: "${text.trim()}"` : "🧹 rensade sändningen");
   return { ok: true, info: text.trim() ? "📢 Sändning ute till HELA sajten!" : "🧹 Sändning rensad!" };
 }
+export async function requestRename(s: S, id: string, username: string) {
+  if (!(await ok(s, "STAFF"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { renameRequested: true } });
+  await log("[STAFF]", `✏️ begärde namnbyte av ${username} (sajten låst tills nytt namn)`);
+  return { ok: true, info: `✏️ ${username} måste byta namn för att fortsätta!` };
+}
+export async function requestLive(s: S, id: string, username: string, staffPeerId: string) {
+  if (!(await ok(s, "STAFF"))) return { ok: false };
+  await prisma.profile.update({ where: { id }, data: { liveRequested: true, livePeerId: staffPeerId } });
+  await log("[STAFF]", `🎥 begärde LIVE-skärm av ${username}`);
+  return { ok: true, info: `🎥 Förfrågan skickad till ${username}!` };
+}
