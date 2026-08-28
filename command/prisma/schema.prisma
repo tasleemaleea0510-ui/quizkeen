@@ -21,7 +21,7 @@ model Profile {
   role        Role      @default(STUDENT)
   xp          Int       @default(0)
   coins       Int       @default(0)
-  level       batch 78d MEGA UPDATE       @default(1)
+  level       Int       @default(1)
   bannedUntil DateTime?
   banMessage  String?
   passwordNote String?
