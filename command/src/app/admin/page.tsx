@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminData, adminBan, adminUnban, adminRequestBan, adminGiveXP, adminSetBroadcast } from "../actions";
 import StaffChat from "../../components/staff-chat";
+import LiveViewer from "../../components/live-viewer";
+import { requestLive } from "../actions";
 
 type S = { role: string; code: string };
 const QUICK = [
@@ -16,6 +18,7 @@ export default function AdminPage() {
   const [s, setS] = useState<S | null>(null);
   const [data, setData] = useState<any>(null);
   const [info, setInfo] = useState("");
+  const [liveFor, setLiveFor] = useState<any>(null);
   const [bc, setBc] = useState("");
   const [askFor, setAskFor] = useState<string | null>(null);
   const [askMin, setAskMin] = useState(2880);
@@ -49,7 +52,8 @@ export default function AdminPage() {
             <span className="rounded-full bg-slate-900 px-3 py-1 text-red-400">⛔ {banned} bannade</span>
           </div>
         </div>
-
+        
+        {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
         {info && <div className="mt-4 rounded-xl border border-red-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-red-300">{info}</div>}
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-3">
@@ -61,6 +65,7 @@ export default function AdminPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold text-white">
                       {u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000 ? "🟢" : "⚪"} {u.username} <span className="ml-1 text-xs text-slate-500">{u.role} · Lv {u.level} · {u.xp} XP</span> {u.livePath && <span className="ml-2 rounded bg-emerald-500/10 px-1 text-xs text-emerald-400">👀 {u.livePath}</span>}
+                      <button onClick={async () => { const pid = "qk-staff-" + Date.now(); await requestLive(s, u.id, u.username, pid); setLiveFor({ username: u.username, pid }); }} className="mt-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white">🎥 Live</button>
                       {u.bannedUntil && <span className="ml-2 rounded-full bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400">⛔ BANNAD</span>}
                     </p>
                     {(u.role === "STUDENT" || u.role === "TEACHER") &&

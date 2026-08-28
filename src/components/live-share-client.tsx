@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Peer from "peerjs";
-import { getLiveState, acceptTos, declineLive } from "@/app/system/actions";
+import { getLiveState, declineLive } from "@/app/system/actions";
 
 export default function LiveShareClient() {
-  const [tos, setTos] = useState<boolean | null>(null);
   const [live, setLive] = useState<any>(null);
   const busy = useRef(false);
 
@@ -12,7 +11,7 @@ export default function LiveShareClient() {
     let on = true;
     async function pull() {
       const s = await getLiveState();
-      if (on && s) { setTos(s.tos); setLive(s.live); }
+      if (on && s) setLive(s.live);
     }
     pull();
     const iv = setInterval(pull, 5000);
@@ -35,22 +34,7 @@ export default function LiveShareClient() {
 
   return (
     <>
-      {tos === false && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl border border-indigo-500/40 bg-slate-900 p-8">
-            <p className="text-5xl">📜</p>
-            <h2 className="mt-3 text-2xl font-extrabold text-white">QuizKeens Regler</h2>
-            <div className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm text-slate-300">
-              <p>1️⃣ Personalen kan se vad du gör INNE i QuizKeen (sidor, chattar, loggar).</p>
-              <p>2️⃣ Personalen kan be om LIVE-skärmdelning — du väljer själv JA, vilken flik/skärm som delas, och kan avsluta när som helst.</p>
-              <p>3️⃣ Respekt gäller alltid — fula namn, mobbning eller fusk = varning/ban.</p>
-              <p>4️⃣ Ha kul och lär dig något! 🎮</p>
-            </div>
-            <button onClick={async () => { await acceptTos(); setTos(true); }} className="mt-5 w-full rounded-xl bg-indigo-600 py-3 font-extrabold text-white hover:bg-indigo-500">✅ Jag accepterar</button>
-          </div>
-        </div>
-      )}
-      {tos !== false && live?.requested && (
+      {live?.requested && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
           <div className="w-full max-w-md rounded-3xl border border-red-500/50 bg-slate-900 p-8 text-center">
             <p className="text-6xl">🎥</p>

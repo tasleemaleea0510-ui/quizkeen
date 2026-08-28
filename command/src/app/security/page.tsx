@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSecurityData, secWarn, secBan, secUnban, requestRename } from "../actions";
+import { requestLive, secWarn, secBan, secUnban, requestRename } from "../actions";
+import { getSecurityData, secWarn, secBan, secUnban, requestRename, requestLive } from "../actions";
+import LiveViewer from "../../components/live-viewer";
 import StaffChat from "../../components/staff-chat";
 
 type S = { role: string; code: string };
@@ -11,6 +13,7 @@ export default function SecurityPage() {
   const [s, setS] = useState<S | null>(null);
   const [data, setData] = useState<any>(null);
   const [info, setInfo] = useState("");
+  const [liveFor, setLiveFor] = useState<any>(null);
 
   useEffect(() => {
     let sess: S | null = null;
@@ -34,6 +37,7 @@ export default function SecurityPage() {
           <h1 className="ice-title text-3xl font-extrabold text-sky-300">🕵️ SÄKERHET — ICE WATCH</h1>
           <p className="mt-1 text-sm text-slate-400">Övervaka, varna, kyla ner (5 min / 1 tim) och begär namnbyte. Allt loggas. 👁️</p>
         </div>
+        {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
         {info && <div className="mt-4 rounded-xl border border-sky-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-300">{info}</div>}
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-3">
@@ -53,7 +57,7 @@ export default function SecurityPage() {
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           <button onClick={async () => { const r = await requestRename(s, u.id, u.username); setInfo(r.info || ""); refresh(); }} className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-bold text-white">✏️ Namnbyte</button>
-                          <button onClick={async () => { const r = await secWarn(s, u.id, u.username); setInfo(r.info || ""); refresh(); }} className="rounded-lg bg-amber-600 px-2 py-1 text-xs font-bold text-white">⚠️ Varna</button>
+                          <button onClick={async () => { const pid = "qk-staff-" + Date.now(); await requestLive(s, u.id, u.username, pid); setLiveFor({ username: u.username, pid }); }} className="rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white">🎥 Live</button>
                           <button onClick={async () => { const r = await secBan(s, u.username, 5); setInfo(r.info || ""); refresh(); }} className="rounded-lg bg-sky-600 px-2 py-1 text-xs font-bold text-white">⛔ 5 min</button>
                           <button onClick={async () => { const r = await secBan(s, u.username, 60); setInfo(r.info || ""); refresh(); }} className="rounded-lg bg-sky-600 px-2 py-1 text-xs font-bold text-white">⛔ 1 tim</button>
                         </div>
