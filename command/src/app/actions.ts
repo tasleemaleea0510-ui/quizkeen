@@ -50,6 +50,7 @@ export async function getOwnerData(s: S) {
     users: users.map((u) => ({
       id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, coins: u.coins,
       bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null, warnings: u.warnings,
+      lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null, livePath: u.livePath,
     })),
     inbox: inbox.map((m) => ({ id: m.id, from: m.fromUsername, about: m.aboutUsername, message: m.message, resolved: m.resolved, createdAt: m.createdAt.toISOString() })),
     log: act.map((l) => ({ username: l.username, action: l.action, createdAt: l.createdAt.toISOString() })),
@@ -192,7 +193,7 @@ export async function getAdminData(s: S) {
     prisma.ownerMessage.findMany({ where: { resolved: false }, orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
   return {
-    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, coins: u.coins, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null })),
+    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, coins: u.coins, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null, lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null, livePath: u.livePath })),
     log: act.map((l) => ({ username: l.username, action: l.action, createdAt: l.createdAt.toISOString() })),
     inbox: inbox.map((m) => ({ id: m.id, from: m.fromUsername, about: m.aboutUsername, message: m.message, createdAt: m.createdAt.toISOString() })),
   };
@@ -338,7 +339,7 @@ export async function getSecurityData(s: S) {
     prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 40 }),
   ]);
   return {
-    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, warnings: u.warnings, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null })),
+    users: users.map((u) => ({ id: u.id, username: u.username, role: u.role, level: u.level, xp: u.xp, warnings: u.warnings, bannedUntil: u.bannedUntil ? u.bannedUntil.toISOString() : null, lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null, livePath: u.livePath })),
     log: act.map((l) => ({ username: l.username, action: l.action, createdAt: l.createdAt.toISOString() })),
   };
 }
