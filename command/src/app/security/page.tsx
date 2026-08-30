@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { requestLive, secWarn, secBan, secUnban, requestRename } from "../actions";
 import { getSecurityData, secWarn, secBan, secUnban, requestRename, requestLive } from "../actions";
 import LiveViewer from "../../components/live-viewer";
 import StaffChat from "../../components/staff-chat";
