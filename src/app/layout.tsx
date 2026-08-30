@@ -11,6 +11,7 @@ import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/ow
 import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
 import LiveShareClient from "@/components/live-share-client";
+import TranslateButton from "@/components/translate-button";
 
 export const metadata: Metadata = {
   title: "QuizKeen 🎮 Lär. Spela. Tävla.",
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <StudentChatBubble />
               <PresencePing />
               <LiveShareClient />
+              <TranslateButton />
               <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
             </>
           )}
