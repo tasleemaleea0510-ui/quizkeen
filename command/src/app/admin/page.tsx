@@ -4,9 +4,8 @@ import { useRouter } from "next/navigation";
 import { getAdminData, adminBan, adminUnban, adminRequestBan, adminGiveXP, adminSetBroadcast } from "../actions";
 import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
-import { requestLive } from "../actions";
+import { requestLive, muteChat, unmuteChat, togglePin, setSecretNote, spyOnChats } from "../actions";
 
-muteChat, unmuteChat, togglePin, setSecretNote
 type S = { role: string; code: string };
 const QUICK = [
   { label: "5 min", min: 5 },
