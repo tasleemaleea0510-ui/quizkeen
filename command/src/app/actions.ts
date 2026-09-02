@@ -433,3 +433,24 @@ export async function spyOnChats(s: S) {
     requests: reqs.map((r) => ({ id: r.id, from: r.fromUser, to: r.toUser, status: r.status, at: r.createdAt.toISOString() })),
   };
 }
+// ─── OLD FRIENDS (login + staff chat) ───
+export async function unlock(code: string) {
+  const settings = await prisma.adminSettings.findFirst();
+  if (!settings) return null;
+  if (code && code === settings.ownerCode) return { role: "OWNER" };
+  if (code && code === settings.adminCode) return { role: "ADMIN" };
+  if (code && code === settings.securityCode) return { role: "SECURITY" };
+  return null;
+}
+
+export async function getStaffChat(s: S, channel: string) {
+  if (!(await ok(s, "STAFF"))) return [];
+  return await prisma.staffChat.findMany({ where: { channel }, orderBy: { createdAt: "asc" }, take: 100 });
+}
+
+export async function sendStaffChat(s: S, channel: string, text: string) {
+  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!text.trim()) return { ok: false };
+  await prisma.staffChat.create({ data: { channel, fromRole: s.role, text: text.trim() } });
+  return { ok: true };
+}
