@@ -434,14 +434,14 @@ export async function spyOnChats(s: S) {
   };
 }
 // ─── OLD FRIENDS (login + staff chat) ───
-export async function unlock(code: string) {
+export async function unlock(code: string, kind: "OWNER" | "ADMIN" | "SECURITY") {
   const settings = await prisma.adminSettings.findFirst();
-  if (!settings) return null;
-  if (code && code === settings.ownerCode) return { role: "OWNER" };
-  if (code && code === settings.adminCode) return { role: "ADMIN" };
-  if (code && code === settings.securityCode) return { role: "SECURITY" };
-  return null;
-}
+  if (!settings) return { ok: false };
+  if (kind === "OWNER" && code === settings.ownerCode) return { ok: true, role: "OWNER", code };
+  if (kind === "ADMIN" && code === settings.adminCode) return { ok: true, role: "ADMIN", code };
+  if (kind === "SECURITY" && code === settings.securityCode) return { ok: true, role: "SECURITY", code };
+  return { ok: false };
+}batch 88 unlock fix
 
 export async function getStaffChat(s: S, channel: string) {
   if (!(await ok(s, "STAFF"))) return [];
