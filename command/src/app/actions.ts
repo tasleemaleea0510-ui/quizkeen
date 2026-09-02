@@ -436,11 +436,11 @@ export async function spyOnChats(s: S) {
 // ─── OLD FRIENDS (login + staff chat) ───
 export async function unlock(code: string, kind: "OWNER" | "ADMIN" | "SECURITY") {
   const settings = await prisma.adminSettings.findFirst();
-  if (!settings) return { ok: false };
+  if (!settings) return { ok: false, role: "", code: "" };
   if (kind === "OWNER" && code === settings.ownerCode) return { ok: true, role: "OWNER", code };
   if (kind === "ADMIN" && code === settings.adminCode) return { ok: true, role: "ADMIN", code };
   if (kind === "SECURITY" && code === settings.securityCode) return { ok: true, role: "SECURITY", code };
-  return { ok: false };
+  return { ok: false, role: "", code: "" };
 }
 
 export async function getStaffChat(s: S, channel: string) {
@@ -454,3 +454,5 @@ export async function sendStaffChat(s: S, channel: string, text: string) {
   await prisma.staffChat.create({ data: { channel, fromRole: s.role, text: text.trim() } });
   return { ok: true };
 }
+export async function getChats(s: S, channel: string) { return getStaffChat(s, channel); }
+export async function sendChat(s: S, channel: string, text: string) { return sendStaffChat(s, channel, text); }
