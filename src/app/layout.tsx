@@ -1,3 +1,4 @@
+import TranslateButton from "../components/translate-button";
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/providers";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   description: "Live-flerspelar-quizar med XP, mynt och minispel.",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function command/src/app/actions.tsRootLayout({ children }: { children: React.ReactNode }) {
   const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } }).catch(() => null);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="sv">
       <body className="min-h-screen bg-slate-950 text-white antialiased">
+        <TranslateButton />batch 84 translate FINAL
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Navbar />

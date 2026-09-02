@@ -8,15 +8,21 @@ import {
   resetPassword, getEmail, deleteUser, setBroadcast, setShutdown, changeCodes,
   getOwnerExtra, approveBanRequest, rejectBanRequest,
   resetXP, resetCoins, resetAll, setLevel, sendPersonalNote, clearPersonalNote,
-  requestRename,
-  requestLive,
+  requestRename, requestLive,
+  muteChat, unmuteChat, toggleShadow, toggleFreezeCoins, setSecretNote, forceRelogin,
+  getTimeMachine, peekIP, toggleDailyBonus, togglePin, spyOnChats,
 } from "../actions";
 
-type User = { id: string; username: string; role: string; level: number; xp: number; coins: number; bannedUntil: string | null; warnings: number; lastSeenAt: string | null; livePath: string | null };
+type User = {
+  id: string; username: string; role: string; level: number; xp: number; coins: number;
+  bannedUntil: string | null; warnings: number; lastSeenAt: string | null;
+  livePath: string | null; secretNote: string | null;
+};
 
 const TABS = [
   { id: "stats", icon: "📊", label: "Översikt" },
   { id: "requests", icon: "🙏", label: "Ban-begäranden" },
+  { id: "chatspy", icon: "🕵️", label: "Chat Spy" },
   { id: "chat", icon: "💬", label: "Chat" },
   { id: "users", icon: "👥", label: "Användare" },
   { id: "broadcast", icon: "📢", label: "Sändning" },
@@ -47,6 +53,7 @@ export default function OwnerPage() {
   const [approveMin, setApproveMin] = useState<Record<string, string>>({});
   const [lvl, setLvl] = useState("1");
   const [pNote, setPNote] = useState("");
+  const [chats, setChats] = useState<any>(null);
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem("cmd_session") || "null");
@@ -56,6 +63,10 @@ export default function OwnerPage() {
     const iv = setInterval(() => load(s), 20000);
     return () => clearInterval(iv);
   }, []);
+
+  useEffect(() => {
+    if (tab === "chatspy" && session) spyOnChats(session).then(setChats);
+  }, [tab, session]);
 
   async function load(s: any) {
     const [d, ex] = await Promise.all([getOwnerData(s), getOwnerExtra(s)]);
@@ -187,6 +198,51 @@ export default function OwnerPage() {
           </>
         )}
 
+        {tab === "chatspy" && chats && (
+          <>
+            <h1 className="gold-title text-2xl font-extrabold text-amber-300">🕵️ CHAT SPY — every message in the kingdom</h1>
+            <p className="mt-1 text-sm text-slate-400">Global chats, inbox, staff channels, DM requests. Everything is logged. 👁️</p>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="gold-glow rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <h3 className="mb-2 text-sm font-bold text-amber-300">💬 Global / Class chats ({chats.global.length})</h3>
+                <div className="max-h-72 space-y-1 overflow-y-auto pr-1 text-xs">
+                  {chats.global.map((m: any) => (
+                    <p key={m.id} className="rounded bg-slate-950/40 px-2 py-1"><b className="text-amber-300">[{m.role}]</b> <b className="text-white">{m.from}</b>: {m.text} <span className="text-slate-600">· {new Date(m.at).toLocaleTimeString("sv-SE")}</span></p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="gold-glow rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <h3 className="mb-2 text-sm font-bold text-amber-300">📨 Inbox messages ({chats.inbox.length})</h3>
+                <div className="max-h-72 space-y-1 overflow-y-auto pr-1 text-xs">
+                  {chats.inbox.map((m: any) => (
+                    <p key={m.id} className="rounded bg-slate-950/40 px-2 py-1"><b className="text-white">{m.from}</b> → <b>{m.about}</b>: {m.text} {m.resolved ? "✅" : ""} <span className="text-slate-600">· {new Date(m.at).toLocaleTimeString("sv-SE")}</span></p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="gold-glow rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <h3 className="mb-2 text-sm font-bold text-amber-300">👥 Staff chat channels ({chats.staff.length})</h3>
+                <div className="max-h-72 space-y-1 overflow-y-auto pr-1 text-xs">
+                  {chats.staff.map((m: any) => (
+                    <p key={m.id} className="rounded bg-slate-950/40 px-2 py-1"><span className="text-amber-400">[{m.channel}]</span> <b className="text-white">{m.from}</b>: {m.text} <span className="text-slate-600">· {new Date(m.at).toLocaleTimeString("sv-SE")}</span></p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="gold-glow rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <h3 className="mb-2 text-sm font-bold text-amber-300">🤝 Chat requests ({chats.requests.length})</h3>
+                <div className="max-h-72 space-y-1 overflow-y-auto pr-1 text-xs">
+                  {chats.requests.map((r: any) => (
+                    <p key={r.id} className="rounded bg-slate-950/40 px-2 py-1"><b className="text-white">{r.from}</b> → <b>{r.to}</b> [{r.status}] <span className="text-slate-600">· {new Date(r.at).toLocaleTimeString("sv-SE")}</span></p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {tab === "chat" && (
           <>
             <h1 className="gold-title text-2xl font-extrabold text-amber-300">💬 Stabs-chat</h1>
@@ -203,7 +259,10 @@ export default function OwnerPage() {
               {filtered.map((u: User) => (
                 <button key={u.id} onClick={() => { setSel(u); setNewName(u.username); }}
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${sel?.id === u.id ? "border-amber-500 bg-amber-500/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
-                  <span className="font-bold text-white">{u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000 ? "🟢" : "⚪"} {u.username} {u.bannedUntil && "⛔"} {u.livePath && <span className="ml-2 rounded bg-emerald-500/10 px-1 text-xs text-emerald-400">👀 {u.livePath}</span>}</span>
+                  <span className="font-bold text-white">
+                    {u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000 ? "🟢" : "⚪"} {u.username} {u.bannedUntil && "⛔"}
+                    {u.livePath && <span className="ml-2 rounded bg-emerald-500/10 px-1 text-xs text-emerald-400">👀 {u.livePath}</span>}
+                  </span>
                   <span className="text-sm text-slate-400">{u.role} · Lv {u.level} · {u.xp} XP · {u.coins} 🪙</span>
                 </button>
               ))}
@@ -212,6 +271,7 @@ export default function OwnerPage() {
             {sel && (
               <div className="gold-glow mt-6 rounded-2xl border border-amber-500/40 bg-slate-900/80 p-6">
                 <h2 className="text-xl font-extrabold text-white">🎛️ {sel.username}</h2>
+                {sel.secretNote && <p className="mt-2 rounded-lg bg-yellow-500/10 px-3 py-2 text-sm italic text-yellow-400">📝 Secret note: {sel.secretNote}</p>}
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 p-4">
                     <p className="text-sm font-bold text-slate-400">💰 XP & mynt & 🎚️ nivå</p>
@@ -227,7 +287,7 @@ export default function OwnerPage() {
                     </div>
                     <div className="mt-2 flex gap-2">
                       <input value={lvl} onChange={(e) => setLvl(e.target.value)} type="number" placeholder="nivå" className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <button onClick={() => run(setLevel(session, sel.id, sel.username, parseInt(lvl) || 1))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🎚️ Sätt nivå (XP följer!)</button>
+                      <button onClick={() => run(setLevel(session, sel.id, sel.username, parseInt(lvl) || 1))} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">🎚️ Sätt nivå</button>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-800 pt-3">
                       <button onClick={() => run(resetXP(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🔄 Reset XP</button>
@@ -283,14 +343,59 @@ export default function OwnerPage() {
                     </div>
                     <button onClick={() => { if (confirm(`RADERA ${sel.username} FÖR ALLTID?`)) run(deleteUser(session, sel.id, sel.username)); }}
                       className="mt-3 rounded-lg bg-red-700 px-3 py-1 text-sm font-bold text-white">🗑️ RADERA ANVÄNDARE</button>
-                    <div className="mt-3 border-t border-slate-800 pt-3">
-                      <p className="text-sm font-bold text-slate-400">📨 Personligt meddelande (popup för BARA denna användare)</p>
-                      <textarea value={pNote} onChange={(e) => setPNote(e.target.value)} rows={2} placeholder="Skriv något bara denna personen ser..." className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
-                      <div className="mt-2 flex gap-2">
-                        <button onClick={() => { run(sendPersonalNote(session, sel.id, sel.username, pNote)); setPNote(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">📨 Skicka popup</button>
-                        <button onClick={() => run(clearPersonalNote(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🧹 Rensa popup</button>
-                        <button onClick={() => run(requestRename(session, sel.id, sel.username))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">✏️ Be om namnbyte (LÅSER sajten)</button>
-                      </div>
+                  </div>
+
+                  {/* ─── NEW SUPERPOWERS PANEL ─── */}
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                    <p className="text-sm font-bold text-amber-300">🎯 Superpowers (only OWNER)</p>
+
+                    <p className="mt-3 text-xs font-bold text-slate-400">🕵️ Surveillance & Ghost</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <button onClick={() => run(toggleShadow(session, sel.id, sel.username))} className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-bold text-white">🕵️ Shadow (hide from leaderboard)</button>
+                      <button onClick={async () => { const n = prompt("⏳ Time machine — show last X minutes:", "30"); if (n === null) return; const r = await getTimeMachine(session, sel.username, parseInt(n)); setInfo(r.info || ""); }} className="rounded-lg bg-teal-600 px-2 py-1 text-xs font-bold text-white">⏳ Time Machine</button>
+                      <button onClick={() => run(peekIP(session, sel.id, sel.username))} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white">🌐 IP Peek (catch multis)</button>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-slate-400">💰 Coin & bonus controls</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <button onClick={() => run(toggleFreezeCoins(session, sel.id, sel.username))} className="rounded-lg bg-cyan-600 px-2 py-1 text-xs font-bold text-white">❄️ Freeze coins</button>
+                      <button onClick={() => run(toggleDailyBonus(session, sel.id, sel.username))} className="rounded-lg bg-orange-600 px-2 py-1 text-xs font-bold text-white">🎁 Toggle daily bonus</button>
+                      <button onClick={() => { if (confirm(`🔄 Kick ${sel.username}? (must re-login)`)) run(forceRelogin(session, sel.id, sel.username)); }} className="rounded-lg bg-fuchsia-600 px-2 py-1 text-xs font-bold text-white">🔄 Force re-login</button>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-slate-400">📝 Secret note (staff-only)</p>
+                    <div className="mt-1 flex gap-1">
+                      <input id="secret-note-input" defaultValue={sel.secretNote || ""} placeholder="write a staff note..." className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white" />
+                      <button onClick={() => run(setSecretNote(session, sel.id, sel.username, (document.getElementById("secret-note-input") as HTMLInputElement).value))} className="rounded-lg bg-yellow-600 px-2 py-1 text-xs font-bold text-white">💾 Save</button>
+                    </div>
+                  </div>
+
+                  {/* ─── STAFF-SHARED POWERS ─── */}
+                  <div className="rounded-xl border border-slate-800 p-4">
+                    <p className="text-sm font-bold text-slate-400">🛠️ Staff powers (shared w/ admin/security)</p>
+
+                    <p className="mt-3 text-xs font-bold text-slate-400">🔇 Mute chat</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <button onClick={() => run(muteChat(session, sel.id, sel.username, 60))} className="rounded-lg bg-purple-600 px-2 py-1 text-xs font-bold text-white">🔇 1h</button>
+                      <button onClick={() => run(muteChat(session, sel.id, sel.username, 1440))} className="rounded-lg bg-purple-600 px-2 py-1 text-xs font-bold text-white">🔇 1 day</button>
+                      <button onClick={() => run(muteChat(session, sel.id, sel.username, 0))} className="rounded-lg bg-purple-700 px-2 py-1 text-xs font-bold text-white">🔇 FOREVER</button>
+                      <button onClick={() => run(unmuteChat(session, sel.id, sel.username))} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white">🔊 Unmute</button>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-slate-400">📌 Pin (top of watchlist)</p>
+                    <div className="mt-1 flex gap-1">
+                      <button onClick={() => run(togglePin(session, sel.id, sel.username))} className="rounded-lg bg-rose-600 px-2 py-1 text-xs font-bold text-white">📌 Toggle Pin</button>
+                    </div>
+                  </div>
+
+                  {/* ─── MESSAGES & RENAME ─── */}
+                  <div className="rounded-xl border border-slate-800 p-4 sm:col-span-2">
+                    <p className="text-sm font-bold text-slate-400">📨 Personligt meddelande (popup för BARA denna användare)</p>
+                    <textarea value={pNote} onChange={(e) => setPNote(e.target.value)} rows={2} placeholder="Skriv något bara denna personen ser..." className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-white" />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button onClick={() => { run(sendPersonalNote(session, sel.id, sel.username, pNote)); setPNote(""); }} className="rounded-lg bg-amber-600 px-3 py-1 text-sm font-bold text-white hover:bg-amber-500">📨 Skicka popup</button>
+                      <button onClick={() => run(clearPersonalNote(session, sel.id, sel.username))} className="rounded-lg bg-slate-700 px-3 py-1 text-sm font-bold text-white">🧹 Rensa popup</button>
+                      <button onClick={() => run(requestRename(session, sel.id, sel.username))} className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-bold text-white">✏️ Be om namnbyte (LÅSER sajten)</button>
                     </div>
                   </div>
                 </div>

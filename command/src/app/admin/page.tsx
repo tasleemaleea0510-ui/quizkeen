@@ -6,6 +6,7 @@ import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
 import { requestLive } from "../actions";
 
+muteChat, unmuteChat, togglePin, setSecretNote
 type S = { role: string; code: string };
 const QUICK = [
   { label: "5 min", min: 5 },

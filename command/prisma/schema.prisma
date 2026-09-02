@@ -16,6 +16,14 @@ enum Role {
 }
 
 model Profile {
+  chatMutedUntil      DateTime?
+  shadowed            Boolean    @default(false)
+  coinsFrozen         Boolean    @default(false)
+  pinned              Boolean    @default(false)
+  secretNote          String?
+  ghostMode           Boolean    @default(false)
+  dailyBonusDisabled  Boolean    @default(false)
+  forceRelogin        Boolean    @default(false)
   id          String    @id
   username    String    @unique
   role        Role      @default(STUDENT)
@@ -276,6 +284,15 @@ model StaffChat {
   createdAt DateTime @default(now())
 
   @@index([channel])
+}
+model PageVisit {
+  id        String   @id @default(uuid())
+  username  String
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@index([createdAt])
 }
 
 model ChatRequest {
