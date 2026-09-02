@@ -19,7 +19,6 @@ async function log(username: string, action: string) {
   await prisma.activity.create({ data: { username, action } });
 }
 
-// ─── EXISTING: GET DATA ───
 export async function getOwnerData(s: S) {
   if (!(await ok(s, "OWNER"))) return null;
   const [users, settings, log, quizzes, decks, games, teachers] = await Promise.all([
@@ -80,7 +79,6 @@ export async function getSecurityData(s: S) {
   };
 }
 
-// ─── EXISTING: OWNER ACTIONS ───
 export async function banUser(s: S, username: string, minutes: number, msg: string) {
   if (!(await ok(s, "OWNER"))) return { ok: false };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
@@ -175,7 +173,7 @@ export async function changeCodes(s: S, o: string, a: string, sec: string) {
 export async function getOwnerExtra(s: S) {
   if (!(await ok(s, "OWNER"))) return null;
   const requests = await prisma.banRequest.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
-  return { requests };
+  return { requests: requests.map((r) => ({ ...r, target: r.targetUsername, admin: r.adminUsername })) };
 }
 
 export async function approveBanRequest(s: S, id: string, minutes: number) {
@@ -183,9 +181,9 @@ export async function approveBanRequest(s: S, id: string, minutes: number) {
   const req = await prisma.banRequest.findUnique({ where: { id } });
   if (!req) return { ok: false };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
-  await prisma.profile.update({ where: { username: req.target }, data: { bannedUntil: until } });
-  await prisma.banRequest.update({ where: { id }, data: { status: "APPROVED", decidedMinutes: minutes } });
-  await log("[OWNER]", `godkände ban-request för ${req.target} (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})`);
+  await prisma.profile.update({ where: { username: req.targetUsername }, data: { bannedUntil: until } });
+  await prisma.banRequest.update({ where: { id }, data: { status: "APPROVED" } });
+  await log("[OWNER]", `godkände ban-request för ${req.targetUsername} (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})`);
   return { ok: true };
 }
 
@@ -252,7 +250,6 @@ export async function requestLive(s: S, id: string, username: string, pid: strin
   return { ok: true };
 }
 
-// ─── EXISTING: ADMIN ACTIONS ───
 export async function adminBan(s: S, username: string, minutes: number, reason: string) {
   if (!(await ok(s, "ADMIN"))) return { ok: false };
   if (minutes > 1440) return { ok: false, info: "❌ Max 1 dag — be ägaren om mer!" };
@@ -284,7 +281,7 @@ export async function adminGiveXP(s: S, id: string, username: string, amt: numbe
 export async function adminRequestBan(s: S, target: string, minutes: number, reason: string) {
   if (!(await ok(s, "ADMIN"))) return { ok: false };
   const admin = await prisma.profile.findFirst({ where: { role: "ADMIN" } });
-  await prisma.banRequest.create({ data: { target, admin: admin?.username || "admin", minutes, reason } });
+  await prisma.banRequest.create({ data: { targetUsername: target, adminUsername: admin?.username || "admin", minutes, reason } });
   await log("[ADMIN]", `begärde ban på ${target} (${minutes} min) från ägaren`);
   return { ok: true, info: `🙏 Begäran skickad till ägaren!` };
 }
@@ -297,7 +294,6 @@ export async function adminSetBroadcast(s: S, text: string) {
   return { ok: true, info: text ? "📢 Sänt!" : "🧹 Rensat!" };
 }
 
-// ─── EXISTING: SECURITY ACTIONS ───
 export async function secWarn(s: S, id: string, username: string) {
   if (!(await ok(s, "SECURITY"))) return { ok: false };
   const u = await prisma.profile.findUnique({ where: { id } });
@@ -327,7 +323,6 @@ export async function secUnban(s: S, username: string) {
   return { ok: true };
 }
 
-// ─── NEW: 11 SUPERPOWERS (BATCH 91) ───
 export async function muteChat(s: S, id: string, username: string, minutes: number) {
   if (!(await ok(s, "STAFF"))) return { ok: false };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);

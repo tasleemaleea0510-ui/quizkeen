@@ -1,4 +1,3 @@
-import TranslateButton from "../components/translate-button";
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/providers";
@@ -32,7 +31,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="sv">
       <body className="min-h-screen bg-slate-950 text-white antialiased">
-        <TranslateButton />batch 84 translate FINAL
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Navbar />
