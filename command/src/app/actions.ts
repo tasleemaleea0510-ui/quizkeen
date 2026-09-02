@@ -80,7 +80,7 @@ export async function getSecurityData(s: S) {
 }
 
 export async function banUser(s: S, username: string, minutes: number, msg: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
   await prisma.profile.update({ where: { username }, data: { bannedUntil: until, banMessage: msg || null } });
   await log("[OWNER]", `bannade ${username} (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})`);
@@ -88,42 +88,42 @@ export async function banUser(s: S, username: string, minutes: number, msg: stri
 }
 
 export async function unbanUser(s: S, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { username }, data: { bannedUntil: null, banMessage: null } });
   await log("[OWNER]", `unbannade ${username}`);
   return { ok: true, info: `✅ ${username} är fri!` };
 }
 
 export async function giveXP(s: S, id: string, username: string, amt: number) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { xp: { increment: amt } } });
   await log("[OWNER]", `gav ${amt} XP till ${username}`);
   return { ok: true };
 }
 
 export async function giveCoins(s: S, id: string, username: string, amt: number) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { coins: { increment: amt } } });
   await log("[OWNER]", `gav ${amt} mynt till ${username}`);
   return { ok: true };
 }
 
 export async function renameUser(s: S, id: string, old: string, newName: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { username: newName } });
   await log("[OWNER]", `bytte namn ${old} → ${newName}`);
   return { ok: true };
 }
 
 export async function setRole(s: S, id: string, username: string, role: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { role: role as any } });
   await log("[OWNER]", `satte roll ${role} på ${username}`);
   return { ok: true };
 }
 
 export async function resetPassword(s: S, id: string, username: string, notify: boolean, customPw: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const newPw = customPw || Math.random().toString(36).slice(-8);
   await supabaseAdmin.auth.admin.updateUserById(id, { password: newPw });
   if (notify) await prisma.profile.update({ where: { id }, data: { passwordNote: newPw } });
@@ -132,14 +132,14 @@ export async function resetPassword(s: S, id: string, username: string, notify: 
 }
 
 export async function getEmail(s: S, id: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const { data } = await supabaseAdmin.auth.admin.getUserById(id);
   await log("[OWNER]", `kikade email på ${data?.user?.email}`);
   return { ok: true, info: `📧 ${data?.user?.email || "okänd"}` };
 }
 
 export async function deleteUser(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await supabaseAdmin.auth.admin.deleteUser(id);
   await prisma.profile.delete({ where: { id } });
   await log("[OWNER]", `RADERADE ${username}`);
@@ -147,7 +147,7 @@ export async function deleteUser(s: S, id: string, username: string) {
 }
 
 export async function setBroadcast(s: S, text: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const existing = await prisma.adminSettings.findFirst();
   if (existing) await prisma.adminSettings.update({ where: { id: existing.id }, data: { broadcast: text } });
   await log("[OWNER]", text ? `sändning: "${text.slice(0, 50)}..."` : "rensade sändning");
@@ -155,7 +155,7 @@ export async function setBroadcast(s: S, text: string) {
 }
 
 export async function setShutdown(s: S, on: boolean) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const existing = await prisma.adminSettings.findFirst();
   if (existing) await prisma.adminSettings.update({ where: { id: existing.id }, data: { shutdown: on } });
   await log("[OWNER]", on ? "STÄNGDE sajten" : "öppnade sajten");
@@ -163,7 +163,7 @@ export async function setShutdown(s: S, on: boolean) {
 }
 
 export async function changeCodes(s: S, o: string, a: string, sec: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const existing = await prisma.adminSettings.findFirst();
   if (existing) await prisma.adminSettings.update({ where: { id: existing.id }, data: { ownerCode: o, adminCode: a, securityCode: sec } });
   await log("[OWNER]", "uppdaterade koder");
@@ -177,9 +177,9 @@ export async function getOwnerExtra(s: S) {
 }
 
 export async function approveBanRequest(s: S, id: string, minutes: number) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const req = await prisma.banRequest.findUnique({ where: { id } });
-  if (!req) return { ok: false };
+  if (!req) return { ok: false, info: "" };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
   await prisma.profile.update({ where: { username: req.targetUsername }, data: { bannedUntil: until } });
   await prisma.banRequest.update({ where: { id }, data: { status: "APPROVED" } });
@@ -188,70 +188,70 @@ export async function approveBanRequest(s: S, id: string, minutes: number) {
 }
 
 export async function rejectBanRequest(s: S, id: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.banRequest.update({ where: { id }, data: { status: "REJECTED" } });
   await log("[OWNER]", "avslog ban-request");
   return { ok: true };
 }
 
 export async function resetXP(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { xp: 0 } });
   await log("[OWNER]", `reset XP på ${username}`);
   return { ok: true };
 }
 
 export async function resetCoins(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { coins: 0 } });
   await log("[OWNER]", `reset mynt på ${username}`);
   return { ok: true };
 }
 
 export async function resetAll(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { xp: 0, coins: 0, warnings: 0 } });
   await log("[OWNER]", `TOTAL-RESET på ${username}`);
   return { ok: true };
 }
 
 export async function setLevel(s: S, id: string, username: string, lvl: number) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { xp: (lvl - 1) * 100 } });
   await log("[OWNER]", `satte nivå ${lvl} på ${username}`);
   return { ok: true };
 }
 
 export async function sendPersonalNote(s: S, id: string, username: string, text: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { passwordNote: text } });
   await log("[OWNER]", `skickade popup till ${username}`);
   return { ok: true };
 }
 
 export async function clearPersonalNote(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { passwordNote: null } });
   await log("[OWNER]", `rensade popup på ${username}`);
   return { ok: true };
 }
 
 export async function requestRename(s: S, id: string, username: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { renameRequested: true } });
   await log(`[${s.role}]`, `begärde namnbyte från ${username}`);
   return { ok: true, info: `✏️ ${username} måste byta namn!` };
 }
 
 export async function requestLive(s: S, id: string, username: string, pid: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { liveRequested: true, livePeerId: pid } });
   await log(`[${s.role}]`, `begärde LIVE från ${username}`);
   return { ok: true };
 }
 
 export async function adminBan(s: S, username: string, minutes: number, reason: string) {
-  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  if (!(await ok(s, "ADMIN"))) return { ok: false, info: "" };
   if (minutes > 1440) return { ok: false, info: "❌ Max 1 dag — be ägaren om mer!" };
   const until = new Date(Date.now() + minutes * 60000);
   await prisma.profile.update({ where: { username }, data: { bannedUntil: until, banMessage: reason || null } });
@@ -260,14 +260,14 @@ export async function adminBan(s: S, username: string, minutes: number, reason: 
 }
 
 export async function adminUnban(s: S, username: string) {
-  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  if (!(await ok(s, "ADMIN"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { username }, data: { bannedUntil: null, banMessage: null } });
   await log("[ADMIN]", `unbannade ${username}`);
   return { ok: true };
 }
 
 export async function adminGiveXP(s: S, id: string, username: string, amt: number) {
-  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  if (!(await ok(s, "ADMIN"))) return { ok: false, info: "" };
   if (amt > 500 || amt < -500) return { ok: false, info: "❌ Max ±500 XP!" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -279,7 +279,7 @@ export async function adminGiveXP(s: S, id: string, username: string, amt: numbe
 }
 
 export async function adminRequestBan(s: S, target: string, minutes: number, reason: string) {
-  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  if (!(await ok(s, "ADMIN"))) return { ok: false, info: "" };
   const admin = await prisma.profile.findFirst({ where: { role: "ADMIN" } });
   await prisma.banRequest.create({ data: { targetUsername: target, adminUsername: admin?.username || "admin", minutes, reason } });
   await log("[ADMIN]", `begärde ban på ${target} (${minutes} min) från ägaren`);
@@ -287,7 +287,7 @@ export async function adminRequestBan(s: S, target: string, minutes: number, rea
 }
 
 export async function adminSetBroadcast(s: S, text: string) {
-  if (!(await ok(s, "ADMIN"))) return { ok: false };
+  if (!(await ok(s, "ADMIN"))) return { ok: false, info: "" };
   const existing = await prisma.adminSettings.findFirst();
   if (existing) await prisma.adminSettings.update({ where: { id: existing.id }, data: { broadcast: text } });
   await log("[ADMIN]", text ? `sändning: "${text.slice(0, 50)}..."` : "rensade sändning");
@@ -295,7 +295,7 @@ export async function adminSetBroadcast(s: S, text: string) {
 }
 
 export async function secWarn(s: S, id: string, username: string) {
-  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  if (!(await ok(s, "SECURITY"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = (u?.warnings || 0) + 1;
   await prisma.profile.update({ where: { id }, data: { warnings: next } });
@@ -308,7 +308,7 @@ export async function secWarn(s: S, id: string, username: string) {
 }
 
 export async function secBan(s: S, username: string, minutes: number) {
-  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  if (!(await ok(s, "SECURITY"))) return { ok: false, info: "" };
   if (minutes > 60) return { ok: false, info: "❌ Max 1 timme — be ägaren!" };
   const until = new Date(Date.now() + minutes * 60000);
   await prisma.profile.update({ where: { username }, data: { bannedUntil: until } });
@@ -317,14 +317,14 @@ export async function secBan(s: S, username: string, minutes: number) {
 }
 
 export async function secUnban(s: S, username: string) {
-  if (!(await ok(s, "SECURITY"))) return { ok: false };
+  if (!(await ok(s, "SECURITY"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { username }, data: { bannedUntil: null } });
   await log("[SECURITY]", `unbannade ${username}`);
-  return { ok: true };
+  return { ok: false, info: "" };
 }
 
 export async function muteChat(s: S, id: string, username: string, minutes: number) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
   await prisma.profile.update({ where: { id }, data: { chatMutedUntil: until } });
   await log(`[${s.role}]`, `🔇 mute chat på ${username} (${minutes <= 0 ? "FOREVER" : minutes + " min"})`);
@@ -332,14 +332,14 @@ export async function muteChat(s: S, id: string, username: string, minutes: numb
 }
 
 export async function unmuteChat(s: S, id: string, username: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { chatMutedUntil: null } });
   await log(`[${s.role}]`, `🔊 unmute chat på ${username}`);
   return { ok: true, info: `🔊 ${username}: chat öppnad igen!` };
 }
 
 export async function toggleGhost(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER")) && !(await ok(s, "SECURITY"))) return { ok: false };
+  if (!(await ok(s, "OWNER")) && !(await ok(s, "SECURITY"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = !u!.ghostMode;
   await prisma.profile.update({ where: { id }, data: { ghostMode: next } });
@@ -348,7 +348,7 @@ export async function toggleGhost(s: S, id: string, username: string) {
 }
 
 export async function togglePin(s: S, id: string, username: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = !u!.pinned;
   await prisma.profile.update({ where: { id }, data: { pinned: next } });
@@ -357,7 +357,7 @@ export async function togglePin(s: S, id: string, username: string) {
 }
 
 export async function toggleShadow(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = !u!.shadowed;
   await prisma.profile.update({ where: { id }, data: { shadowed: next } });
@@ -366,7 +366,7 @@ export async function toggleShadow(s: S, id: string, username: string) {
 }
 
 export async function toggleFreezeCoins(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = !u!.coinsFrozen;
   await prisma.profile.update({ where: { id }, data: { coinsFrozen: next } });
@@ -375,14 +375,14 @@ export async function toggleFreezeCoins(s: S, id: string, username: string) {
 }
 
 export async function setSecretNote(s: S, id: string, username: string, text: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { secretNote: text.trim() || null } });
   await log(`[${s.role}]`, text.trim() ? `📝 hemlig anteckning på ${username}` : `📝 rensade hemlig anteckning på ${username}`);
   return { ok: true, info: text.trim() ? `📝 Hemlig anteckning sparad på ${username}!` : `📝 Hemlig anteckning rensad!` };
 }
 
 export async function forceRelogin(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   await prisma.profile.update({ where: { id }, data: { forceRelogin: true } });
   await log("[OWNER]", `🔄 tvingade ${username} att logga in igen`);
   return { ok: true, info: `🔄 ${username}: kastas ut — måste logga in igen!` };
@@ -402,7 +402,7 @@ export async function getTimeMachine(s: S, username: string, minutesAgo: number)
 }
 
 export async function peekIP(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const { data } = await supabaseAdmin.auth.admin.getUserById(id);
   const ip = data?.user?.user_metadata?.ip || "okänd";
   await log("[OWNER]", `🌐 IP-peek på ${username}`);
@@ -410,7 +410,7 @@ export async function peekIP(s: S, id: string, username: string) {
 }
 
 export async function toggleDailyBonus(s: S, id: string, username: string) {
-  if (!(await ok(s, "OWNER"))) return { ok: false };
+  if (!(await ok(s, "OWNER"))) return { ok: false, info: "" };
   const u = await prisma.profile.findUnique({ where: { id } });
   const next = !u!.dailyBonusDisabled;
   await prisma.profile.update({ where: { id }, data: { dailyBonusDisabled: next } });
@@ -449,8 +449,8 @@ export async function getStaffChat(s: S, channel: string) {
 }
 
 export async function sendStaffChat(s: S, channel: string, text: string) {
-  if (!(await ok(s, "STAFF"))) return { ok: false };
-  if (!text.trim()) return { ok: false };
+  if (!(await ok(s, "STAFF"))) return { ok: false, info: "" };
+  if (!text.trim()) return { ok: false, info: "" };
   await prisma.staffChat.create({ data: { channel, fromRole: s.role, text: text.trim() } });
   return { ok: true };
 }
