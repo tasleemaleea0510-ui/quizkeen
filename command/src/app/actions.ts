@@ -441,7 +441,7 @@ export async function unlock(code: string, kind: "OWNER" | "ADMIN" | "SECURITY")
   if (kind === "ADMIN" && code === settings.adminCode) return { ok: true, role: "ADMIN", code };
   if (kind === "SECURITY" && code === settings.securityCode) return { ok: true, role: "SECURITY", code };
   return { ok: false };
-}batch 88 unlock fix
+}
 
 export async function getStaffChat(s: S, channel: string) {
   if (!(await ok(s, "STAFF"))) return [];
