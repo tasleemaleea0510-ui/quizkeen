@@ -1,0 +1,4 @@
+[build.environment]
+  # The Supabase anon key and URL are public by design and get inlined into the
+  # client bundle via the NEXT_PUBLIC_ prefix, so exclude them from secrets scanning.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
