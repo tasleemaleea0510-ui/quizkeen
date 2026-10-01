@@ -1,0 +1,3 @@
+[build.environment]
+  # These Supabase values are public by design and are inlined into the client bundle by Next.js.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
