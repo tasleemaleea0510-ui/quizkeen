@@ -2,3 +2,7 @@
   # The Supabase anon key and URL are public by design and get inlined into the
   # client bundle via the NEXT_PUBLIC_ prefix, so exclude them from secrets scanning.
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SUPABASE_URL"
+  # The anon key is a Supabase publishable key (sb_publishable_...), which smart
+  # detection flags by pattern regardless of SECRETS_SCAN_OMIT_KEYS. Regular scanning
+  # for the values of DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY stays enabled.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
