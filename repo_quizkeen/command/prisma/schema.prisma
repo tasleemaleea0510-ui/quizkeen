@@ -1,0 +1,307 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  OWNER
+  SECURITY
+}
+
+model Profile {
+  chatMutedUntil      DateTime?
+  shadowed            Boolean    @default(false)
+  coinsFrozen         Boolean    @default(false)
+  pinned              Boolean    @default(false)
+  secretNote          String?
+  ghostMode           Boolean    @default(false)
+  dailyBonusDisabled  Boolean    @default(false)
+  forceRelogin        Boolean    @default(false)
+  id          String    @id
+  username    String    @unique
+  role        Role      @default(STUDENT)
+  xp          Int       @default(0)
+  coins       Int       @default(0)
+  level       Int       @default(1)
+  bannedUntil DateTime?
+  banMessage  String?
+  passwordNote String?
+  warnings    Int       @default(0)
+  renameRequested Boolean @default(false)
+  lastSeenAt  DateTime?
+  livePath    String?
+  tosAccepted   Boolean  @default(false)
+  liveRequested Boolean  @default(false)
+  livePeerId    String?
+  lastGiftAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  classroomsOwned    Classroom[]
+  classroomsCoTaught Classroom[] @relation("CoTaught")
+  enrollments        Enrollment[]
+  quizzesCreated     Quiz[]
+  flashcardsCreated  FlashcardCollection[]
+  gamesHosted        GameSession[]
+  gameParticipations Participant[]
+  completions        AssignmentCompletion[]
+  targetedAssignments Assignment[]
+
+  @@index([role])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  username  String
+  action    String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+}
+
+model OwnerMessage {
+  id            String   @id @default(uuid())
+  fromUsername  String
+  aboutUsername String
+  message       String
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String
+  name      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AdminSettings {
+  id           Int     @id @default(1)
+  ownerCode    String
+  adminCode    String
+  securityCode String
+  broadcast    String?
+  shutdown     Boolean @default(false)
+}
+
+model Classroom {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  joinCode    String   @unique
+  ownerId     String
+  coTeacherId String?
+  message     String?
+  createdAt   DateTime @default(now())
+
+  owner       Profile      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  coTeacher   Profile?     @relation("CoTaught", fields: [coTeacherId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  assignments Assignment[]
+  quizzes     Quiz[]
+
+  @@index([ownerId])
+}
+
+model Enrollment {
+  id          String   @id @default(uuid())
+  classroomId String
+  studentId   String
+  enrolledAt  DateTime @default(now())
+
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student     Profile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, studentId])
+}
+
+model Quiz {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  creatorId   String
+  isPrivate   Boolean  @default(false)
+  classroomId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator      Profile       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  classroom    Classroom?    @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  questions    Question[]
+  gameSessions GameSession[]
+  assignments  Assignment[]
+
+  @@index([creatorId])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+model Question {
+  id        String       @id @default(uuid())
+  quizId    String
+  type      QuestionType @default(MULTIPLE_CHOICE)
+  text      String
+  points    Int          @default(10)
+  timeLimit Int          @default(30)
+
+  quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers   Answer[]
+
+  @@index([quizId])
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model FlashcardCollection {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  creatorId   String
+  createdAt   DateTime    @default(now())
+
+  creator     Profile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  flashcards  Flashcard[]
+
+  @@index([creatorId])
+}
+
+model Flashcard {
+  id           String             @id @default(uuid())
+  collectionId String
+  frontText    String
+  backText     String
+
+  collection   FlashcardCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId])
+}
+
+model Assignment {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  classroomId String
+  quizId      String?
+  bonusXP     Int       @default(20)
+  provlage    Boolean   @default(false)
+  targetStudentId String?
+  createdAt   DateTime @default(now())
+
+  classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quiz        Quiz?      @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  targetStudent Profile? @relation(fields: [targetStudentId], references: [id], onDelete: Cascade)
+  completions AssignmentCompletion[]
+}
+
+model AssignmentCompletion {
+  id           String     @id @default(uuid())
+  assignmentId String
+  studentId    String
+  score        Int        @default(0)
+  completedAt  DateTime   @default(now())
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      Profile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+}
+
+enum GameStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model GameSession {
+  id        String     @id @default(uuid())
+  pin       String     @unique
+  status    GameStatus @default(WAITING)
+  quizId    String
+  hostId    String
+  createdAt DateTime   @default(now())
+
+  quiz       Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  host       Profile       @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  participants Participant[]
+
+  @@index([status])
+  @@index([pin])
+}
+
+model Participant {
+  id            String      @id @default(uuid())
+  gameSessionId String
+  studentId     String
+  score         Int         @default(0)
+  joinedAt      DateTime    @default(now())
+
+  gameSession  GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  student     Profile      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([gameSessionId, studentId])
+}
+
+model BanRequest {
+  id            String   @id @default(uuid())
+  adminUsername String
+  targetUsername String
+  reason        String?
+  minutes       Int
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  @@index([status])
+}
+
+model StaffChat {
+  id        String   @id @default(uuid())
+  channel   String
+  fromRole  String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([channel])
+}
+model PageVisit {
+  id        String   @id @default(uuid())
+  username  String
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@index([createdAt])
+}
+
+model ChatRequest {
+  id        String   @id @default(uuid())
+  fromUser  String
+  toUser    String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+
+  @@index([toUser])
+}
