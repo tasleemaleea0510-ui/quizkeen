@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import LobbyGame from "@/components/lobby-game";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Hash } from "lucide-react";
@@ -12,9 +12,7 @@ function LobbyInner() {
   const pin = params.pin as string;
   const name = search.get("name") || "Spelare";
   const [players, setPlayers] = useState<string[]>([]);
-  const supabaseRef = useRef(
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  );
+  const supabaseRef = useRef(createClient());
 
   useEffect(() => {
     const supabase = supabaseRef.current;

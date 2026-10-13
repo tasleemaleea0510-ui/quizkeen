@@ -14,14 +14,22 @@ import LiveShareClient from "@/components/live-share-client";
 import TranslateButton from "@/components/translate-button";
 
 export const metadata: Metadata = {
-  title: "QuizKeen 🎮 Lär. Spela. Tävla.",
+  title: "QuizKeen — Lär. Spela. Tävla.",
   description: "Live-flerspelar-quizar med XP, mynt och minispel.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } }).catch(() => null);
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const res = await supabase.auth.getUser();
+    user = res?.data?.user ?? null;
+  } catch (e) {
+    user = null;
+  }
+
   const profile = user
     ? await prisma.profile.findUnique({ where: { id: user.id } }).catch(() => null)
     : null;

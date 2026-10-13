@@ -50,7 +50,7 @@ export async function studentSendChat(targetRole: string, text: string) {
   if (!p) return { ok: false };
   if (!["OWNER", "ADMIN", "SECURITY"].includes(targetRole)) return { ok: false };
   if (!text.trim()) return { ok: false };
-  await prisma.staffChat.create({ data: { channel: `STU|${targetRole}`, fromRole: `🎓 ${p.username}`, text: text.trim().slice(0, 500) } });
+  await prisma.staffChat.create({ data: { channel: `STU|${targetRole}`, fromRole: p.username, text: text.trim().slice(0, 500) } });
   return { ok: true };
 }
 export async function studentGetChats(targetRole: string) {
@@ -61,7 +61,7 @@ export async function studentGetChats(targetRole: string) {
   if (!p) return null;
   if (!["OWNER", "ADMIN", "SECURITY"].includes(targetRole)) return null;
   const msgs = await prisma.staffChat.findMany({
-    where: { channel: `STU|${targetRole}`, OR: [{ fromRole: `🎓 ${p.username}` }, { fromRole: targetRole }] },
+    where: { channel: `STU|${targetRole}`, OR: [{ fromRole: p.username }, { fromRole: targetRole }] },
     orderBy: { createdAt: "asc" },
     take: 50,
   });
@@ -77,13 +77,13 @@ export async function getRenameRequest() {
 export async function acceptRename(newName: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, info: "❌ Inte inloggad!" };
+  if (!user) return { ok: false, info: "Inte inloggad." };
   const n = newName.trim();
-  if (n.length < 3 || n.length > 20) return { ok: false, info: "❌ 3-20 tecken!" };
+  if (n.length < 3 || n.length > 20) return { ok: false, info: "Användarnamnet måste vara mellan 3 och 20 tecken." };
   const existing = await prisma.profile.findUnique({ where: { username: n } });
-  if (existing && existing.id !== user.id) return { ok: false, info: "❌ Namnet är upptaget!" };
+  if (existing && existing.id !== user.id) return { ok: false, info: "Namnet är redan upptaget." };
   await prisma.profile.update({ where: { id: user.id }, data: { username: n, renameRequested: false } });
-  return { ok: true, info: "✅ Nytt namn sparat!" };
+  return { ok: true, info: "Nytt namn har sparats!" };
 }
 export async function pingPresence(path: string) {
   const supabase = await createClient();

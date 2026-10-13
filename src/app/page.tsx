@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gamepad2, Trophy, Zap, ArrowRight, Play, Sparkles } from "lucide-react";
+import { Gamepad2, Trophy, Zap, ArrowRight, Play } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-20">
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 mb-6">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Interaktivt lärande i realtid</span>
-        </div>
+      <div className="text-center pt-8">
         <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl text-white">
           Lär. Spela. <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Tävla.</span>
         </h1>

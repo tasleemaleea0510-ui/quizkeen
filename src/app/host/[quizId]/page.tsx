@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
 import { getQuiz, awardXP } from "./actions";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Sparkles } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy } from "lucide-react";
 
 type Q = { id: string; text: string; options: string[]; correctIndex: number };
 
@@ -22,9 +22,7 @@ export default function HostPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [timer, setTimer] = useState(20);
 
-  const supabaseRef = useRef(
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  );
+  const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
   const gameRef = useRef<any>(null);
   const answersRef = useRef<Record<string, { choice: number; t: number }>>({});

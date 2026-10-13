@@ -14,7 +14,7 @@ import {
   Plus, 
   Play, 
   Gamepad2, 
-  Star, 
+  Award, 
   Zap, 
   Coins, 
   Trophy, 
@@ -275,7 +275,7 @@ export default async function DashboardPage() {
         <Card className="hover:border-slate-700 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">Nivå</CardTitle>
-            <Star className="h-4 w-4 text-indigo-400" />
+            <Award className="h-4 w-4 text-indigo-400" />
           </CardHeader>
           <CardContent className="text-4xl font-extrabold text-indigo-400">{profile.level}</CardContent>
         </Card>

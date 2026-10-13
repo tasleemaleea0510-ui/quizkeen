@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { getChats, sendChat } from "../app/actions";
 
 const CHANNELS = [
-  { id: "hela", label: "🌍 Hela chatten" },
-  { id: "agare", label: "👑 Ägaren" },
-  { id: "admins", label: "🛡️ Admins" },
-  { id: "sakerhet", label: "🕵️ Säkerhet" },
+  { id: "hela", label: "Hela chatten" },
+  { id: "agare", label: "Ägaren" },
+  { id: "admins", label: "Admins" },
+  { id: "sakerhet", label: "Säkerhet" },
 ];
 
 export default function StaffChat({ s, accent }: { s: any; accent: string }) {
@@ -38,7 +38,7 @@ export default function StaffChat({ s, accent }: { s: any; accent: string }) {
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
       <div className="flex flex-wrap gap-1">
         {CHANNELS.map((c) => (
-          <button key={c.id} onClick={() => setChannel(c.id)} className={`rounded-lg px-2 py-1 text-xs font-bold ${channel === c.id ? accent + " text-white" : "bg-slate-800 text-slate-300"}`}>
+          <button key={c.id} onClick={() => setChannel(c.id)} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${channel === c.id ? accent + " text-white" : "bg-slate-800 text-slate-300"}`}>
             {c.label}
           </button>
         ))}
@@ -50,7 +50,7 @@ export default function StaffChat({ s, accent }: { s: any; accent: string }) {
             <span className="ml-1 text-slate-600">· {m.createdAt ? new Date(m.createdAt).toLocaleTimeString("sv-SE") : ""}</span>
           </p>
         ))}
-        {(msgs || []).length === 0 && <p className="text-slate-500">Inga meddelanden ännu — säj hej! 👋</p>}
+        {(msgs || []).length === 0 && <p className="text-slate-500">Inga meddelanden ännu i den här kanalen.</p>}
       </div>
       <div className="mt-3 flex gap-2">
         <input
@@ -58,9 +58,9 @@ export default function StaffChat({ s, accent }: { s: any; accent: string }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           placeholder="Skriv ett meddelande..."
-          className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+          className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-400"
         />
-        <button onClick={send} className={`rounded-lg ${accent} px-4 py-2 text-sm font-bold text-white`}>📢 Skicka</button>
+        <button onClick={send} className={`rounded-lg ${accent} px-4 py-2 text-sm font-semibold text-white`}>Skicka</button>
       </div>
     </div>
   );

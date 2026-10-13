@@ -186,7 +186,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
         const finish = this.physics.add.staticImage(WORLD_END, 150, "finish");
         finish.setDepth(5);
-        this.add.text(WORLD_END, 30, "🏁 FINISH", {
+        this.add.text(WORLD_END, 30, "GOAL", {
           fontSize: "22px",
           color: "#ffffff",
           fontStyle: "bold",
@@ -198,7 +198,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           const mm = Math.floor(t / 60);
           const ss = (t % 60).toString().padStart(2, "0");
           this.burst(this.player.x, this.player.y - 20, 0xfbbf24, 24);
-          this.add.text(400, 120, `🏁 YOU FINISHED IN ${mm}:${ss}!`, {
+          this.add.text(400, 120, `YOU FINISHED IN ${mm}:${ss}!`, {
             fontSize: "28px",
             color: "#ffffff",
             fontStyle: "bold",
@@ -214,7 +214,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         }
         this.input.on("pointerdown", this.jump);
 
-        const hint = this.add.text(400, 50, "→ / D = run • SPACE = jump • 💥 = back to start • jump = speed boost!", {
+        const hint = this.add.text(400, 50, "→ / D = run • SPACE = jump • obstacles = reset • jump = speed boost!", {
           fontSize: "14px",
           color: "#ffffff",
         }).setOrigin(0.5).setScrollFactor(0).setDepth(20);
@@ -247,7 +247,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           delay: 500,
           loop: true,
           callback: () => {
-            const medals = ["🥇", "", "🥉"];
+            const medals = ["#1", "#2", "#3"];
             const lines = Object.entries(this.progress)
               .sort((a, b) => b[1] - a[1])
               .slice(0, 3)

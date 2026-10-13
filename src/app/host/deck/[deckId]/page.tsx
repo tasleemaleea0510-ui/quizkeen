@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
 import { getDeck, awardXP } from "./actions";
+import { Swords, Users, Clock, HelpCircle, CheckCircle2, ArrowRight, Trophy, Flag } from "lucide-react";
 
 type BQ = { text: string; options: string[]; correctIndex: number };
 
@@ -30,9 +31,7 @@ export default function HostDeckPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [timer, setTimer] = useState(20);
 
-  const supabaseRef = useRef(
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  );
+  const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
   const gameRef = useRef<any>(null);
   const questionsRef = useRef<BQ[]>([]);
@@ -205,68 +204,105 @@ export default function HostDeckPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="text-center">
-        <p className="text-slate-400">⚔️ FLASHCARD BATTLE — Game PIN!</p>
-        <p className="text-6xl font-extrabold tracking-widest text-purple-400">{pin}</p>
+        <p className="flex items-center justify-center gap-2 text-slate-400 font-semibold tracking-wide uppercase text-sm">
+          <Swords className="h-4 w-4 text-purple-400" />
+          <span>Flashcard Battle — Game PIN</span>
+        </p>
+        <p className="text-6xl font-extrabold tracking-widest text-purple-400 mt-2">{pin}</p>
         <p className="mt-2 text-slate-400">{deck.title}</p>
       </div>
 
       {phase === "lobby" && (
-        <Card className="mt-8">
-          <CardHeader><CardTitle>👥 Players in lobby ({players.length})</CardTitle></CardHeader>
+        <Card className="mt-8 border-slate-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-400" />
+              <span>Deltagare i lobbyn ({players.length})</span>
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {players.map((p) => (
-                <span key={p} className="rounded-full bg-slate-800 px-3 py-1">{p}</span>
+                <span key={p} className="rounded-full bg-slate-800 px-3 py-1 text-sm font-medium">{p}</span>
               ))}
             </div>
-            <Button size="lg" className="mt-6 w-full" onClick={startGame} disabled={questionsRef.current.length === 0}>
-              ⚔️ START BATTLE
+            <Button size="lg" className="mt-6 w-full gap-2 bg-purple-600 hover:bg-purple-500 font-bold" onClick={startGame} disabled={questionsRef.current.length === 0}>
+              <Swords className="h-5 w-5" />
+              <span>STARTA STRIDEN</span>
             </Button>
             {questionsRef.current.length === 0 && (
-              <p className="mt-2 text-center text-slate-500">Add some cards to this deck first!</p>
+              <p className="mt-2 text-center text-slate-500 text-sm">Lägg till några kort i den här kortleken först!</p>
             )}
           </CardContent>
         </Card>
       )}
 
       {phase === "question" && q && (
-        <Card className="mt-8">
+        <Card className="mt-8 border-slate-800">
           <CardHeader>
-            <CardTitle>Card {qIndex + 1}/{questionsRef.current.length} — ⏱️ {timer}s</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Kort {qIndex + 1}/{questionsRef.current.length}</span>
+              <span className="flex items-center gap-1.5 text-purple-400 font-mono text-base">
+                <Clock className="h-4 w-4" /> {timer}s
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-bold">❓ {q.text}</p>
+            <p className="text-xl font-bold text-white">{q.text}</p>
           </CardContent>
         </Card>
       )}
 
       {phase === "reveal" && q && (
-        <Card className="mt-8">
+        <Card className="mt-8 border-slate-800">
           <CardHeader>
-            <CardTitle>✅ Answer: {q.options[q.correctIndex]}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" />
+              <span>Svar: {q.options[q.correctIndex]}</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {leaderboard.slice(0, 5).map(([name, s], i) => (
-              <div key={name} className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
-                <span>{i + 1}. {name}</span>
-                <span>{s} pts</span>
+              <div key={name} className="flex justify-between items-center rounded-xl bg-slate-800/50 px-4 py-2.5">
+                <span className="font-medium text-white">{i + 1}. {name}</span>
+                <span className="font-bold text-purple-400">{s} p</span>
               </div>
             ))}
-            <Button className="mt-4 w-full" onClick={next}>
-              {qIndex + 1 < questionsRef.current.length ? "➡️ Next Card" : "🏁 Finish"}
+            <Button className="mt-4 w-full gap-2 bg-indigo-600 hover:bg-indigo-500" onClick={next}>
+              {qIndex + 1 < questionsRef.current.length ? (
+                <>
+                  <span>Nästa kort</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  <span>Avsluta</span>
+                  <Flag className="h-4 w-4" />
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
       )}
 
       {phase === "end" && (
-        <Card className="mt-8">
-          <CardHeader><CardTitle>🏆 Final Results</CardTitle></CardHeader>
+        <Card className="mt-8 border-slate-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-400">
+              <Trophy className="h-5 w-5" />
+              <span>Slutresultat</span>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-2">
             {leaderboard.map(([name, s], i) => (
-              <div key={name} className="flex justify-between rounded-lg bg-slate-800/50 px-3 py-2">
-                <span>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {name}</span>
-                <span>{s} pts</span>
+              <div key={name} className="flex justify-between items-center rounded-xl bg-slate-800/50 px-4 py-2.5">
+                <span className="font-semibold text-white">
+                  <span className={`inline-block w-6 text-xs font-bold ${i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"}`}>
+                    #{i + 1}
+                  </span>
+                  {name}
+                </span>
+                <span className="font-bold text-purple-400">{s} p</span>
               </div>
             ))}
           </CardContent>

@@ -26,7 +26,7 @@ export default function LiveViewer({ username, peerId, onClose }: { username: st
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4">
       <div className="w-full max-w-4xl">
         <div className="mb-2 flex items-center justify-between">
-          <p className="font-extrabold text-red-400">🎥 LIVE — {username} {status === "LIVE" && <span className="ml-2 animate-pulse text-red-500">● LIVE</span>}</p>
+          <p className="font-extrabold text-red-400">LIVE — {username} {status === "LIVE" && <span className="ml-2 animate-pulse text-red-500">● LIVE</span>}</p>
           <button onClick={onClose} className="rounded-lg bg-slate-800 px-3 py-1 font-bold text-white">✕ Stäng</button>
         </div>
         <video ref={videoRef} autoPlay playsInline className="w-full rounded-2xl border border-red-500/40 bg-slate-950" />

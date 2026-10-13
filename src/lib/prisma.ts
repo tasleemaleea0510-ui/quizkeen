@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/quizkeen?schema=public";
+}
+
 const raw = new PrismaClient();
 
 export const prisma = raw.$extends({
@@ -11,12 +15,12 @@ export const prisma = raw.$extends({
           const d: any = args?.data ?? {};
           let uid: string | null = null;
           let text: string | null = null;
-          if (model === "Quiz") { uid = d.creatorId; text = `🎯 skapade quizzen ${d.title}`; }
-          else if (model === "FlashcardCollection") { uid = d.creatorId; text = `🃏 skapade gloskortleken ${d.title}`; }
-          else if (model === "GameSession") { uid = d.hostId; text = `🎮 startade ett live-spel (PIN ${d.pin})`; }
-          else if (model === "Participant") { uid = d.studentId; text = "🏃 hoppade in i ett live-spel"; }
-          else if (model === "Enrollment") { uid = d.studentId; text = "🔑 gick med i ett klassrum"; }
-          else if (model === "Classroom") { uid = d.ownerId; text = `🏫 skapade klassrummet ${d.name}`; }
+          if (model === "Quiz") { uid = d.creatorId; text = `skapade quizzen ${d.title}`; }
+          else if (model === "FlashcardCollection") { uid = d.creatorId; text = `skapade gloskortleken ${d.title}`; }
+          else if (model === "GameSession") { uid = d.hostId; text = `startade ett live-spel (PIN ${d.pin})`; }
+          else if (model === "Participant") { uid = d.studentId; text = "hoppade in i ett live-spel"; }
+          else if (model === "Enrollment") { uid = d.studentId; text = "gick med i ett klassrum"; }
+          else if (model === "Classroom") { uid = d.ownerId; text = `skapade klassrummet ${d.name}`; }
           if (uid && text) {
             const p = await raw.profile.findUnique({ where: { id: uid }, select: { username: true } });
             if (p) await raw.activity.create({ data: { username: p.username, action: text } });
@@ -32,7 +36,7 @@ export const prisma = raw.$extends({
               where: { id: (args.where as any)?.id },
               include: { host: { select: { username: true } } },
             });
-            if (g) await raw.activity.create({ data: { username: g.host.username, action: `🎮 spelstatus → ${(args.data as any).status}` } });
+            if (g) await raw.activity.create({ data: { username: g.host.username, action: `spelstatus → ${(args.data as any).status}` } });
           }
         } catch {}
         return result;

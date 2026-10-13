@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { Languages } from "lucide-react";
 
 const EXACT: Record<string, string> = {
   "Översikt": "Dashboard", "Klassrum": "Classroom", "Gloskort": "Flashcards", "Inställningar": "Settings",
@@ -139,30 +140,30 @@ const PHRASES: [string, string][] = [
   ["Du har blivit bannad av ägaren", "You have been banned by the owner"],
   ["Du har blivit bannad av en ADMIN", "You have been banned by an ADMIN"],
   ["Du har blivit bannad av SÄKERHET", "You have been banned by SECURITY"],
-  ["Laddar tronen... 👑", "Loading the throne... 👑"],
-  ["Allt ditt rike, i ett ögonkast. Endast för betrodda. Alla öppningar loggas. 👁️", "Your whole kingdom, at a glance. Trusted only. Every open is logged. 👁️"],
-  ["En admin vill banna längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge. 👑", "An admin wants to ban longer than 1 day? Here you approve or reject — and pick EXACTLY how long. 👑"],
-  ["Inga väntande begäranden. Alla admins sköter sig! 😎", "No pending requests. All admins behave! 😎"],
-  ["💰 XP & mynt & 🎚️ nivå", "💰 XP & coins & 🎚️ level"],
-  ["✏️ Byt namn & 🎭 roll", "✏️ Rename & 🎭 role"],
-  ["🔑 Lösenord & 📧 email", "🔑 Password & 📧 email"],
-  [" Personligt meddelande (popup för BARA denna användare)", "📨 Personal message (popup for ONLY this user)"],
+  ["Laddar tronen...", "Loading the throne..."],
+  ["Allt ditt rike, i ett ögonkast. Endast för betrodda. Alla öppningar loggas.", "Your whole kingdom, at a glance. Trusted only. Every open is logged."],
+  ["En admin vill banna längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge.", "An admin wants to ban longer than 1 day? Here you approve or reject — and pick EXACTLY how long."],
+  ["Inga väntande begäranden. Alla admins sköter sig!", "No pending requests. All admins behave!"],
+  ["XP & mynt & nivå", "XP & coins & level"],
+  ["Byt namn & roll", "Rename & role"],
+  ["Lösenord & email", "Password & email"],
+  ["Personligt meddelande (popup för BARA denna användare)", "Personal message (popup for ONLY this user)"],
   ["Skriv något bara denna personen ser...", "Write something only this person sees..."],
-  ["📢 Meddela med popup", "📢 Notify with popup"],
+  ["Meddela med popup", "Notify with popup"],
   ["eget lösenord (valfritt, 6+ tecken)", "custom password (optional, 6+ chars)"],
-  ["🎥 LIVE-skärmdelning", "🎥 LIVE screen share"],
-  ["🎥 Be om LIVE-skärm", "🎥 Request LIVE screen"],
-  ["📢 Sändning & 🛠️ Nödläge", "📢 Broadcast & 🛠️ Emergency"],
+  ["LIVE-skärmdelning", "LIVE screen share"],
+  ["Be om LIVE-skärm", "Request LIVE screen"],
+  ["Sändning & Nödläge", "Broadcast & Emergency"],
   ["Skriv ett meddelande som ALLA användare ser...", "Type a message ALL users see..."],
-  ["🛠️ Nödläge — stäng hela sajten", "🛠️ Emergency — shut down the whole site"],
+  ["Nödläge — stäng hela sajten", "Emergency — shut down the whole site"],
   ["Belöna (max 500, 3/dag)", "Reward (max 500, 3/day)"],
   ["Banna (5min/1tim/1dag)", "Ban (5min/1hour/1day)"],
   ["längre än så? Be ägaren om lov!", "longer than that? Ask the owner!"],
   ["Allt loggas.", "Everything is logged."],
   ["Skriv ett meddelande till HELA sajten...", "Type a message to the WHOLE site..."],
   ["ALLA användare ser detta som en gul banderoll. Ägaren ser i loggen när du sänder.", "ALL users see this as a gold banner. The owner sees in the log when you broadcast."],
-  ["📢 Sändning ute till HELA sajten!", "📢 Broadcast sent to the WHOLE site!"],
-  ["Övervaka, varna, kyla ner (5 min / 1 tim) och begär namnbyte. Allt loggas. 👁️", "Monitor, warn, cool down (5 min / 1 hour) and request rename. Everything is logged. 👁️"],
+  ["Sändning ute till HELA sajten!", "Broadcast sent to the WHOLE site!"],
+  ["Övervaka, varna, kyla ner (5 min / 1 tim) och begär namnbyte. Allt loggas.", "Monitor, warn, cool down (5 min / 1 hour) and request rename. Everything is logged."],
   ["Väntar på att alla ska bli redo", "Waiting for everyone to get ready"],
   ["väntar på att arrangören startar", "waiting for the host to start"],
   ["Fråga ", "Question "],
@@ -176,16 +177,18 @@ const PHRASES: [string, string][] = [
 ];
 
 export default function TranslateButton() {
+  const [mounted, setMounted] = useState(false);
   const [lang, setLang] = useState<"sv" | "en">("sv");
   const path = usePathname();
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("qk_lang") as "sv" | "en" | null;
     if (saved) setLang(saved);
   }, []);
 
   useEffect(() => {
-    if (lang !== "en") return;
+    if (!mounted || lang !== "en") return;
     let on = true;
     function fix(t: string): string {
       const trimmed = t.trim();
@@ -215,7 +218,7 @@ export default function TranslateButton() {
     translate();
     const iv = setInterval(translate, 3000);
     return () => { on = false; clearInterval(iv); };
-  }, [lang, path]);
+  }, [lang, path, mounted]);
 
   function toggle() {
     const next = lang === "sv" ? "en" : "sv";
@@ -224,18 +227,15 @@ export default function TranslateButton() {
     setLang("en");
   }
 
+  if (!mounted) return null;
+
   return (
-    <button onClick={toggle} aria-label="Translate Swedish/English" className="qk-tb">
-      <style>{`
-        .qk-tb{position:fixed;left:12px;top:12px;z-index:999;width:58px;height:58px;border-radius:9999px;overflow:hidden;animation:qk-tb-pulse 1.6s ease-out infinite;}
-        .qk-tb::before{content:"";position:absolute;inset:-100%;background:conic-gradient(#ff0044,#ff8800,#ffee00,#22cc44,#00ccff,#8844ff,#ff0044);animation:qk-tb-spin 2.2s linear infinite;}
-        .qk-tb:hover::before{animation-duration:.5s;}
-        .qk-tb>span{position:relative;display:grid;place-items:center;width:50px;height:50px;border-radius:9999px;background:#0b1120;font-size:15px;font-weight:800;color:#fff;animation:qk-tb-wiggle 2s ease-in-out infinite;}
-        .qk-tb:hover>span{animation:qk-tb-wiggle .3s ease-in-out infinite;}
-        @keyframes qk-tb-spin{to{transform:rotate(360deg)}}
-        @keyframes qk-tb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,0,68,.8)}50%{box-shadow:0 0 0 16px rgba(255,0,68,0)}}
-        @keyframes qk-tb-wiggle{0%,100%{transform:rotate(-10deg) scale(1)}50%{transform:rotate(10deg) scale(1.12)}}
-      `}</style>
+    <button 
+      onClick={toggle} 
+      aria-label="Translate Swedish/English" 
+      className="fixed bottom-4 left-4 z-50 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/95 px-3 py-1.5 text-xs font-bold text-slate-200 shadow-xl backdrop-blur-md hover:border-indigo-500/50 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95"
+    >
+      <Languages className="h-3.5 w-3.5 text-indigo-400" />
       <span>{lang === "sv" ? "EN" : "SV"}</span>
     </button>
   );

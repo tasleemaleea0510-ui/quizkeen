@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
-import { ROLE_THEME } from "@/lib/roles";
-import { School, BarChart3, Layers, Settings, LogOut, Sparkles } from "lucide-react";
+import { School, BarChart3, Layers, Settings, LogOut } from "lucide-react";
 
 export default function Navbar() {
   const { supabase, session } = useSupabase();
@@ -29,11 +28,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-white">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <span>Quiz<span className="text-indigo-400">Keen</span></span>
+        <Link href="/" className="text-xl font-extrabold tracking-tight text-white hover:opacity-90 transition-opacity">
+          Quiz<span className="text-indigo-400">Keen</span>
         </Link>
         <nav className="flex items-center gap-2">
           {session ? (

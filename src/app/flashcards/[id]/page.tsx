@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import StudyDeck from "@/components/study-deck";
 import AddCardForm from "@/components/add-card-form";
+import { ArrowLeft, Swords } from "lucide-react";
 
 export default async function DeckPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -21,10 +22,16 @@ export default async function DeckPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex items-center justify-between">
-        <Link href="/flashcards" className="text-slate-400 hover:text-white">⬅️ Alla gloskort</Link>
+        <Link href="/flashcards" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft className="h-4 w-4" />
+          <span>Alla gloskort</span>
+        </Link>
         <div className="flex items-center gap-2">
-          <Link href={`/host/deck/${col.id}`} className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500">⚔️ Starta strid</Link>
-          <span className="rounded-full bg-indigo-600/20 px-3 py-1 text-xs font-bold text-indigo-300">{col.flashcards.length} kort</span>
+          <Link href={`/host/deck/${col.id}`} className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 transition-colors">
+            <Swords className="h-4 w-4" />
+            <span>Starta strid</span>
+          </Link>
+          <span className="rounded-full bg-indigo-600/20 px-3 py-1 text-xs font-semibold text-indigo-300">{col.flashcards.length} kort</span>
         </div>
       </div>
       <h1 className="mt-4 text-center text-4xl font-extrabold text-white">{col.title}</h1>

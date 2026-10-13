@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getLexa, completeLexa } from "@/app/classroom/actions";
+import { CheckCircle2, FileText, Clock, Play, Trophy, Zap } from "lucide-react";
 
 type Q = { id: string; text: string; answers: { id: string; text: string; isCorrect: boolean }[] };
 
@@ -25,8 +26,10 @@ export default function LexaPage() {
   if (!started && data.doneScore !== null)
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <p className="text-5xl">✅</p>
-        <h1 className="mt-4 text-2xl font-extrabold text-white">Redan gjord!</h1>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <CheckCircle2 className="h-8 w-8" />
+        </div>
+        <h1 className="mt-4 text-2xl font-extrabold text-white">Redan slutförd</h1>
         <p className="mt-2 text-slate-300">Du fick <b className="text-emerald-400">{data.doneScore}%</b> på {data.title}</p>
       </div>
     );
@@ -34,14 +37,28 @@ export default function LexaPage() {
   if (!started)
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <p className="text-5xl">📝</p>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <FileText className="h-8 w-8" />
+        </div>
         <h1 className="mt-4 text-3xl font-extrabold text-white">{data.title}</h1>
-        <p className="mt-2 text-slate-400">
-          {data.questions.length} frågor · +{data.bonusXP} bonus-XP
-          {data.provlage && <span className="ml-2 rounded-full bg-amber-600/20 px-3 py-1 text-xs font-bold text-amber-400">⏱️ PROV-LÄGE: endast ETT försök!</span>}
-        </p>
-        <button onClick={() => setStarted(true)} className="mt-6 rounded-xl bg-indigo-600 px-8 py-3 text-lg font-extrabold text-white hover:bg-indigo-500">
-          🚀 Starta
+        <div className="mt-2 flex items-center justify-center gap-2 text-slate-400 text-sm">
+          <span>{data.questions.length} frågor</span>
+          <span>·</span>
+          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+            <Zap className="h-3.5 w-3.5" /> +{data.bonusXP} bonus-XP
+          </span>
+          {data.provlage && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-600/20 px-3 py-1 text-xs font-bold text-amber-400">
+              <Clock className="h-3 w-3" /> Prov-läge: 1 försök
+            </span>
+          )}
+        </div>
+        <button 
+          onClick={() => setStarted(true)} 
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-3 text-base font-extrabold text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/20"
+        >
+          <Play className="h-4 w-4" />
+          <span>Starta läxa</span>
         </button>
       </div>
     );
@@ -49,9 +66,13 @@ export default function LexaPage() {
   if (result)
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <p className="text-6xl">{result.score >= 50 ? "🎉" : "💪"}</p>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <Trophy className="h-8 w-8" />
+        </div>
         <h1 className="mt-4 text-3xl font-extrabold text-white">{result.score}% rätt!</h1>
-        <p className="mt-2 text-lg text-emerald-400">+{result.xp} XP 🎉</p>
+        <p className="mt-2 text-lg text-emerald-400 font-semibold flex items-center justify-center gap-1.5">
+          <Zap className="h-4 w-4" /> +{result.xp} XP intjänat
+        </p>
       </div>
     );
 

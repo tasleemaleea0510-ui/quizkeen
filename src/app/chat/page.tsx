@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { getChatHub, getChat, sendTo, requestChat, respondChat } from "./actions";
 import { 
   MessageSquare, 
@@ -8,48 +10,76 @@ import {
   Check, 
   X, 
   Bell, 
-  Layers, 
-  School, 
-  User, 
-  ShieldAlert, 
-  Crown, 
-  Shield, 
-  CheckCircle2,
-  Smile
+  MessageCircle
 } from "lucide-react";
 
-const EMOJIS = ["😀", "👍", "❤️", "😮", "🤝", "🎉", "🔥", "💯", "👏", "⭐"];
+const QUICK_PHRASES = ["Hej!", "Bra spelat!", "Tack!", "Är du redo?", "Ses i klassrummet!"];
 
 export default function ChatPage() {
   const [hub, setHub] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [unauthenticated, setUnauthenticated] = useState(false);
   const [chan, setChan] = useState<string | null>(null);
   const [chanLabel, setChanLabel] = useState("");
   const [msgs, setMsgs] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [reqName, setReqName] = useState("");
   const [info, setInfo] = useState("");
-  const [showEmojiBar, setShowEmojiBar] = useState(false);
+  const [showQuickBar, setShowQuickBar] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let on = true;
     async function pullHub() {
-      if (document.hidden) return;
-      const h = await getChatHub();
-      if (on && h) setHub(h);
+      try {
+        const h = await getChatHub();
+        if (on) {
+          if (h) {
+            setHub(h);
+            setUnauthenticated(false);
+          } else {
+            setUnauthenticated(true);
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        if (on) {
+          setUnauthenticated(true);
+          setLoading(false);
+        }
+      }
     }
+
     pullHub();
-    const iv = setInterval(pullHub, 10000);
-    return () => { on = false; clearInterval(iv); };
+
+    // Safety timeout: never hang loading indefinitely
+    const timer = setTimeout(() => {
+      if (on) {
+        setLoading(false);
+      }
+    }, 1500);
+
+    const iv = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      pullHub();
+    }, 10000);
+
+    return () => { 
+      on = false; 
+      clearTimeout(timer);
+      clearInterval(iv); 
+    };
   }, []);
 
   useEffect(() => {
     if (!chan) return;
     let on = true;
     async function pull() {
-      if (document.hidden) return;
-      const m = await getChat(chan!);
-      if (on && m) setMsgs(m);
+      try {
+        if (typeof document !== "undefined" && document.hidden) return;
+        const m = await getChat(chan!);
+        if (on && m) setMsgs(m);
+      } catch {}
     }
     pull();
     const iv = setInterval(pull, 6000);
@@ -58,12 +88,42 @@ export default function ChatPage() {
 
   useEffect(() => { boxRef.current?.scrollTo({ top: 999999 }); }, [msgs]);
 
-  if (!hub) return (
-    <div className="flex min-h-screen items-center justify-center text-slate-400 gap-2">
-      <MessageSquare className="h-5 w-5 animate-pulse text-indigo-400" />
-      <span>Laddar chatten...</span>
-    </div>
-  );
+  if (loading && !hub && !unauthenticated) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-slate-400 gap-3">
+        <MessageSquare className="h-6 w-6 animate-pulse text-indigo-400" />
+        <span className="text-sm font-medium">Laddar chatten...</span>
+      </div>
+    );
+  }
+
+  if (unauthenticated || !hub) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-xl">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+            <MessageSquare className="h-6 w-6" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Logga in för att chatta</h2>
+          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+            Du behöver vara inloggad på ditt konto för att delta i klass-chattar och skicka meddelanden.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Link href="/login" className="w-full">
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold">
+                Logga in
+              </Button>
+            </Link>
+            <Link href="/register" className="w-full">
+              <Button variant="outline" className="w-full font-semibold">
+                Skapa konto
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const me = hub.username;
   const convos: { chan: string; label: string; badge: string }[] = [];
@@ -109,7 +169,7 @@ export default function ChatPage() {
       {info && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-2.5 text-sm font-medium text-indigo-300">
           <span>{info}</span>
-          <button onClick={() => setInfo("")} className="text-indigo-400 hover:text-white">✕</button>
+          <button onClick={() => setInfo("")} className="text-indigo-400 hover:text-white" aria-label="Stäng"><X className="h-4 w-4" /></button>
         </div>
       )}
 
@@ -218,11 +278,16 @@ export default function ChatPage() {
                   className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400" 
                 />
                 <button 
-                  onClick={() => setShowEmojiBar((b) => !b)} 
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-white transition-colors"
-                  title="Reaktioner"
+                  onClick={() => setShowQuickBar((b) => !b)} 
+                  className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
+                    showQuickBar 
+                      ? "border-indigo-500 bg-indigo-600/20 text-indigo-300" 
+                      : "border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                  title="Snabbsvar"
                 >
-                  <Smile className="h-4 w-4" />
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Svar</span>
                 </button>
                 <button 
                   onClick={() => send()} 
@@ -233,11 +298,15 @@ export default function ChatPage() {
                 </button>
               </div>
 
-              {showEmojiBar && (
-                <div className="mt-2 flex flex-wrap gap-1 p-2 rounded-xl bg-slate-950/80 border border-slate-800">
-                  {EMOJIS.map((e) => (
-                    <button key={e} onClick={() => setText((t) => t + e)} className="rounded-lg bg-slate-800/80 px-2 py-1 text-base hover:bg-slate-700 transition-colors">
-                      {e}
+              {showQuickBar && (
+                <div className="mt-2 flex flex-wrap gap-1.5 p-2 rounded-xl bg-slate-950/80 border border-slate-800">
+                  {QUICK_PHRASES.map((phrase) => (
+                    <button 
+                      key={phrase} 
+                      onClick={() => { setText(phrase); setShowQuickBar(false); }} 
+                      className="rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                    >
+                      {phrase}
                     </button>
                   ))}
                 </div>

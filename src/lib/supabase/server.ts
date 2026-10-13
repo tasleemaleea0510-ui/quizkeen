@@ -1,12 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './client';
 
 export async function createClient() {
   const cookieStore = await cookies();
 
   const client = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -23,7 +24,11 @@ export async function createClient() {
     }
   );
 
-  const ref = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).host.split('.')[0];
+  let ref = 'placeholder';
+  try {
+    if (SUPABASE_URL) ref = new URL(SUPABASE_URL).host.split('.')[0];
+  } catch (e) {}
+
   const raw = cookieStore.get(`sb-${ref}-auth-token`)?.value;
   let sessionJson: any = null;
   if (raw) {
@@ -35,8 +40,17 @@ export async function createClient() {
 
   const originalGetUser = client.auth.getUser.bind(client.auth);
   (client.auth as any).getUser = async (...args: any[]) => {
-    const res = await originalGetUser(...args);
-    if (res.data && res.data.user) return res;
+    const all = cookieStore.getAll();
+    const hasAuth = all.some(c => c.name.startsWith('sb-') || c.name.includes('auth-token'));
+    if (!hasAuth && !sessionJson) {
+      return { data: { user: null }, error: null };
+    }
+
+    try {
+      const res = await originalGetUser(...args);
+      if (res && res.data && res.data.user) return res;
+    } catch (e) {}
+
     if (sessionJson && sessionJson.access_token) {
       try {
         const b64 = sessionJson.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -59,7 +73,7 @@ export async function createClient() {
         }
       } catch (e) {}
     }
-    return res;
+    return { data: { user: null }, error: null };
   };
 
   return client;

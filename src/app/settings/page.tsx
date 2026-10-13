@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updateUsername, updatePassword } from "./actions";
+import { Settings, User, BarChart3, Key, Edit3, Save, Coins, Zap, Award } from "lucide-react";
 
 const MESSAGES: Record<string, { text: string; ok: boolean }> = {
-  taken: { text: "❌ Det användarnamnet är redan upptaget — någon var snabbare!", ok: false },
-  short: { text: "❌ Användarnamnet måste vara minst 3 tecken.", ok: false },
-  saved: { text: "✅ Användarnamn uppdaterat!", ok: true },
-  passshort: { text: "❌ Lösenordet måste vara minst 6 tecken.", ok: false },
-  passsaved: { text: "✅ Lösenord bytt!", ok: true },
-  passerr: { text: "❌ Kunde inte byta lösenord just nu. Försök igen om en stund.", ok: false },
+  taken: { text: "Användarnamnet är redan upptaget. Välj ett annat.", ok: false },
+  short: { text: "Användarnamnet måste vara minst 3 tecken.", ok: false },
+  saved: { text: "Användarnamnet har uppdaterats.", ok: true },
+  passshort: { text: "Lösenordet måste vara minst 6 tecken.", ok: false },
+  passsaved: { text: "Lösenordet har ändrats.", ok: true },
+  passerr: { text: "Kunde inte byta lösenord just nu. Försök igen om en stund.", ok: false },
 };
 
 export default async function SettingsPage({
@@ -34,14 +35,22 @@ export default async function SettingsPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
-      <h1 className="text-3xl font-extrabold">⚙️ Inställningar</h1>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+          <Settings className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-extrabold text-white">Inställningar</h1>
+          <p className="text-xs text-slate-400">Hantera konto, lösenord och profiluppgifter</p>
+        </div>
+      </div>
 
       {msg && (
         <div
-          className={`rounded-xl border px-4 py-3 font-bold ${
+          className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
             msg.ok
-              ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-              : "border-red-500 bg-red-500/10 text-red-400"
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/40 bg-red-500/10 text-red-300"
           }`}
         >
           {msg.text}
@@ -51,45 +60,79 @@ export default async function SettingsPage({
       {searchParams.err && (
         <p className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs text-slate-400">
           {isRate
-            ? "⏳ Supabase-spärr: för många lösenordsbyten på kort tid. Vänta ~10 minuter och försök igen — ditt konto är fortfarande säkert! 🔒"
-            : `🔍 Debug: ${searchParams.err}`}
+            ? "Spärr: För många lösenordsbyten på kort tid. Vänta några minuter och försök igen."
+            : `Information: ${searchParams.err}`}
         </p>
       )}
 
-      <Card>
-        <CardHeader><CardTitle>👤 Profil</CardTitle></CardHeader>
-        <CardContent className="space-y-1">
-          <p><span className="text-slate-400">Användarnamn:</span> <b>{profile.username}</b></p>
-          <p><span className="text-slate-400">Roll:</span> <b>{profile.role === "TEACHER" ? "🍎 Lärare" : "🎒 Elev"}</b></p>
-          <p><span className="text-slate-400">Gick med:</span> <b>{profile.createdAt.toLocaleDateString("sv-SE")}</b></p>
+      <Card className="border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <User className="h-4 w-4 text-indigo-400" />
+            <span>Profil</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p><span className="text-slate-400">Användarnamn:</span> <b className="text-white">{profile.username}</b></p>
+          <p><span className="text-slate-400">Roll:</span> <b className="text-white">{profile.role === "TEACHER" ? "Lärare" : "Elev"}</b></p>
+          <p><span className="text-slate-400">Registrerad:</span> <b className="text-white">{profile.createdAt.toLocaleDateString("sv-SE")}</b></p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>📊 Statistik</CardTitle></CardHeader>
-        <CardContent className="flex gap-8 text-2xl font-extrabold">
-          <span className="text-indigo-400">Lv {profile.level}</span>
-          <span className="text-emerald-400">{profile.xp} XP</span>
-          <span className="text-amber-400">{profile.coins} 🪙</span>
+      <Card className="border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-indigo-400" />
+            <span>Statistik</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-8 text-2xl font-extrabold">
+          <div className="flex items-center gap-2 text-indigo-400">
+            <Award className="h-5 w-5" />
+            <span>Lv {profile.level}</span>
+          </div>
+          <div className="flex items-center gap-2 text-emerald-400">
+            <Zap className="h-5 w-5" />
+            <span>{profile.xp} XP</span>
+          </div>
+          <div className="flex items-center gap-2 text-amber-400">
+            <Coins className="h-5 w-5" />
+            <span>{profile.coins} mynt</span>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>✏️ Byt användarnamn</CardTitle></CardHeader>
+      <Card className="border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Edit3 className="h-4 w-4 text-indigo-400" />
+            <span>Byt användarnamn</span>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
-          <form action={updateUsername} className="flex gap-2">
-            <Input name="username" defaultValue={profile.username} minLength={3} required />
-            <Button type="submit">💾 Spara</Button>
+          <form action={updateUsername} className="flex gap-2.5">
+            <Input name="username" defaultValue={profile.username} minLength={3} required className="max-w-xs" />
+            <Button type="submit" className="gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+              <Save className="h-4 w-4" />
+              <span>Spara</span>
+            </Button>
           </form>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>🔑 Byt lösenord</CardTitle></CardHeader>
+      <Card className="border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Key className="h-4 w-4 text-indigo-400" />
+            <span>Byt lösenord</span>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
-          <form action={updatePassword} className="flex gap-2">
-            <Input name="password" type="password" placeholder="Nytt lösenord (6+ tecken)" minLength={6} required />
-            <Button type="submit">🔒 Uppdatera</Button>
+          <form action={updatePassword} className="flex gap-2.5">
+            <Input name="password" type="password" placeholder="Nytt lösenord (6+ tecken)" minLength={6} required className="max-w-xs" />
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500">
+              Uppdatera
+            </Button>
           </form>
         </CardContent>
       </Card>

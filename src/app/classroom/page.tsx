@@ -23,7 +23,7 @@ import {
   Layers, 
   Clock, 
   Target,
-  Sparkles
+  HelpCircle
 } from "lucide-react";
 
 export default async function ClassroomPage() {
@@ -89,7 +89,7 @@ export default async function ClassroomPage() {
             <Card className="mt-6 border-emerald-500/40 bg-emerald-500/5">
               <CardHeader>
                 <CardTitle className="text-emerald-400 text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
+                  <HelpCircle className="h-4 w-4" />
                   <span>Kom igång som lärare</span>
                 </CardTitle>
               </CardHeader>

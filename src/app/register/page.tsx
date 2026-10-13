@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createProfile } from "./actions";
+import { GraduationCap, School } from "lucide-react";
 
 export default function RegisterPage() {
   const { supabase } = useSupabase();
@@ -39,7 +40,7 @@ export default function RegisterPage() {
     <div className="mx-auto max-w-md px-4 py-20">
       <Card>
         <CardHeader>
-          <CardTitle className="text-center">Join QuizKeen! 🚀</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold">Join QuizKeen!</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
@@ -47,11 +48,13 @@ export default function RegisterPage() {
             <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input type="password" placeholder="Password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} required />
             <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant={role === "STUDENT" ? "default" : "outline"} onClick={() => setRole("STUDENT")}>
-                🎒 Student
+              <Button type="button" variant={role === "STUDENT" ? "default" : "outline"} onClick={() => setRole("STUDENT")} className="gap-2">
+                <GraduationCap className="h-4 w-4" />
+                <span>Student</span>
               </Button>
-              <Button type="button" variant={role === "TEACHER" ? "default" : "outline"} onClick={() => setRole("TEACHER")}>
-                🍎 Teacher
+              <Button type="button" variant={role === "TEACHER" ? "default" : "outline"} onClick={() => setRole("TEACHER")} className="gap-2">
+                <School className="h-4 w-4" />
+                <span>Teacher</span>
               </Button>
             </div>
             {error && <p className="text-sm text-red-400">{error}</p>}

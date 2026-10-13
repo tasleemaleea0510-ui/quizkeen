@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyUsername } from "@/app/settings/actions";
 import { CheckCircle2, XCircle, Trophy, Loader2, Award, Clock } from "lucide-react";
@@ -40,9 +40,7 @@ function GameInner() {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { questionRef.current = question; }, [question]);
 
-  const supabaseRef = useRef(
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  );
+  const supabaseRef = useRef(createClient());
   const gameRef = useRef<any>(null);
   const accountRef = useRef("");
 

@@ -2,21 +2,33 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { 
+  HelpCircle, 
+  Gamepad2, 
+  Hash, 
+  Clock, 
+  CheckCircle2, 
+  Layers, 
+  Swords, 
+  Trophy, 
+  Shield, 
+  GraduationCap, 
+  Settings 
+} from "lucide-react";
 
 const KEY = "quizkeen_tutorial_done";
 
 const STEPS = [
-  { icon: "🎮", title: "Starta en live-frågesport", text: "Tryck på “Börja spela”, välj en quiz och få en 6-siffrig PIN-kod. Dela med hela klassen!" },
-  { icon: "🕹️", title: "Gå med med en PIN-kod", text: "Spelare trycker på “Gå med i ett spel”, skriver PIN-koden + valfritt namn och hoppar in i lobbyn." },
-  { icon: "🏃", title: "Spring medan du väntar", text: "Ingen tråkig väntan! Lobbyn har ett minispel — spring & hoppa med dina vänner tills arrangören startar." },
-  { icon: "❓", title: "Svara snabbt!", text: "Välj bland de färgade knapparna. Rätt + snabbt = mer poäng (upp till 150 per fråga!)." },
-  { icon: "🃏", title: "Kortlekar", text: "Bygg kortlekar och vänd kort själv för att plugga. Ska du starta en strid? Lägg till fejk-svar också!" },
-  { icon: "⚔️", title: "Kortleksstrider", text: "Starta en strid med en PIN-kod — spelarna ser frågan, kämpar om att välja rätt sida, och kortet VÄNDS och avslöjar svaret!" },
-  { icon: "🏆", title: "XP, mynt & nivåer", text: "Varje rätt svar ger XP & mynt. 100 XP = nivå upp! Klättra på topplistan." },
-  { icon: "🎭", title: "Roller & färger", text: "👑 ÄGARE = glänsande GULD · 🛡️ ADMIN = röd · 🕵️ SÄKERHET = ljusblå · 🍎 LÄRARE = mörkblå · 🎒 ELEV = grå. Din färg syns bredvid ditt namn ÖVERALLT på sajten!" },
-  { icon: "🌈", title: "Toppliste-färger", text: "1:a plats = glödande GRÖN · 2:a = lila · 3:e = mörkgul. MEN staff (ägare/admin/säkerhet) behåller ALLTID sin rollfärg — respekt!" },
-  { icon: "🍎", title: "Lärarkrafter", text: "Lärare kan skapa klassrum, ge läxor, se klassens statistik och dela med sig XP. Elever kan inte — det är därför det är en KRAFT!" },
-  { icon: "⚙️", title: "Gör det till ditt", text: "Byt användarnamn & lösenord när som helst i Inställningar." },
+  { icon: <Gamepad2 className="h-5 w-5 text-indigo-400" />, title: "Starta en live-frågesport", text: "Välj en quiz och få en 6-siffrig PIN-kod att dela med hela klassen." },
+  { icon: <Hash className="h-5 w-5 text-indigo-400" />, title: "Gå med med en PIN-kod", text: "Spelare väljer “Gå med i ett spel”, anger PIN-koden och sitt namn för att delta i lobbyn." },
+  { icon: <Clock className="h-5 w-5 text-indigo-400" />, title: "Minispel i lobbyn", text: "Spela minispelet i väntrummet medan arrangören förbereder start." },
+  { icon: <CheckCircle2 className="h-5 w-5 text-indigo-400" />, title: "Svara snabbt för bonuspoäng", text: "Välj bland svarsalternativen. Snabbare svar ger högre poäng." },
+  { icon: <Layers className="h-5 w-5 text-indigo-400" />, title: "Gloskort & kortlekar", text: "Skapa digitala kortlekar och vänd kort för att öva själv inför prov." },
+  { icon: <Swords className="h-5 w-5 text-indigo-400" />, title: "Kortleksstrider", text: "Utmana vänner i realtidsstrider baserade på dina gloskort." },
+  { icon: <Trophy className="h-5 w-5 text-indigo-400" />, title: "XP, mynt & nivåer", text: "Rätta svar ger erfarenhetspoäng och mynt för att klättra på topplistan." },
+  { icon: <Shield className="h-5 w-5 text-indigo-400" />, title: "Roller & behörigheter", text: "Systemet har separata vyer för elever, lärare, administratörer och moderatorer." },
+  { icon: <GraduationCap className="h-5 w-5 text-indigo-400" />, title: "Lärarverktyg", text: "Lärare kan skapa klassrum, tilldela läxor och granska deltagarstatistik." },
+  { icon: <Settings className="h-5 w-5 text-indigo-400" />, title: "Anpassa din profil", text: "Hantera användarnamn och inställningar direkt via inställningspanelen." },
 ];
 
 export default function TutorialWidget() {
@@ -37,41 +49,43 @@ export default function TutorialWidget() {
 
   return (
     <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>❓</Button>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} title="Instruktioner">
+        <HelpCircle className="h-4 w-4 text-slate-400" />
+      </Button>
       {open &&
+        typeof document !== "undefined" &&
         createPortal(
-          <div className="qk-tut-scroll fixed inset-0 z-[70] overflow-y-auto bg-black/80 backdrop-blur-sm">
-            <style>{`
-              .qk-tut-scroll { scrollbar-width: thin; scrollbar-color: #475569 transparent; }
-              .qk-tut-scroll::-webkit-scrollbar { width: 8px; }
-              .qk-tut-scroll::-webkit-scrollbar-track { background: transparent; }
-              .qk-tut-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
-            `}</style>
+          <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/80 backdrop-blur-sm">
             <div className="flex min-h-full items-center justify-center p-4">
-              <div className="relative w-full max-w-2xl rounded-3xl border border-indigo-500/40 bg-slate-900 p-6 shadow-2xl shadow-indigo-500/20 sm:p-8">
+              <div className="relative w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8">
                 <button
                   onClick={close}
-                  className="absolute right-4 top-4 rounded-xl bg-slate-800 px-3 py-1 text-lg font-bold text-slate-300 hover:bg-red-600/30 hover:text-white"
+                  className="absolute right-4 top-4 rounded-xl bg-slate-800 px-3 py-1 text-sm font-bold text-slate-400 hover:text-white transition-colors"
                 >
                   ✕
                 </button>
-                <h2 className="pr-10 text-2xl font-extrabold text-white sm:text-3xl">
-                  🎓 Så spelar du <span className="text-indigo-400">QuizKeen</span>
+                <h2 className="pr-10 text-2xl font-bold text-white sm:text-3xl">
+                  Så fungerar <span className="text-indigo-400">QuizKeen</span>
                 </h2>
-                <p className="mt-2 text-slate-400">Rundturen på 60 sekunder — allt du behöver för att dominera!</p>
-                <div className="mt-6 space-y-3">
+                <p className="mt-1 text-xs text-slate-400">Snabbguide över funktionerna i plattformen.</p>
+                <div className="mt-6 space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">
                   {STEPS.map((s, i) => (
-                    <div key={i} className="flex gap-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                      <span className="text-3xl">{s.icon}</span>
+                    <div key={i} className="flex items-start gap-3.5 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5">
+                      <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 shrink-0">
+                        {s.icon}
+                      </div>
                       <div>
-                        <p className="font-bold text-white">{i + 1}. {s.title}</p>
-                        <p className="mt-1 text-sm text-slate-400">{s.text}</p>
+                        <p className="font-semibold text-white text-sm">{i + 1}. {s.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-400 leading-relaxed">{s.text}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <button onClick={close} className="mt-6 w-full rounded-xl bg-indigo-600 py-3 text-lg font-bold text-white hover:bg-indigo-500">
-                  🚀 Nu kör vi!
+                <button 
+                  onClick={close} 
+                  className="mt-6 w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+                >
+                  Kom igång
                 </button>
               </div>
             </div>

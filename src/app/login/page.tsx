@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="mx-auto max-w-md px-4 py-20">
       <Card>
         <CardHeader>
-          <CardTitle className="text-center">Welcome back! 👋</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold">Welcome back!</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
