@@ -49,8 +49,15 @@ export default function HostPage() {
 
     let disposed = false;
     const lobby = supabase.channel(`lobby-${pin}`, { config: HOST_PRESENCE_CONFIG });
-    lobby.on("presence", { event: "sync" }, () => {
-      setPlayers(onlinePlayers(lobby.presenceState()));
+    const syncPlayers = () => setPlayers(onlinePlayers(lobby.presenceState()));
+    // join/leave arrive the moment someone joins, sync only afterwards
+    lobby.on("presence", { event: "sync" }, syncPlayers);
+    lobby.on("presence", { event: "join" }, syncPlayers);
+    lobby.on("presence", { event: "leave" }, syncPlayers);
+    // a player's first position packet is the earliest sign of life we get
+    lobby.on("broadcast", { event: "pos" }, (msg: any) => {
+      const who = (msg.payload as { name?: string } | null)?.name;
+      if (who) setPlayers((prev) => (prev.includes(who) ? prev : [...prev, who]));
     });
     // Answer students who type the PIN, so joining does not depend on presence.
     lobby.on("broadcast", { event: LOBBY_PING }, () => {
@@ -61,6 +68,7 @@ export default function HostPage() {
         if (disposed) return;
         if (status === "SUBSCRIBED") {
           lobby.track({ role: "host" });
+          syncPlayers();
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           // dropped socket: re-join so the PIN stays visible to students
           setTimeout(joinLobby, 2000);

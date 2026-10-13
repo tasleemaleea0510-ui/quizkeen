@@ -16,6 +16,23 @@ function cssColor(c: number): string {
   return "#" + c.toString(16).padStart(6, "0");
 }
 
+/**
+ * How often to broadcast our position, based on how many people are in the room.
+ *
+ * Supabase counts a broadcast once per recipient and measures the project's
+ * throughput as a rolling average, so a full lobby costs players^2 messages:
+ * sending every 100ms with 8 players would be ~230 delivered events a second
+ * and the channel gets closed for "too many messages per second". Smaller
+ * rooms get a higher rate, bigger rooms lean on the interpolation that the
+ * receiving side does, which keeps motion smooth at any of these rates.
+ */
+function sendIntervalMs(players: number): number {
+  if (players <= 2) return 100; // ~20 delivered events a second
+  if (players <= 4) return 150; // ~80
+  if (players <= 8) return 250; // ~220
+  return 400;
+}
+
 function mulberry32(a: number) {
   return function () {
     a |= 0;
@@ -40,6 +57,11 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       others: Record<string, Phaser.Physics.Arcade.Sprite> = {};
       otherLabels: Record<string, Phaser.GameObjects.Text> = {};
       progress: Record<string, number> = {};
+      // last known position/velocity per remote player, used to draw them
+      // smoothly between the packets that arrive from the lobby channel
+      remote: Record<string, { x: number; y: number; vx: number; vy: number; at: number }> = {};
+      lastSent = { x: -9999, y: -9999, at: 0 };
+      nextSendAt = 0;
       myLabel!: Phaser.GameObjects.Text;
       boardText!: Phaser.GameObjects.Text;
       keys: any = null;
@@ -230,10 +252,19 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
+        // Checked often, sent at the rate the room can afford, and silent while
+        // standing still so an idle lobby uses no quota at all.
         this.time.addEvent({
-          delay: 200,
+          delay: 40,
           loop: true,
           callback: () => {
+            const now = this.time.now;
+            if (now < this.nextSendAt) return;
+            const movedX = Math.abs(this.player.x - this.lastSent.x);
+            const movedY = Math.abs(this.player.y - this.lastSent.y);
+            if (movedX < 1.5 && movedY < 1.5 && now - this.lastSent.at < 1500) return;
+            this.nextSendAt = now + sendIntervalMs(Object.keys(this.others).length + 1);
+            this.lastSent = { x: this.player.x, y: this.player.y, at: now };
             this.progress[username] = this.player.x;
             window.dispatchEvent(
               new CustomEvent("quizkeen-tx", {
@@ -244,7 +275,7 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         });
 
         this.time.addEvent({
-          delay: 500,
+          delay: 250,
           loop: true,
           callback: () => {
             const medals = ["#1", "#2", "#3"];
@@ -344,6 +375,23 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         }
 
         this.myLabel.setPosition(this.player.x, this.player.y - 36);
+
+        // Draw remote players from their last packet, extrapolated forward by
+        // their speed and eased towards it, so 12 updates a second still look
+        // like continuous movement instead of jumping.
+        const frame = Math.min(0.05, this.game.loop.delta / 1000);
+        const ease = 1 - Math.exp(-frame * 16);
+        for (const name in this.remote) {
+          const s = this.others[name];
+          if (!s) continue;
+          const r = this.remote[name];
+          const age = Math.min(0.4, (performance.now() - r.at) / 1000);
+          const targetX = r.x + r.vx * age;
+          const targetY = r.y + r.vy * age;
+          s.x += (targetX - s.x) * ease;
+          s.y += (targetY - s.y) * ease;
+          this.otherLabels[name]?.setPosition(s.x, s.y - 36);
+        }
       }
     }
 
@@ -362,12 +410,27 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       const scene = game.scene.getScene("LobbyScene") as LobbyScene;
       if (!scene || !scene.player) return;
       scene.progress[name] = x;
+
+      const now = performance.now();
+      const prev = scene.remote[name];
+      let vx = 0;
+      let vy = 0;
+      if (prev && now > prev.at) {
+        const dt = (now - prev.at) / 1000;
+        vx = Math.max(-1200, Math.min(1200, (x - prev.x) / dt));
+        vy = Math.max(-1600, Math.min(1600, (y - prev.y) / dt));
+      }
+      scene.remote[name] = { x, y, vx, vy, at: now };
+
       let s = scene.others[name];
       if (!s) {
         s = scene.physics.add.sprite(x, y, `player-${c}`);
         s.setDepth(8);
         const sb = s.body as Phaser.Physics.Arcade.Body;
-        if (sb) sb.setAllowGravity(false);
+        if (sb) {
+          sb.setAllowGravity(false);
+          sb.setVelocity(0, 0);
+        }
         scene.others[name] = s;
         scene.otherLabels[name] = scene.add.text(x, y - 36, name, {
           fontSize: "13px",
@@ -375,8 +438,6 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           fontStyle: "bold",
         }).setOrigin(0.5).setDepth(9);
       }
-      s.setPosition(x, y);
-      scene.otherLabels[name]?.setPosition(x, y - 36);
     };
     window.addEventListener("quizkeen-rx", onRx);
 

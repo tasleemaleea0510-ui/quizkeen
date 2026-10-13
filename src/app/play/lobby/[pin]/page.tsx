@@ -23,12 +23,17 @@ function LobbyInner() {
   const name = search.get("name") || "Spelare";
   const [players, setPlayers] = useState<string[]>([]);
   const supabaseRef = useRef(createClient());
+  // players heard from over the position channel, used for instant feedback
+  // when presence has not caught up yet
+  const seenRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const supabase = supabaseRef.current;
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let onTx: ((e: any) => void) | null = null;
+    let ticker: ReturnType<typeof setInterval> | undefined;
+    let lastMerge = 0;
 
     const setup = async () => {
       for (const ch of supabase.getChannels()) {
@@ -40,16 +45,41 @@ function LobbyInner() {
         config: { presence: { key: name } },
       });
 
-      channel.on("presence", { event: "sync" }, () => {
+      // Presence is the source of truth for who has left, but it is confirmed
+      // asynchronously, so names seen in the last few seconds count too. That
+      // keeps the list from sitting at (0) while you are clearly online.
+      const refresh = () => {
         if (!channel) return;
-        setPlayers(onlinePlayers(channel.presenceState()));
-      });
+        const now = Date.now();
+        const live = onlinePlayers(channel.presenceState());
+        const recent = Object.keys(seenRef.current).filter(
+          (n) => n !== name && now - seenRef.current[n] < 10000
+        );
+        const merged = Array.from(new Set([...live, ...recent]));
+        setPlayers((prev) =>
+          prev.length === merged.length && prev.every((p, i) => p === merged[i]) ? prev : merged
+        );
+      };
+
+      channel.on("presence", { event: "sync" }, refresh);
+      channel.on("presence", { event: "join" }, refresh);
+      channel.on("presence", { event: "leave" }, refresh);
 
       channel.on("broadcast", { event: "start" }, () => {
         window.location.href = `/play/game/${pin}?name=${encodeURIComponent(name)}`;
       });
 
       channel.on("broadcast", { event: "pos" }, (msg: any) => {
+        const who = (msg.payload as { name?: string } | null)?.name;
+        if (who && who !== name) {
+          const fresh = !seenRef.current[who];
+          seenRef.current[who] = Date.now();
+          // throttled so a busy lobby cannot cause a render per packet
+          if (fresh || Date.now() - lastMerge > 400) {
+            lastMerge = Date.now();
+            refresh();
+          }
+        }
         window.dispatchEvent(new CustomEvent("quizkeen-rx", { detail: msg.payload }));
       });
 
@@ -60,9 +90,14 @@ function LobbyInner() {
       };
       window.addEventListener("quizkeen-tx", onTx);
 
+      ticker = setInterval(refresh, 1500);
+
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED" && !cancelled && channel) {
           await channel.track({ name });
+          // show yourself straight away instead of waiting for the next sync
+          refresh();
+          setTimeout(refresh, 700);
         }
       });
     };
@@ -71,6 +106,7 @@ function LobbyInner() {
 
     return () => {
       cancelled = true;
+      if (ticker) clearInterval(ticker);
       if (onTx) window.removeEventListener("quizkeen-tx", onTx);
       if (channel) supabase.removeChannel(channel);
     };
