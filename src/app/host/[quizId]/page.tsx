@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
+import { HOST_PRESENCE_CONFIG, onlinePlayers } from "@/lib/presence";
 import { getQuiz, awardXP } from "./actions";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown } from "lucide-react";
 
 type Q = { id: string; text: string; options: string[]; correctIndex: number };
 
@@ -46,9 +47,9 @@ export default function HostPage() {
   useEffect(() => {
     const supabase = supabaseRef.current;
 
-    const lobby = supabase.channel(`lobby-${pin}`);
+    const lobby = supabase.channel(`lobby-${pin}`, { config: HOST_PRESENCE_CONFIG });
     lobby.on("presence", { event: "sync" }, () => {
-      setPlayers(Object.keys(lobby.presenceState()));
+      setPlayers(onlinePlayers(lobby.presenceState()));
     });
     lobby.subscribe((status: string) => {
       if (status === "SUBSCRIBED") {
@@ -175,35 +176,55 @@ export default function HostPage() {
   if (!quiz) return <div className="py-20 text-center text-slate-400">Laddar frågesport...</div>;
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const total = quiz.questions.length;
+  const progress = total > 0 ? ((qIndex + (phase === "lobby" ? 0 : 1)) / total) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="text-center">
-        <p className="text-xs uppercase font-semibold tracking-wider text-slate-400">Spel-PIN — dela denna kod</p>
-        <p className="text-6xl font-mono font-extrabold tracking-widest text-indigo-400 my-1">{pin}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Spel-PIN — dela denna kod</p>
+        <p className="my-1 font-mono text-6xl font-extrabold tracking-[0.2em] text-transparent sm:text-7xl">
+          <span className="text-gradient animate-gradient-pan bg-[length:200%_auto]">{pin}</span>
+        </p>
         <p className="text-sm font-medium text-slate-400">{quiz.title}</p>
       </div>
 
+      {phase !== "lobby" && (
+        <div className="mt-8">
+          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-400">
+            <span>Fråga {Math.min(qIndex + 1, total)} av {total}</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {phase === "lobby" && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-8">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4 text-indigo-400" />
               <span>Spelare i lobbyn ({players.length})</span>
             </CardTitle>
+            <span className="flex h-2 w-2 rounded-full bg-emerald-400 shadow-glow-sm" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2 min-h-[60px] p-4 rounded-xl bg-slate-950/60 border border-slate-800/80">
+            <div className="flex min-h-[72px] flex-wrap gap-2 rounded-xl border border-white/5 bg-slate-950/60 p-4">
               {players.length === 0 && (
-                <span className="text-sm text-slate-500 self-center">Väntar på att spelare ansluter...</span>
+                <span className="self-center text-sm text-slate-500">Väntar på att spelare ansluter...</span>
               )}
               {players.map((p) => (
-                <span key={p} className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm text-slate-200">
+                <span key={p} className="animate-pop rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200">
                   {p}
                 </span>
               ))}
             </div>
-            <Button size="lg" className="mt-6 w-full gap-2 bg-indigo-600 hover:bg-indigo-500" onClick={startGame}>
+            <Button size="lg" className="mt-6 w-full gap-2" onClick={startGame}>
               <Play className="h-5 w-5 fill-current" />
               <span>STARTA SPELET</span>
             </Button>
@@ -212,40 +233,53 @@ export default function HostPage() {
       )}
 
       {phase === "question" && (
-        <Card className="mt-8 border-slate-800">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-800/80">
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-3">
             <span className="text-sm font-semibold text-slate-400">
-              Fråga {qIndex + 1} av {quiz.questions.length}
+              Fråga {qIndex + 1} av {total}
             </span>
-            <div className="flex items-center gap-1.5 rounded-full bg-slate-800 px-3 py-1 text-xs font-mono font-bold text-amber-400">
+            <div className="flex items-center gap-1.5 rounded-full bg-slate-800 px-3 py-1 font-mono text-xs font-bold text-amber-400">
               <Clock className="h-3.5 w-3.5" />
               <span>{timer}s</span>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <p className="text-2xl font-bold text-white leading-relaxed">{quiz.questions[qIndex].text}</p>
+            <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/5">
+              <div
+                className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${timer <= 5 ? "bg-rose-500" : "bg-amber-400"}`}
+                style={{ width: `${(timer / 20) * 100}%` }}
+              />
+            </div>
+            <p className="text-2xl font-bold leading-relaxed text-white sm:text-3xl">{quiz.questions[qIndex].text}</p>
+            <p className="mt-4 flex items-center gap-1.5 text-sm text-slate-400">
+              <Users className="h-4 w-4" />
+              <span>{Object.keys(answersRef.current).length} svar registrerade</span>
+            </p>
           </CardContent>
         </Card>
       )}
 
       {phase === "reveal" && (
-        <Card className="mt-8 border-slate-800">
-          <CardHeader className="pb-3 border-b border-slate-800/80">
-            <div className="flex items-center gap-2 text-emerald-400 text-lg font-bold">
+        <Card className="mt-6">
+          <CardHeader className="border-b border-white/5 pb-3">
+            <div className="flex items-center gap-2 text-lg font-bold text-emerald-400">
               <CheckCircle2 className="h-5 w-5" />
               <span>Rätt svar: {quiz.questions[qIndex].options[quiz.questions[qIndex].correctIndex]}</span>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-4">
-            <p className="text-xs uppercase font-semibold tracking-wider text-slate-400 mb-2">Topp 5 ställning</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Topp 5 ställning</p>
             {leaderboard.slice(0, 5).map(([name, s], i) => (
-              <div key={name} className="flex justify-between items-center rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5">
-                <span className="font-medium text-slate-200">{i + 1}. {name}</span>
-                <span className="font-mono text-sm text-indigo-300 font-bold">{s} poäng</span>
+              <div key={name} className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/60 px-4 py-2.5">
+                <span className="flex items-center gap-2.5 font-medium text-slate-200">
+                  <span className={`w-5 font-mono text-sm font-bold ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>{i + 1}</span>
+                  {name}
+                </span>
+                <span className="font-mono text-sm font-bold text-indigo-300">{s} poäng</span>
               </div>
             ))}
-            <Button className="mt-6 w-full gap-2 bg-indigo-600 hover:bg-indigo-500" onClick={next}>
-              {qIndex + 1 < quiz.questions.length ? (
+            <Button className="mt-6 w-full gap-2" onClick={next}>
+              {qIndex + 1 < total ? (
                 <>
                   <span>Nästa fråga</span>
                   <ArrowRight className="h-4 w-4" />
@@ -262,25 +296,33 @@ export default function HostPage() {
       )}
 
       {phase === "end" && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-6">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              <Trophy className="h-6 w-6" />
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/20 text-amber-400">
+              <Trophy className="h-7 w-7" />
             </div>
-            <CardTitle className="text-2xl font-bold">Slutresultat</CardTitle>
+            <CardTitle className="font-display text-2xl font-bold">Slutresultat</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2.5">
             {leaderboard.map(([name, s], i) => (
-              <div key={name} className="flex justify-between items-center rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5">
+              <div
+                key={name}
+                className={`flex items-center justify-between rounded-xl px-4 py-2.5 ${
+                  i === 0
+                    ? "border border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-transparent"
+                    : "border border-white/5 bg-slate-900/60"
+                }`}
+              >
                 <div className="flex items-center gap-3">
-                  <span className={`w-6 font-mono font-bold text-sm ${
+                  <span className={`w-5 text-center font-mono text-sm font-bold ${
                     i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"
                   }`}>
                     {i + 1}
                   </span>
+                  {i === 0 && <Crown className="h-4 w-4 text-amber-400" />}
                   <span className="font-medium text-slate-200">{name}</span>
                 </div>
-                <span className="font-mono text-sm text-indigo-300 font-bold">{s} poäng</span>
+                <span className="font-mono text-sm font-bold text-indigo-300">{s} poäng</span>
               </div>
             ))}
           </CardContent>

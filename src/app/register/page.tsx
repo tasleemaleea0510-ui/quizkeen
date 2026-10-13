@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createProfile } from "./actions";
-import { GraduationCap, School } from "lucide-react";
+import { GraduationCap, School, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function RegisterPage() {
   const { supabase } = useSupabase();
@@ -37,35 +38,56 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-20">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold">Join QuizKeen!</CardTitle>
+    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
+      <div className="mb-8 text-center">
+        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow">
+          <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
+        </span>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Gå med i QuizKeen!</h1>
+        <p className="mt-1.5 text-sm text-slate-400">Skapa ett konto och börja spela på under en minut.</p>
+      </div>
+      <Card className="animate-fade-up">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base text-slate-300">Skapa konto</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
-            <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <form onSubmit={handleRegister} className="space-y-3.5">
+            <Input placeholder="Användarnamn" value={username} onChange={(e) => setUsername(e.target.value)} required />
             <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input type="password" placeholder="Password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant={role === "STUDENT" ? "default" : "outline"} onClick={() => setRole("STUDENT")} className="gap-2">
-                <GraduationCap className="h-4 w-4" />
-                <span>Student</span>
-              </Button>
-              <Button type="button" variant={role === "TEACHER" ? "default" : "outline"} onClick={() => setRole("TEACHER")} className="gap-2">
-                <School className="h-4 w-4" />
-                <span>Teacher</span>
-              </Button>
+            <Input type="password" placeholder="Lösenord (6+ tecken)" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1.5">
+              {(["STUDENT", "TEACHER"] as const).map((r) => {
+                const Icon = r === "STUDENT" ? GraduationCap : School;
+                const active = role === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all",
+                      active
+                        ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-glow-sm"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{r === "STUDENT" ? "Elev" : "Lärare"}</span>
+                  </button>
+                );
+              })}
             </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Sign up free"}
+            {error && (
+              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
+            )}
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? "Skapar konto..." : "Skapa konto — Gratis"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-slate-400">
-            Already have an account?{" "}
-            <Link href="/login" className="text-indigo-400 hover:underline">
-              Login
+          <p className="mt-5 text-center text-sm text-slate-400">
+            Redan medlem?{" "}
+            <Link href="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
+              Logga in
             </Link>
           </p>
         </CardContent>

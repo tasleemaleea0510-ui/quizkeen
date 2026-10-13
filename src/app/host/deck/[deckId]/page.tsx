@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
+import { HOST_PRESENCE_CONFIG, onlinePlayers } from "@/lib/presence";
 import { getDeck, awardXP } from "./actions";
 import { Swords, Users, Clock, HelpCircle, CheckCircle2, ArrowRight, Trophy, Flag } from "lucide-react";
 
@@ -73,9 +74,9 @@ export default function HostDeckPage() {
   useEffect(() => {
     const supabase = supabaseRef.current;
 
-    const lobby = supabase.channel(`lobby-${pin}`);
+    const lobby = supabase.channel(`lobby-${pin}`, { config: HOST_PRESENCE_CONFIG });
     lobby.on("presence", { event: "sync" }, () => {
-      setPlayers(Object.keys(lobby.presenceState()));
+      setPlayers(onlinePlayers(lobby.presenceState()));
     });
         lobby.subscribe((status: string) => {
       if (status === "SUBSCRIBED") {

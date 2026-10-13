@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
 import Navbar from "@/components/navbar";
@@ -13,14 +14,33 @@ import PresencePing from "@/components/presence-ping";
 import LiveShareClient from "@/components/live-share-client";
 import TranslateButton from "@/components/translate-button";
 
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const display = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "QuizKeen — Lär. Spela. Tävla.",
   description: "Live-flerspelar-quizar med XP, mynt och minispel.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#05060f",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } }).catch(() => null);
-  
+
   let user = null;
   try {
     const supabase = await createClient();
@@ -37,10 +57,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const banned = !!(profile?.bannedUntil && profile.bannedUntil > new Date());
 
   return (
-    <html lang="sv">
-      <body className="min-h-screen bg-slate-950 text-white antialiased">
+    <html lang="sv" className={`${sans.variable} ${display.variable}`}>
+      <body className="min-h-screen font-sans antialiased selection:bg-indigo-500/30">
         <Providers>
-          <div className="flex min-h-screen flex-col">
+          <div className="relative flex min-h-screen flex-col">
+            <div
+              aria-hidden
+              className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px] bg-radial-brand"
+            />
             <Navbar />
             <main className="flex-1">
               {settings?.shutdown ? (

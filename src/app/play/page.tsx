@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { lobbyIsLive } from "@/lib/presence";
 import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User } from "lucide-react";
 
 export default function PlayPage() {
@@ -39,8 +40,7 @@ export default function PlayPage() {
 
     channel.on("presence", { event: "sync" }, () => {
       if (found) return;
-      const count = Object.keys(channel.presenceState()).length;
-      if (count > 0) {
+      if (lobbyIsLive(channel.presenceState())) {
         found = true;
         clearTimeout(timeout);
         supabase.removeChannel(channel);
@@ -52,45 +52,47 @@ export default function PlayPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-20">
-      <Card className="border-slate-800 shadow-xl shadow-indigo-500/5">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-            <Gamepad2 className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Gå med i ett spel</CardTitle>
-          <p className="text-xs text-slate-400 mt-1">Ange spelens PIN-kod och ditt namn för att delta</p>
-        </CardHeader>
-        <CardContent>
+    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
+      <div className="mb-8 text-center">
+        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow">
+          <Gamepad2 className="h-6 w-6 text-white" />
+        </span>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Gå med i ett spel</h1>
+        <p className="mt-1.5 text-sm text-slate-400">Ange spelets PIN-kod och ditt namn för att delta.</p>
+      </div>
+
+      <Card className="animate-fade-up">
+        <CardContent className="pt-6">
           <form onSubmit={join} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 block">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
                 PIN-kod
               </label>
               <div className="relative">
-                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <Input 
-                  placeholder="6 siffror" 
-                  value={pin} 
-                  onChange={(e) => setPin(e.target.value)} 
-                  maxLength={6} 
-                  required 
-                  className="pl-10 text-lg font-mono tracking-widest text-center"
+                <Hash className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Input
+                  placeholder="6 siffror"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  maxLength={6}
+                  required
+                  inputMode="numeric"
+                  className="h-14 pl-10 text-center font-mono text-2xl tracking-[0.35em]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 block">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Ditt namn
               </label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <Input 
-                  placeholder="Välj ett spelarnamn" 
-                  value={username} 
-                  onChange={(e) => setUsername(e.target.value)} 
-                  required 
+                <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Input
+                  placeholder="Välj ett spelarnamn"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
                   className="pl-10"
                 />
               </div>
@@ -98,12 +100,12 @@ export default function PlayPage() {
 
             {error && (
               <div className="flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                 <span>{error}</span>
               </div>
             )}
 
-            <Button type="submit" className="w-full gap-2" size="lg" disabled={checking}>
+            <Button type="submit" size="lg" className="w-full gap-2" disabled={checking}>
               {checking ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

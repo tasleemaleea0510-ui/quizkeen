@@ -5,30 +5,30 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CopyButton from "@/components/copy-button";
-import { 
-  GraduationCap, 
-  School, 
-  Users, 
-  BookOpen, 
-  AlertTriangle, 
-  Plus, 
-  Play, 
-  Gamepad2, 
-  Award, 
-  Zap, 
-  Coins, 
-  Trophy, 
-  Layers, 
-  Swords, 
+import {
+  GraduationCap,
+  School,
+  Users,
+  BookOpen,
+  AlertTriangle,
+  Plus,
+  Play,
+  Gamepad2,
+  Award,
+  Zap,
+  Coins,
+  Trophy,
+  Layers,
+  Swords,
   BarChart3,
-  Lock
+  Lock,
 } from "lucide-react";
 
 function roleTheme(role: string) {
   if (role === "OWNER") return { cls: "text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.9)]", badge: "ÄGARE", label: "ÄGARE" };
   if (role === "ADMIN") return { cls: "text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.7)]", badge: "ADMIN", label: "ADMIN" };
   if (role === "SECURITY") return { cls: "text-sky-300 drop-shadow-[0_0_5px_rgba(125,211,252,0.7)]", badge: "SÄKERHET", label: "SÄKERHET" };
-  if (role === "TEACHER") return { cls: "text-blue-500", badge: "LÄRARE", label: "LÄRARE" };
+  if (role === "TEACHER") return { cls: "text-blue-400", badge: "LÄRARE", label: "LÄRARE" };
   return { cls: "text-slate-300", badge: "ELEV", label: "ELEV" };
 }
 
@@ -38,6 +38,18 @@ function rowTheme(i: number, role: string) {
   if (i === 1) return { cls: "text-purple-400", badge: "2:a", label: "" };
   if (i === 2) return { cls: "text-amber-500", badge: "3:e", label: "" };
   return roleTheme("STUDENT");
+}
+
+function StatCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: any; tone: string }) {
+  return (
+    <Card className="card-hover">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-slate-400">{label}</CardTitle>
+        <Icon className={`h-4 w-4 ${tone}`} />
+      </CardHeader>
+      <CardContent className={`font-display text-3xl font-extrabold ${tone}`}>{value}</CardContent>
+    </Card>
+  );
 }
 
 export default async function DashboardPage() {
@@ -63,6 +75,34 @@ export default async function DashboardPage() {
     select: { username: true, xp: true, level: true, role: true },
   });
 
+  const Leaderboard = () => (
+    <Card className="border-white/5">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-amber-400" />
+          <span>Topplista</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {topPlayers.map((p, i) => {
+          const t = rowTheme(i, p.role);
+          return (
+            <div key={p.username} className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <span className={`w-6 text-center font-mono text-sm font-bold ${i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"}`}>
+                  {i + 1}
+                </span>
+                <span className={`font-semibold ${t.cls}`}>{p.username}</span>
+                <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">{t.badge}</span>
+              </div>
+              <span className="font-mono text-xs text-slate-400">Lv {p.level} • {p.xp} XP</span>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+
   if (profile.role === "TEACHER") {
     const rooms = await prisma.classroom.findMany({
       where: { OR: [{ ownerId: user.id }, { coTeacherId: user.id }] },
@@ -78,14 +118,14 @@ export default async function DashboardPage() {
 
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-3xl border border-blue-500/30 bg-blue-500/5 p-6 backdrop-blur">
+        <div className="rounded-3xl border border-blue-500/25 bg-blue-500/[0.06] p-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/20 text-blue-400">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold text-white">Lärarpanel — {profile.username}</h1>
-              <p className="mt-0.5 text-sm text-slate-400 flex items-center gap-1.5">
+              <h1 className="font-display text-3xl font-extrabold text-white">Lärarpanel — {profile.username}</h1>
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
                 <Lock className="h-3.5 w-3.5 text-slate-500" />
                 <span>Klassrumsöversikt och administrativ kontroll.</span>
               </p>
@@ -93,13 +133,13 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-6 flex flex-wrap gap-2.5">
             <Link href="/classroom">
-              <Button className="bg-blue-600 hover:bg-blue-500 gap-1.5">
+              <Button className="gap-1.5">
                 <School className="h-4 w-4" />
                 <span>Klassrum</span>
               </Button>
             </Link>
             <Link href="/classroom/analytics">
-              <Button className="bg-blue-600 hover:bg-blue-500 gap-1.5">
+              <Button variant="secondary" className="gap-1.5">
                 <BarChart3 className="h-4 w-4" />
                 <span>Analys</span>
               </Button>
@@ -113,39 +153,15 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-4">
-          <Card className="border-blue-500/20 hover:border-blue-500/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Klassrum</CardTitle>
-              <School className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent className="text-3xl font-extrabold text-blue-400">{rooms.length}</CardContent>
-          </Card>
-          <Card className="border-blue-500/20 hover:border-blue-500/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Elever</CardTitle>
-              <Users className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent className="text-3xl font-extrabold text-blue-400">{students}</CardContent>
-          </Card>
-          <Card className="border-blue-500/20 hover:border-blue-500/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Läxor</CardTitle>
-              <BookOpen className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent className="text-3xl font-extrabold text-blue-400">{laxor}</CardContent>
-          </Card>
-          <Card className="border-blue-500/20 hover:border-blue-500/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Varningar</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
-            </CardHeader>
-            <CardContent className="text-3xl font-extrabold text-amber-400">{varningar}</CardContent>
-          </Card>
+        <div className="mt-6 grid gap-5 sm:grid-cols-4">
+          <StatCard label="Klassrum" value={rooms.length} icon={School} tone="text-blue-400" />
+          <StatCard label="Elever" value={students} icon={Users} tone="text-indigo-400" />
+          <StatCard label="Läxor" value={laxor} icon={BookOpen} tone="text-violet-400" />
+          <StatCard label="Varningar" value={varningar} icon={AlertTriangle} tone="text-amber-400" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <Card className="border-slate-800">
+          <Card className="border-white/5">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <School className="h-5 w-5 text-blue-400" />
@@ -153,12 +169,12 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {rooms.length === 0 && <p className="text-slate-400 text-sm">Inga klassrum än — skapa ditt första för att bjuda in elever.</p>}
+              {rooms.length === 0 && <p className="text-sm text-slate-400">Inga klassrum än — skapa ditt första för att bjuda in elever.</p>}
               {rooms.map((r) => (
-                <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-colors hover:border-slate-700">
+                <div key={r.id} className="card-hover rounded-xl border border-white/5 bg-slate-900/50 p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-white">{r.name}</p>
-                    <span className="text-xs text-slate-400 flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-xs text-slate-400">
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {r.enrollments.length}</span>
                       <span>•</span>
                       <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {r.assignments.length}</span>
@@ -166,7 +182,9 @@ export default async function DashboardPage() {
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <span className="text-xs text-slate-500">Join-kod:</span>
-                    <span className="font-mono font-bold tracking-widest text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{r.joinCode}</span>
+                    <span className="rounded border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 font-mono font-bold tracking-widest text-blue-300">
+                      {r.joinCode}
+                    </span>
                     <CopyButton text={r.joinCode} />
                   </div>
                 </div>
@@ -174,7 +192,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-800">
+          <Card className="border-white/5">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Gamepad2 className="h-5 w-5 text-indigo-400" />
@@ -182,12 +200,12 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {quizzes.length === 0 && <p className="text-slate-400 text-sm">Inga quizar än — skapa din första!</p>}
+              {quizzes.length === 0 && <p className="text-sm text-slate-400">Inga quizar än — skapa din första!</p>}
               {quizzes.map((q) => (
-                <div key={q.id} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-3 hover:border-slate-700 transition-colors">
+                <div key={q.id} className="card-hover flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 p-3">
                   <span className="font-medium text-white">{q.title}</span>
                   <Link href={`/host/${q.id}`}>
-                    <Button size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+                    <Button size="sm" className="gap-1.5">
                       <Play className="h-3.5 w-3.5 fill-current" />
                       <span>Starta</span>
                     </Button>
@@ -197,35 +215,9 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-amber-400" />
-                <span>Topplista</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {topPlayers.map((p, i) => {
-                const t = rowTheme(i, p.role);
-                return (
-                  <div key={p.username} className="flex items-center justify-between rounded-xl bg-slate-900/60 border border-slate-800/80 px-4 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-6 text-center font-mono font-bold text-sm ${i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"}`}>
-                        {i + 1}
-                      </span>
-                      <span className={`font-semibold ${t.cls}`}>
-                        {p.username}
-                      </span>
-                      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
-                        {t.badge}
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-400 font-mono">Lv {p.level} • {p.xp} XP</span>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-2">
+            <Leaderboard />
+          </div>
         </div>
       </div>
     );
@@ -247,10 +239,10 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-white">
-            Hej, <span className={`${me.cls}`}>{profile.username}</span>
+          <h1 className="font-display text-3xl font-extrabold text-white">
+            Hej, <span className={me.cls}>{profile.username}</span>
           </h1>
-          <p className="text-slate-400 text-sm mt-1">{subtitle}</p>
+          <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2.5">
           <Link href="/play">
@@ -271,32 +263,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 sm:grid-cols-3">
-        <Card className="hover:border-slate-700 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Nivå</CardTitle>
-            <Award className="h-4 w-4 text-indigo-400" />
-          </CardHeader>
-          <CardContent className="text-4xl font-extrabold text-indigo-400">{profile.level}</CardContent>
-        </Card>
-        <Card className="hover:border-slate-700 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Erfarenhet (XP)</CardTitle>
-            <Zap className="h-4 w-4 text-emerald-400" />
-          </CardHeader>
-          <CardContent className="text-4xl font-extrabold text-emerald-400">{profile.xp}</CardContent>
-        </Card>
-        <Card className="hover:border-slate-700 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Mynt</CardTitle>
-            <Coins className="h-4 w-4 text-amber-400" />
-          </CardHeader>
-          <CardContent className="text-4xl font-extrabold text-amber-400">{profile.coins}</CardContent>
-        </Card>
+      <div className="mt-8 grid gap-5 sm:grid-cols-3">
+        <StatCard label="Nivå" value={profile.level} icon={Award} tone="text-indigo-400" />
+        <StatCard label="Erfarenhet (XP)" value={profile.xp} icon={Zap} tone="text-emerald-400" />
+        <StatCard label="Mynt" value={profile.coins} icon={Coins} tone="text-amber-400" />
       </div>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
-        <Card className="border-slate-800">
+        <Card className="border-white/5">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Gamepad2 className="h-5 w-5 text-indigo-400" />
@@ -305,13 +279,13 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {quizzes.length === 0 && (
-              <p className="text-slate-400 text-sm">Inga quizar än — skapa din första för att utmana vänner!</p>
+              <p className="text-sm text-slate-400">Inga quizar än — skapa din första för att utmana vänner!</p>
             )}
             {quizzes.map((q) => (
-              <div key={q.id} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-3 hover:border-slate-700 transition-colors">
+              <div key={q.id} className="card-hover flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 p-3">
                 <span className="font-medium text-white">{q.title}</span>
                 <Link href={`/host/${q.id}`}>
-                  <Button size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+                  <Button size="sm" className="gap-1.5">
                     <Play className="h-3.5 w-3.5 fill-current" />
                     <span>Starta</span>
                   </Button>
@@ -321,37 +295,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-amber-400" />
-              <span>Topplista</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {topPlayers.map((p, i) => {
-              const t = rowTheme(i, p.role);
-              return (
-                <div key={p.username} className="flex items-center justify-between rounded-xl bg-slate-900/60 border border-slate-800/80 px-4 py-2.5">
-                  <div className="flex items-center gap-3">
-                    <span className={`w-6 text-center font-mono font-bold text-sm ${i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"}`}>
-                      {i + 1}
-                    </span>
-                    <span className={`font-semibold ${t.cls}`}>
-                      {p.username}
-                    </span>
-                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
-                      {t.badge}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-400 font-mono">Lv {p.level} • {p.xp} XP</span>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+        <Leaderboard />
 
-        <Card className="lg:col-span-2 border-slate-800">
+        <Card className="border-white/5 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-indigo-400" />
@@ -360,19 +306,19 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {collections.length === 0 && (
-              <p className="text-slate-400 text-sm">Inga gloskort än — skapa din första uppsättning för att träna!</p>
+              <p className="text-sm text-slate-400">Inga gloskort än — skapa din första uppsättning för att träna!</p>
             )}
             {collections.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 hover:border-slate-700 transition-colors">
+              <div key={c.id} className="card-hover flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 p-3.5">
                 <div className="flex items-center gap-2.5">
                   <span className="font-medium text-white">{c.title}</span>
-                  <span className="rounded-full bg-indigo-600/20 px-2.5 py-0.5 text-xs font-semibold text-indigo-300 border border-indigo-500/20">
+                  <span className="rounded-full border border-indigo-500/20 bg-indigo-600/20 px-2.5 py-0.5 text-xs font-semibold text-indigo-300">
                     {c._count.flashcards} kort
                   </span>
                 </div>
                 <div className="flex gap-2">
                   <Link href={`/flashcards/${c.id}`}>
-                    <Button size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+                    <Button size="sm" className="gap-1.5">
                       <BookOpen className="h-3.5 w-3.5" />
                       <span>Plugga</span>
                     </Button>
