@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
-import { HOST_PRESENCE_CONFIG, onlinePlayers } from "@/lib/presence";
+import { HOST_PRESENCE_CONFIG, LOBBY_PING, LOBBY_PONG, onlinePlayers } from "@/lib/presence";
 import { getDeck, awardXP } from "./actions";
 import { Swords, Users, Clock, HelpCircle, CheckCircle2, ArrowRight, Trophy, Flag } from "lucide-react";
 
@@ -74,15 +74,27 @@ export default function HostDeckPage() {
   useEffect(() => {
     const supabase = supabaseRef.current;
 
+    let disposed = false;
     const lobby = supabase.channel(`lobby-${pin}`, { config: HOST_PRESENCE_CONFIG });
     lobby.on("presence", { event: "sync" }, () => {
       setPlayers(onlinePlayers(lobby.presenceState()));
     });
-        lobby.subscribe((status: string) => {
-      if (status === "SUBSCRIBED") {
-        lobby.track({ role: "host" });
-      }
+    // Answer students who type the PIN, so joining does not depend on presence.
+    lobby.on("broadcast", { event: LOBBY_PING }, () => {
+      lobby.send({ type: "broadcast", event: LOBBY_PONG, payload: { pin } });
     });
+    const joinLobby = () => {
+      lobby.subscribe((status: string) => {
+        if (disposed) return;
+        if (status === "SUBSCRIBED") {
+          lobby.track({ role: "host" });
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          // dropped socket: re-join so the PIN stays visible to students
+          setTimeout(joinLobby, 2000);
+        }
+      });
+    };
+    joinLobby();
     lobbyRef.current = lobby;
 
     const game = supabase.channel(`game-${pin}`);
@@ -117,6 +129,7 @@ export default function HostDeckPage() {
     gameRef.current = game;
 
     return () => {
+      disposed = true;
       supabase.removeChannel(lobby);
       supabase.removeChannel(game);
     };

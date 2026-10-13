@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getViewer } from "@/lib/viewer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,27 +27,27 @@ import {
 } from "lucide-react";
 
 export default async function ClassroomPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, profile } = await getViewer();
   if (!user) redirect("/login");
-  const profile = await prisma.profile.findUnique({ where: { id: user.id } });
   if (!profile) redirect("/register");
   const isTeacher = profile.role === "TEACHER";
 
-  const myRooms = await prisma.classroom.findMany({
-    where: { OR: [{ ownerId: user.id }, { coTeacherId: user.id }] },
-    include: {
-      enrollments: { include: { student: true } },
-      owner: true,
-      coTeacher: true,
-      assignments: { include: { _count: { select: { completions: true } }, targetStudent: true }, orderBy: { createdAt: "desc" } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const myQuizzes = isTeacher
-    ? await prisma.quiz.findMany({ where: { creatorId: user.id }, orderBy: { createdAt: "desc" } })
-    : [];
+  // the room list and the teacher's own quizzes are independent queries
+  const [myRooms, myQuizzes] = await Promise.all([
+    prisma.classroom.findMany({
+      where: { OR: [{ ownerId: user.id }, { coTeacherId: user.id }] },
+      include: {
+        enrollments: { include: { student: true } },
+        owner: true,
+        coTeacher: true,
+        assignments: { include: { _count: { select: { completions: true } }, targetStudent: true }, orderBy: { createdAt: "desc" } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    isTeacher
+      ? prisma.quiz.findMany({ where: { creatorId: user.id }, orderBy: { createdAt: "desc" } })
+      : Promise.resolve([]),
+  ]);
 
   const myClasses = !isTeacher
     ? await prisma.enrollment.findMany({

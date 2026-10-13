@@ -6,8 +6,7 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import LiveStats from "@/components/live-stats";
 import ClassBanner from "@/components/class-banner";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { getViewer, getAdminSettings } from "@/lib/viewer";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
 import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
@@ -39,20 +38,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } }).catch(() => null);
-
-  let user = null;
-  try {
-    const supabase = await createClient();
-    const res = await supabase.auth.getUser();
-    user = res?.data?.user ?? null;
-  } catch (e) {
-    user = null;
-  }
-
-  const profile = user
-    ? await prisma.profile.findUnique({ where: { id: user.id } }).catch(() => null)
-    : null;
+  const [settings, { user, profile }] = await Promise.all([getAdminSettings(), getViewer()]);
 
   const banned = !!(profile?.bannedUntil && profile.bannedUntil > new Date());
 

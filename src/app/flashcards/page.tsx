@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getViewer } from "@/lib/viewer";
 import { createCollection, deleteCollection } from "./actions";
 import { Layers, Plus, BookOpen, Trash2 } from "lucide-react";
 
 export default async function FlashcardsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = await getViewer();
   if (!user) redirect("/login");
 
   const collections = await prisma.flashcardCollection.findMany({

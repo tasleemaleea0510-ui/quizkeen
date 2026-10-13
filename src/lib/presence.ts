@@ -10,6 +10,17 @@ export const HOST_PRESENCE_KEY = "__host__";
 
 export const HOST_PRESENCE_CONFIG = { presence: { key: HOST_PRESENCE_KEY } };
 
+/**
+ * Handshake used when someone types a game PIN.
+ *
+ * Presence only tells us who has *already* finished joining the lobby channel,
+ * so a student could be told "no game with that PIN" while the host's page was
+ * open but its presence had not propagated yet. The student asks directly, and
+ * any live host answers immediately.
+ */
+export const LOBBY_PING = "quizkeen:ping";
+export const LOBBY_PONG = "quizkeen:pong";
+
 type PresenceEntry = { role?: string; name?: string };
 
 export function isHostKey(key: string): boolean {

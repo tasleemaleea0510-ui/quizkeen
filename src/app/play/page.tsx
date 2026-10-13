@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { lobbyIsLive } from "@/lib/presence";
+import { LOBBY_PING, LOBBY_PONG, lobbyIsLive } from "@/lib/presence";
 import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User } from "lucide-react";
 
 export default function PlayPage() {
@@ -24,31 +24,51 @@ export default function PlayPage() {
     setChecking(true);
 
     const cleanPin = pin.trim();
+    const playerName = username.trim();
     const supabase = createClient();
     const channel = supabase.channel(`lobby-${cleanPin}`);
     let found = false;
+    let pingTimer: ReturnType<typeof setInterval> | undefined;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
 
-    const timeout = setTimeout(() => {
-      if (!found) {
-        found = true;
-        setError(`Inget spel hittades med PIN-koden ${cleanPin}. Kontrollera koden och försök igen.`);
-        setChecking(false);
-        busyRef.current = false;
-        supabase.removeChannel(channel);
-      }
-    }, 2500);
+    const foundGame = () => {
+      if (found) return;
+      found = true;
+      if (pingTimer) clearInterval(pingTimer);
+      if (deadline) clearTimeout(deadline);
+      supabase.removeChannel(channel);
+      router.push(`/play/lobby/${cleanPin}?name=${encodeURIComponent(playerName)}`);
+    };
 
+    const giveUp = () => {
+      if (found) return;
+      found = true;
+      if (pingTimer) clearInterval(pingTimer);
+      supabase.removeChannel(channel);
+      setError(`Inget spel hittades med PIN-koden ${cleanPin}. Kontrollera koden och försök igen.`);
+      setChecking(false);
+      busyRef.current = false;
+    };
+
+    // Ask the host directly — a live host answers in milliseconds — and keep
+    // presence as a fallback for hosts that are still finishing their join.
+    const pingHost = () => {
+      if (found) return;
+      channel.send({ type: "broadcast", event: LOBBY_PING, payload: { name: playerName } });
+    };
+
+    channel.on("broadcast", { event: LOBBY_PONG }, () => foundGame());
     channel.on("presence", { event: "sync" }, () => {
       if (found) return;
-      if (lobbyIsLive(channel.presenceState())) {
-        found = true;
-        clearTimeout(timeout);
-        supabase.removeChannel(channel);
-        router.push(`/play/lobby/${cleanPin}?name=${encodeURIComponent(username.trim())}`);
-      }
+      if (lobbyIsLive(channel.presenceState())) foundGame();
     });
 
-    channel.subscribe();
+    pingTimer = setInterval(pingHost, 1200);
+    deadline = setTimeout(giveUp, 6000);
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") pingHost();
+    });
   }
 
   return (

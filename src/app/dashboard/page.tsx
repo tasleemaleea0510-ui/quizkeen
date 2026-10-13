@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getViewer } from "@/lib/viewer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CopyButton from "@/components/copy-button";
@@ -53,27 +53,24 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: nu
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, profile } = await getViewer();
   if (!user) redirect("/login");
-
-  const profile = await prisma.profile.findUnique({ where: { id: user.id } });
   if (!profile) redirect("/register");
 
   const me = roleTheme(profile.role);
 
-  const quizzes = await prisma.quiz.findMany({
-    where: { creatorId: user.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const topPlayers = await prisma.profile.findMany({
-    orderBy: { xp: "desc" },
-    take: 5,
-    select: { username: true, xp: true, level: true, role: true },
-  });
+  // both queries are independent, so they go out together instead of in series
+  const [quizzes, topPlayers] = await Promise.all([
+    prisma.quiz.findMany({
+      where: { creatorId: user.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.profile.findMany({
+      orderBy: { xp: "desc" },
+      take: 5,
+      select: { username: true, xp: true, level: true, role: true },
+    }),
+  ]);
 
   const Leaderboard = () => (
     <Card className="border-white/5">
