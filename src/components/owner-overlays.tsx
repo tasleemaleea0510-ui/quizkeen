@@ -144,7 +144,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   useEffect(() => {
     setMounted(true);
     const iv = setInterval(async () => {
-      const s = await getOverlayState();
+      const s = await getOverlayState().catch(() => null);
       if (!s) return;
       const { passwordNote: n, broadcast: b, renameRequested: rr } = s;
       if (n) { setNote(n); setShowNote(true); }
