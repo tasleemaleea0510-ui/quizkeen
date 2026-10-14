@@ -3,10 +3,10 @@ import type { ReactNode, SVGProps } from "react";
 /**
  * Handmade icon set.
  *
- * The command console used emoji everywhere (👑 🛡️ 🕵️ …). Emoji render
- * differently on every OS, can't inherit colour, and can't be sized precisely —
- * so this file replaces them with small hand-drawn stroke icons, the same way
- * the main QuizKeen app uses line icons instead of emoji.
+ * The command console used to be decorated with emoji (crown, shield, spy and
+ * so on). Emoji render differently on every OS, can't inherit colour and can't
+ * be sized precisely, so this file replaces them with small hand-drawn stroke
+ * icons — the same approach the main QuizKeen app takes with line icons.
  *
  * Every icon is 24x24, currentColor, and takes normal SVG props.
  */
