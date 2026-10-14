@@ -24,7 +24,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -39,6 +39,7 @@ const ONCE = process.argv.includes('--once');
 // Deliberately OUTSIDE the repo, so writing the log can never itself look like
 // a change and make the watcher commit in a loop.
 const LOG = process.env.QK_LOG ?? path.join(os.tmpdir(), 'quizkeen-autogit.log');
+const LOCK = process.env.QK_LOCK ?? path.join(os.tmpdir(), 'quizkeen-autogit.lock');
 
 const DENY = [
   /(^|\/)\.env$/,
@@ -58,6 +59,37 @@ function log(line) {
   } catch {
     /* logging must never crash the watcher */
   }
+}
+
+/**
+ * Only one watcher may run at a time — two of them would race each other's
+ * commits and pushes. Autostart makes that very possible (logon task plus a
+ * manually started instance), so claim a lock and bail out politely.
+ */
+function acquireLock() {
+  try {
+    const existing = Number(readFileSync(LOCK, 'utf8').trim());
+    if (Number.isInteger(existing) && existing > 0) {
+      try {
+        process.kill(existing, 0); // signal 0 just asks "does this pid exist?"
+        log(`another watcher is already running (pid ${existing}) — exiting so the two can't fight over commits`);
+        process.exit(0);
+      } catch {
+        log(`clearing stale lock left by pid ${existing}`);
+      }
+    }
+  } catch {
+    /* no lock file yet */
+  }
+
+  writeFileSync(LOCK, String(process.pid));
+  process.on('exit', () => {
+    try {
+      unlinkSync(LOCK);
+    } catch {
+      /* already gone */
+    }
+  });
 }
 
 function git(args) {
@@ -219,6 +251,8 @@ function cycle(state) {
 }
 
 const state = { lastKey: '', stableSince: null, warnedBusy: false };
+
+acquireLock();
 
 log(
   `auto-git watching ${ROOT} (quiet ${QUIET_MS}ms, poll ${POLL_MS}ms, ` +
