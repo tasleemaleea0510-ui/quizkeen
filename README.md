@@ -129,11 +129,19 @@ because this app has no static `index.html` for Pages to serve. To move it:
    that the domain is linked to another Vercel account, create the TXT record it
    lists — the name is `_vercel.quizkeen.om.to` (Vercel's prose may call it
    `_vercel.om.to`, which is a different name) — then press Refresh.
-2. In the Intent panel, delete the four GitHub A records and add one **A** record
-   at `@` → `76.76.21.21`. Vercel keeps that legacy address working, and the
-   per-project target (`…vercel-dns-017.com`) resolves to the same edge
-   (`216.198.79.1`, `64.29.17.1`). Also delete any record named `quizkeen`, which
-   only creates the useless `quizkeen.quizkeen.om.to`.
+2. In the Intent panel, add one record at `@`. Prefer **ALIAS** — the panel
+   advertises apex ALIAS support, which flattens a CNAME at the root — pointing
+   at `bcc1a966b6af1974.vercel-dns-017.com` (Vercel's own target, so it follows
+   their addresses automatically). If ALIAS is refused, use **A** `@` →
+   `76.76.21.21`, which Vercel keeps working; that target currently flattens to
+   `216.198.79.1` and `64.29.17.1`. A CNAME cannot go at the apex because the NS
+   records live there — that is the error the panel shows if you try. Also delete
+   any record named `quizkeen`, which only creates the useless
+   `quizkeen.quizkeen.om.to`.
+
+   Beware the 3600s TTL: after a change, resolvers may keep serving the old
+   answers for up to an hour, so a domain that still looks broken is often just
+   cached. Ask the authoritative server (`dns1.int.yt`) to see the truth.
 3. Repoint the `www` CNAME at the Vercel target, and add `www.quizkeen.om.to` in
    Vercel, if `www` should work too.
 4. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
