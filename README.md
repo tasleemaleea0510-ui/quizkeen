@@ -57,3 +57,36 @@ someone else pushed first it replays the commit on top and retries once.
 Because commits happen automatically, `git add --all` semantics apply: new,
 modified and deleted files all go in. Keep experiments out of the repo, or
 start the watcher with `QK_PUSH=0` while you work on something risky.
+
+## Publishing
+
+Commits and pushes are already automatic; making the site public is a one-time
+connection on the host side. After that **every push deploys itself**, including
+the ones the watcher makes, so the whole chain is hands-off.
+
+1. Go to https://vercel.com/new and choose **Continue with GitHub**.
+2. Import the repository `tasleemaleea0510-ui/quizkeen`. (The local remote used to
+   point at the old name `quizkeenGOOGLE`, which GitHub only still resolves by
+   redirect; it has been updated to the canonical URL.)
+3. Keep the detected framework preset (Next.js). Vercel finds `npm run
+   vercel-build` — `prisma generate && next build` — and uses it in place of
+   `build`, so the Prisma client exists before the build without breaking local
+   builds (see the note below).
+4. Add these five environment variables. The values live in `.env.local`, which
+   is gitignored and must never be committed or pasted anywhere else:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_JWKS_URL`
+   - `DATABASE_URL`
+5. Deploy. Pushes to `main` redeploy from then on.
+
+### Build status
+
+`npm run build` succeeds and every route is listed as `ƒ (Dynamic)` — rendered
+on demand rather than pre-rendered — which is what the serverless host needs.
+
+Keep `prisma generate` out of the plain `build` script: while `next dev` is
+running it holds Prisma's engine DLL, so regeneration fails with
+`EPERM ... query_engine-windows.dll.node`. `postinstall` and `vercel-build`
+cover the build host instead, where no dev server is holding the file.
