@@ -72,13 +72,17 @@ the ones the watcher makes, so the whole chain is hands-off.
    vercel-build` — `prisma generate && next build` — and uses it in place of
    `build`, so the Prisma client exists before the build without breaking local
    builds (see the note below).
-4. Add these five environment variables. The values live in `.env.local`, which
-   is gitignored and must never be committed or pasted anywhere else:
+4. Add the four environment variables the code actually reads. The values live
+   in `.env.local`, which is gitignored and must never be committed or pasted
+   anywhere else:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SUPABASE_JWKS_URL`
    - `DATABASE_URL`
+
+   `.env.example` also lists `SUPABASE_JWKS_URL`, but nothing in `src/` reads it,
+   so it is safe to skip. Pasting the values into the host's dashboard is the
+   only time they leave `.env.local`.
 5. Deploy. Pushes to `main` redeploy from then on.
 
 ### Build status
