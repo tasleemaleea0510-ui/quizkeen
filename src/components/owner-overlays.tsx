@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { clearPasswordNote, getPasswordNote, getBanStatus, getBroadcast, getRenameRequest, acceptRename } from "@/app/system/actions";
+import { clearPasswordNote, getOverlayState, getBanStatus, acceptRename } from "@/app/system/actions";
 import { Wrench, ShieldAlert, Megaphone, Mail, Bell, Key, Edit3, X } from "lucide-react";
 
 export function MaintenanceScreen() {
@@ -86,15 +86,42 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   const [nn, setNn] = useState("");
   const [rnErr, setRnErr] = useState("");
   const [mounted, setMounted] = useState(false);
+  const tickerRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLSpanElement | null>(null);
+  const [tickerOverflows, setTickerOverflows] = useState(false);
+  const [tickerSeconds, setTickerSeconds] = useState(14);
+
+  // The banner repeats its text so the loop can be seamless. Measuring the
+  // rendered text lets us drop that when it isn't needed: if the notice already
+  // fits, show it once and don't scroll at all. When it doesn't fit, scroll at a
+  // constant pixel speed — the old per-character duration made short notices
+  // crawl (a four-character word took half a minute to cross the bar).
+  useEffect(() => {
+    const box = tickerRef.current;
+    const measure = measureRef.current;
+    if (!box || !measure) return;
+    const compute = () => {
+      const textWidth = measure.offsetWidth;
+      setTickerOverflows(textWidth > box.clientWidth);
+      setTickerSeconds(Math.max(7, textWidth / 90));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(box);
+    ro.observe(measure);
+    return () => ro.disconnect();
+  }, [bc]);
 
   useEffect(() => {
     setMounted(true);
     const iv = setInterval(async () => {
-      const [n, b, rr] = await Promise.all([getPasswordNote(), getBroadcast(), getRenameRequest()]);
+      const s = await getOverlayState();
+      if (!s) return;
+      const { passwordNote: n, broadcast: b, renameRequested: rr } = s;
       if (n) { setNote(n); setShowNote(true); }
       setBc(b);
       setRenameReq(!!rr);
-    }, 8000);
+    }, 4000);
     return () => clearInterval(iv);
   }, []);
 
@@ -108,16 +135,22 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
             <Megaphone className="h-4 w-4" />
             Live
           </span>
-          {/* Breaking-news ticker: the message scrolls right-to-left and never
-              stops. Longer announcements get proportionally longer, so the text
-              always travels at roughly the same reading speed. */}
-          <div className="flex-1 overflow-hidden py-2 text-sm font-semibold text-amber-300">
+          {/* Breaking-news ticker: the message scrolls right-to-left and pauses
+              while hovered. It only scrolls when the notice is too wide for the
+              bar, and then at a constant pixel speed, so the text is always
+              legible and never crawls. */}
+          <div ref={tickerRef} className="relative flex-1 overflow-hidden py-2 text-sm font-semibold text-amber-300">
+            <span ref={measureRef} aria-hidden="true" className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap px-6">{bc}</span>
             <div
-              className="flex w-max animate-marquee hover:[animation-play-state:paused]"
-              style={{ animationDuration: `${Math.max(14, bc.length * 0.45)}s` }}
+              className={
+                tickerOverflows
+                  ? "flex w-max animate-marquee hover:[animation-play-state:paused]"
+                  : "flex w-full justify-center"
+              }
+              style={{ animationDuration: `${tickerSeconds}s` }}
             >
               <span className="px-6">{bc}</span>
-              <span className="px-6" aria-hidden="true">{bc}</span>
+              {tickerOverflows && <span className="px-6" aria-hidden="true">{bc}</span>}
             </div>
           </div>
         </div>
