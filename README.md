@@ -119,24 +119,40 @@ This is a free subdomain from the Intent Panel (`panel.int.yt`), which is also
 where its DNS lives. Because the delegated zone *is* `quizkeen.om.to`, that name
 is the zone **apex**, while Vercel displays record names relative to `om.to` — so
 Vercel's "quizkeen" label means `@` here. A CNAME cannot be used at an apex; use
-an A record.
+an ALIAS record.
 
-As of writing the domain still answers from GitHub Pages: four A records pointing
-at `185.199.108.153`, `.109`, `.110` and `.111`, which return "File not found"
-because this app has no static `index.html` for Pages to serve. To move it:
+The apex now carries an **ALIAS** record pointing at `bcc1a966b6af1974.vercel-dns-017.com`,
+which the panel flattens to Vercel's edge addresses (`216.198.79.65`,
+`64.29.17.65`). The earlier GitHub Pages A records
+(`185.199.108.153`–`.111`) are gone. Note that resolving correctly is not by
+itself enough: until Vercel's ownership claim clears, its edge answers
+`404 DEPLOYMENT_NOT_FOUND` for this hostname and serves no TLS certificate. To
+complete the move:
 
 1. Vercel → project → Settings → Domains → add `quizkeen.om.to`. If it reports
    that the domain is linked to another Vercel account, create the TXT record it
    lists — the name is `_vercel.quizkeen.om.to` (Vercel's prose may call it
    `_vercel.om.to`, which is a different name) — then press Refresh.
+
+   If it still refuses after the TXT is published, the two names matter. Vercel's
+   API pattern is `_vercel.<domain>`, i.e. `_vercel.quizkeen.om.to`, which sits
+   inside this zone and is creatable; the dashboard prose names `_vercel.om.to`,
+   which is outside this zone and only the operator of `om.to` can add (the
+   Intent panel runs `dns1-4.int.yt`). Before chasing either, check the
+   account/team switcher — if the claim belongs to another team of your own,
+   removing the domain there is far quicker. Note that this claim is the *only*
+   remaining blocker once DNS resolves: the edge answers
+   `404 DEPLOYMENT_NOT_FOUND` for the hostname until it clears, and no TLS
+   certificate is issued for it either.
 2. In the Intent panel, add one record at `@`. Prefer **ALIAS** — the panel
    advertises apex ALIAS support, which flattens a CNAME at the root — pointing
    at `bcc1a966b6af1974.vercel-dns-017.com` (Vercel's own target, so it follows
-   their addresses automatically). If ALIAS is refused, use **A** `@` →
-   `76.76.21.21`, which Vercel keeps working; that target currently flattens to
-   `216.198.79.1` and `64.29.17.1`. A CNAME cannot go at the apex because the NS
-   records live there — that is the error the panel shows if you try. Also delete
-   any record named `quizkeen`, which only creates the useless
+   their addresses automatically). It is already in place. If ALIAS is refused,
+   use **A** `@` → `76.76.21.21`, which Vercel keeps working; that target
+   currently flattens to `216.198.79.1` and `64.29.17.1`. A CNAME cannot go at
+   the apex because the NS records live there — that is the error the panel shows
+   if you try. Also delete any record named `quizkeen`, which only creates the
+   useless
    `quizkeen.quizkeen.om.to`.
 
    Beware the 3600s TTL: after a change, resolvers may keep serving the old
