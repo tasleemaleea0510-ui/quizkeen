@@ -103,10 +103,22 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   return createPortal(
     <>
       {bc && (
-        <div className="fixed left-0 right-0 top-16 z-30 overflow-hidden border-b border-amber-500/40 bg-gradient-to-r from-amber-600/20 via-amber-400/10 to-amber-600/20 backdrop-blur">
-          <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-amber-300">
-            <Megaphone className="h-4 w-4 shrink-0" />
-            <span>{bc}</span>
+        <div className="fixed left-0 right-0 top-16 z-30 flex items-stretch overflow-hidden border-b border-amber-500/40 bg-gradient-to-r from-amber-600/20 via-amber-400/10 to-amber-600/20 backdrop-blur">
+          <span className="flex shrink-0 items-center gap-1.5 border-r border-amber-500/30 bg-amber-500/25 px-3 text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
+            <Megaphone className="h-4 w-4" />
+            Live
+          </span>
+          {/* Breaking-news ticker: the message scrolls right-to-left and never
+              stops. Longer announcements get proportionally longer, so the text
+              always travels at roughly the same reading speed. */}
+          <div className="flex-1 overflow-hidden py-2 text-sm font-semibold text-amber-300">
+            <div
+              className="flex w-max animate-marquee hover:[animation-play-state:paused]"
+              style={{ animationDuration: `${Math.max(14, bc.length * 0.45)}s` }}
+            >
+              <span className="px-6">{bc}</span>
+              <span className="px-6" aria-hidden="true">{bc}</span>
+            </div>
           </div>
         </div>
       )}

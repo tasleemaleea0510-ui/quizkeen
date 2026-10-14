@@ -71,6 +71,12 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        // The banner renders its text twice, so shifting by exactly half the
+        // content width lands on the second copy and the loop looks seamless.
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both",
@@ -79,6 +85,7 @@ const config: Config = {
         "gradient-pan": "gradient-pan 8s ease infinite",
         pop: "pop 0.25s cubic-bezier(0.22,1,0.36,1) both",
         shimmer: "shimmer 1.6s infinite",
+        marquee: "marquee 22s linear infinite",
       },
     },
   },
