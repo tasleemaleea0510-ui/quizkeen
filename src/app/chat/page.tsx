@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getChatHub, getChat, sendTo, requestChat, respondChat } from "./actions";
+import EmojiPicker from "@/components/emoji-picker";
 import { 
   MessageSquare, 
   Send, 
@@ -27,6 +28,24 @@ export default function ChatPage() {
   const [info, setInfo] = useState("");
   const [showQuickBar, setShowQuickBar] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  /** Drop an emoji in at the caret so text can be built with emoji anywhere. */
+  function insertEmoji(emoji: string) {
+    const el = inputRef.current;
+    if (!el) {
+      setText((t) => t + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? text.length;
+    const end = el.selectionEnd ?? text.length;
+    setText(text.slice(0, start) + emoji + text.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
 
   useEffect(() => {
     let on = true;
@@ -183,7 +202,7 @@ export default function ChatPage() {
               </div>
               {incoming.map((r: any) => (
                 <div key={r.id} className="mt-2 flex items-center justify-between rounded-xl bg-slate-900/80 border border-slate-800 p-3 text-sm">
-                  <span className="font-semibold text-white">{r.from}</span>
+                  <span className="font-semibold text-white" data-no-translate>{r.from}</span>
                   <div className="flex gap-1.5">
                     <button 
                       onClick={async () => { const x = await respondChat(r.id, true); setInfo(x.info || ""); setHub(await getChatHub()); }} 
@@ -232,6 +251,7 @@ export default function ChatPage() {
               {convos.map((c) => (
                 <button 
                   key={c.chan} 
+                  data-no-translate
                   onClick={() => { setChan(c.chan); setChanLabel(c.label); }}
                   className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors ${
                     chan === c.chan ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-800/70"
@@ -253,7 +273,7 @@ export default function ChatPage() {
           {chan ? (
             <>
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <span className="text-base font-bold text-white">{chanLabel}</span>
+                <span className="text-base font-bold text-white" data-no-translate>{chanLabel}</span>
               </div>
               <div ref={boxRef} className="mt-3 h-[26rem] space-y-2.5 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/70 p-4">
                 {msgs.length === 0 && (
@@ -262,8 +282,8 @@ export default function ChatPage() {
                 {msgs.map((m) => (
                   <div key={m.id} className={`flex ${m.from === me ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${m.from === me ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-200"}`}>
-                      {m.from !== me && <p className="text-[10px] font-bold text-slate-400 mb-0.5">{m.from}</p>}
-                      <p className="leading-relaxed">{m.text}</p>
+                      {m.from !== me && <p className="text-[10px] font-bold text-slate-400 mb-0.5" data-no-translate>{m.from}</p>}
+                      <p className="leading-relaxed whitespace-pre-wrap break-words" data-no-translate>{m.text}</p>
                     </div>
                   </div>
                 ))}
@@ -271,12 +291,14 @@ export default function ChatPage() {
               
               <div className="mt-3 flex items-center gap-2">
                 <input 
+                  ref={inputRef}
                   value={text} 
                   onChange={(e) => setText(e.target.value)} 
                   onKeyDown={(e) => { if (e.key === "Enter") send(); }}
                   placeholder="Skriv ett meddelande..." 
                   className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400" 
                 />
+                <EmojiPicker onPick={insertEmoji} />
                 <button 
                   onClick={() => setShowQuickBar((b) => !b)} 
                   className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
@@ -303,6 +325,7 @@ export default function ChatPage() {
                   {QUICK_PHRASES.map((phrase) => (
                     <button 
                       key={phrase} 
+                      data-no-translate
                       onClick={() => { setText(phrase); setShowQuickBar(false); }} 
                       className="rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                     >
