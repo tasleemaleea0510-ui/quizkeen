@@ -87,19 +87,14 @@ the ones the watcher makes, so the whole chain is hands-off.
    only time they leave `.env.local`.
 5. Deploy. Pushes to `main` redeploy from then on.
 
-### The Vercel project is linked to a different repository
+### Where it deploys from
 
-`quizkeen.vercel.app` already serves QuizKeen, but the project builds from
-`tasleemaleea0510-ui/quizkeenOG` — its newest commit, `1fff507`, exists only
-there. *This* repo (`tasleemaleea0510-ui/quizkeen`) is not connected to it, so
-pushes from here do not deploy. Relink it under Vercel → project → Settings →
-Git → Connect Git Repository → `tasleemaleea0510-ui/quizkeen`; the domain and
-the environment variables stay as they are.
-
-Also expect this: plain command-line requests to the live site answer `500`
-while real browsers — including a fresh incognito window with no cookies —
-render normally. The site works for visitors; that gap looks like platform bot
-handling and can affect crawlers, link previews and uptime monitors.
+The Vercel project is named `quizkeen` (team `quizkeenog`) and is connected to
+*this* repository, so every push to `main` deploys production. That was verified
+by pushing a change and watching `/api/health` start reporting the new short
+commit within about twenty seconds. It previously built from the older
+`quizkeenOG` repository; if pushes ever stop deploying again, check that link
+first.
 
 ### Build status
 
@@ -120,20 +115,31 @@ and see whether a push actually reached production rather than guessing from a
 
 ### Custom domain (quizkeen.om.to)
 
-As of writing, this domain points at GitHub Pages, not Vercel: its A records are
-GitHub's `185.199.108.153`, `.109`, `.110` and `.111`, so GitHub answers and
-returns "File not found" — this app has no static `index.html` for Pages to
-serve. To move it:
+This is a free subdomain from the Intent Panel (`panel.int.yt`), which is also
+where its DNS lives. Because the delegated zone *is* `quizkeen.om.to`, that name
+is the zone **apex**, while Vercel displays record names relative to `om.to` — so
+Vercel's "quizkeen" label means `@` here. A CNAME cannot be used at an apex; use
+an A record.
 
-1. Vercel → project → Settings → Domains → add `quizkeen.om.to`, and note the
-   record Vercel asks for.
-2. In the registry that owns `om.to` (the Intent Panel, `panel.int.yt`), log in
-   and replace the four GitHub A records with what Vercel showed — a CNAME to
-   `cname.vercel-dns.com`, or an A record to `76.76.21.21` if only A records are
-   supported. One or the other, never both.
-3. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
-   stops claiming the name.
+As of writing the domain still answers from GitHub Pages: four A records pointing
+at `185.199.108.153`, `.109`, `.110` and `.111`, which return "File not found"
+because this app has no static `index.html` for Pages to serve. To move it:
+
+1. Vercel → project → Settings → Domains → add `quizkeen.om.to`. If it reports
+   that the domain is linked to another Vercel account, create the TXT record it
+   lists — the name is `_vercel.quizkeen.om.to` (Vercel's prose may call it
+   `_vercel.om.to`, which is a different name) — then press Refresh.
+2. In the Intent panel, delete the four GitHub A records and add one **A** record
+   at `@` → `76.76.21.21`. Vercel keeps that legacy address working, and the
+   per-project target (`…vercel-dns-017.com`) resolves to the same edge
+   (`216.198.79.1`, `64.29.17.1`). Also delete any record named `quizkeen`, which
+   only creates the useless `quizkeen.quizkeen.om.to`.
+3. Repoint the `www` CNAME at the Vercel target, and add `www.quizkeen.om.to` in
+   Vercel, if `www` should work too.
+4. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
+   releases the name.
 
 Vercel issues the HTTPS certificate automatically once DNS resolves to it, and
-`/api/health` is the quickest way to confirm the domain is serving this app.
-Note that `quizkeen.com.to` does not exist at all — only `om.to`.
+`/api/health` is the quickest way to confirm the domain serves this app. Note
+that `quizkeen.com.to` does not exist at all — only `om.to` — and its TTL is
+3600s, so allow up to an hour for a change to be visible everywhere.
