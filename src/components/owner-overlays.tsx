@@ -112,8 +112,13 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   const [barWidth, setBarWidth] = useState(0);
 
   // Measure one tick of the ticker and the bar it runs through, so we can work
-  // out how many repeats it takes to fill the bar.
+  // out how many repeats it takes to fill the bar. This has to depend on
+  // `mounted`: the ticker lives in a portal that only exists after the first
+  // render, so on the mount pass these refs are still empty and the effect has
+  // to run again once they are attached — otherwise the ticker silently keeps
+  // its fallback single repeat at a slow crawl.
   useEffect(() => {
+    if (!mounted) return;
     const box = tickerRef.current;
     const measure = measureRef.current;
     if (!box || !measure) return;
@@ -126,7 +131,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
     ro.observe(box);
     ro.observe(measure);
     return () => ro.disconnect();
-  }, [bc]);
+  }, [bc, mounted]);
 
   // A breaking-news ticker never shows the headline just once, and it never sits
   // still: it repeats the notice until it covers the bar, then crawls forever. One
