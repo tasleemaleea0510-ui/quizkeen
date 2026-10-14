@@ -225,7 +225,7 @@ export default function AdminPage() {
 
                 <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
                   {users.map((u: any) => {
-                    const online = u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000;
+                    const online = Boolean(u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
                     return (
                       <div key={u.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">

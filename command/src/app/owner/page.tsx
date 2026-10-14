@@ -509,7 +509,7 @@ export default function OwnerPage() {
 
             <div className="mt-4 space-y-2">
               {filtered.map((u: User) => {
-                const online = u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000;
+                const online = Boolean(u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
                 return (
                   <button
                     key={u.id}

@@ -454,6 +454,15 @@ export function Unlock(p: IconProps) {
   );
 }
 
+export function Send(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 12l16-8-6 16-2.6-6.2L4 12z" />
+      <path d="M11.4 13.8L20 4" />
+    </Svg>
+  );
+}
+
 export function Dot({ online = false, ...p }: IconProps & { online?: boolean }) {
   return (
     <svg viewBox="0 0 12 12" width="1em" height="1em" aria-hidden="true" focusable="false" {...p}>
