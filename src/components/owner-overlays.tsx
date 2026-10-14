@@ -78,6 +78,26 @@ export function LiveBan({ serverBanned, until, message }: { serverBanned: boolea
   );
 }
 
+// One tick of the ticker: the notice, its trailing gap, and the separator dot
+// that marks where one repeat ends and the next begins. Measured and rendered
+// with the exact same markup so the widths we do arithmetic on are the real
+// widths on screen.
+function TickerUnit({ text }: { text: string }) {
+  return (
+    <span className="whitespace-nowrap">
+      <span className="px-8">{text}</span>
+      <span aria-hidden="true" className="text-amber-400/50">
+        •
+      </span>
+    </span>
+  );
+}
+
+// px per second. A news ticker reads at a steady speed no matter how long the
+// headline is; the old per-character duration made a four-letter notice crawl
+// across the bar in half a minute, which is what made it feel broken.
+const TICKER_SPEED = 110;
+
 export function Overlays({ broadcast, passwordNote }: { broadcast: string | null; passwordNote: string | null }) {
   const [bc, setBc] = useState(broadcast);
   const [note, setNote] = useState(passwordNote);
@@ -88,22 +108,18 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   const [mounted, setMounted] = useState(false);
   const tickerRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLSpanElement | null>(null);
-  const [tickerOverflows, setTickerOverflows] = useState(false);
-  const [tickerSeconds, setTickerSeconds] = useState(14);
+  const [unitWidth, setUnitWidth] = useState(0);
+  const [barWidth, setBarWidth] = useState(0);
 
-  // The banner repeats its text so the loop can be seamless. Measuring the
-  // rendered text lets us drop that when it isn't needed: if the notice already
-  // fits, show it once and don't scroll at all. When it doesn't fit, scroll at a
-  // constant pixel speed — the old per-character duration made short notices
-  // crawl (a four-character word took half a minute to cross the bar).
+  // Measure one tick of the ticker and the bar it runs through, so we can work
+  // out how many repeats it takes to fill the bar.
   useEffect(() => {
     const box = tickerRef.current;
     const measure = measureRef.current;
     if (!box || !measure) return;
     const compute = () => {
-      const textWidth = measure.offsetWidth;
-      setTickerOverflows(textWidth > box.clientWidth);
-      setTickerSeconds(Math.max(7, textWidth / 90));
+      setUnitWidth(measure.offsetWidth);
+      setBarWidth(box.clientWidth);
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -111,6 +127,14 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
     ro.observe(measure);
     return () => ro.disconnect();
   }, [bc]);
+
+  // A breaking-news ticker never shows the headline just once, and it never sits
+  // still: it repeats the notice until it covers the bar, then crawls forever. One
+  // "group" is however many repeats it takes to fill the bar; the track holds that
+  // group twice, so sliding the track by half its width lands on a pixel-identical
+  // group and the loop is seamless.
+  const reps = unitWidth > 0 && barWidth > 0 ? Math.max(1, Math.ceil(barWidth / unitWidth)) : 1;
+  const tickerSeconds = unitWidth > 0 ? (unitWidth * reps) / TICKER_SPEED : 22;
 
   useEffect(() => {
     setMounted(true);
@@ -135,22 +159,28 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
             <Megaphone className="h-4 w-4" />
             Live
           </span>
-          {/* Breaking-news ticker: the message scrolls right-to-left and pauses
-              while hovered. It only scrolls when the notice is too wide for the
-              bar, and then at a constant pixel speed, so the text is always
-              legible and never crawls. */}
+          {/* Breaking-news ticker: the message repeats to fill the bar and
+              scrolls right-to-left at a constant speed, pausing only while
+              hovered so a long notice can be read. */}
           <div ref={tickerRef} className="relative flex-1 overflow-hidden py-2 text-sm font-semibold text-amber-300">
-            <span ref={measureRef} aria-hidden="true" className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap px-6">{bc}</span>
+            <span
+              ref={measureRef}
+              aria-hidden="true"
+              className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap"
+            >
+              <TickerUnit text={bc} />
+            </span>
             <div
-              className={
-                tickerOverflows
-                  ? "flex w-max animate-marquee hover:[animation-play-state:paused]"
-                  : "flex w-full justify-center"
-              }
+              className="flex w-max animate-marquee hover:[animation-play-state:paused]"
               style={{ animationDuration: `${tickerSeconds}s` }}
             >
-              <span className="px-6">{bc}</span>
-              {tickerOverflows && <span className="px-6" aria-hidden="true">{bc}</span>}
+              {[0, 1].map((copy) =>
+                Array.from({ length: reps }, (_, i) => (
+                  <span key={`${copy}-${i}`} aria-hidden={copy > 0 || i > 0 ? true : undefined}>
+                    <TickerUnit text={bc} />
+                  </span>
+                ))
+              )}
             </div>
           </div>
         </div>

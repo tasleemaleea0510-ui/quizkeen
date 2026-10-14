@@ -71,8 +71,9 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
-        // The banner renders its text twice, so shifting by exactly half the
-        // content width lands on the second copy and the loop looks seamless.
+        // The LIVE banner's track holds two identical groups of repeats, so
+        // shifting by exactly half the content width lands on the second group
+        // and the loop looks seamless no matter how wide the bar is.
         marquee: {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(-50%)" },
