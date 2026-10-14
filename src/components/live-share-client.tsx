@@ -11,7 +11,7 @@ export default function LiveShareClient() {
   useEffect(() => {
     let on = true;
     async function pull() {
-      const s = await getLiveState();
+      const s = await getLiveState().catch(() => null);
       if (on && s) setLive(s.live);
     }
     pull();
@@ -23,7 +23,7 @@ export default function LiveShareClient() {
     if (busy.current) return;
     busy.current = true;
     const pid = live.staffPeerId;
-    await declineLive();
+    await declineLive().catch(() => {});
     setLive(null);
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -47,7 +47,7 @@ export default function LiveShareClient() {
             </p>
             <div className="mt-6 flex gap-2.5">
               <button 
-                onClick={async () => { await declineLive(); setLive(null); }} 
+                onClick={async () => { await declineLive().catch(() => {}); setLive(null); }} 
                 className="flex-1 rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
               >
                 Avböj

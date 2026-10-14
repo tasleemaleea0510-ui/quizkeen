@@ -10,7 +10,8 @@ export default function LiveStats({ initial }: { initial: { xp: number; coins: n
   useEffect(() => {
     if (!initial) return;
     const iv = setInterval(async () => {
-      const s = await getProfileStats();
+      // Best-effort poll: a transient fetch failure must not become an unhandled rejection.
+      const s = await getProfileStats().catch(() => null);
       if (!s) return;
       const key = `${s.xp}|${s.coins}|${s.level}`;
       if (key !== last.current) {

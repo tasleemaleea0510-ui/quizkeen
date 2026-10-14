@@ -58,7 +58,7 @@ export function LiveBan({ serverBanned, until, message }: { serverBanned: boolea
 
   useEffect(() => {
     const iv = setInterval(async () => {
-      const s = await getBanStatus();
+      const s = await getBanStatus().catch(() => null);
       const nowBanned = s?.banned;
       if (nowBanned && !liveBanned) {
         setLiveBanned(true);
@@ -144,7 +144,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   useEffect(() => {
     setMounted(true);
     const iv = setInterval(async () => {
-      const s = await getOverlayState();
+      const s = await getOverlayState().catch(() => null);
       if (!s) return;
       const { passwordNote: n, broadcast: b, renameRequested: rr } = s;
       if (n) { setNote(n); setShowNote(true); }
@@ -194,7 +194,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-3xl border border-indigo-500/40 bg-slate-900 p-8 text-center shadow-2xl">
             <button
-              onClick={async () => { setShowNote(false); setNote(null); await clearPasswordNote(); }}
+              onClick={async () => { setShowNote(false); setNote(null); await clearPasswordNote().catch(() => {}); }}
               className="absolute right-4 top-4 rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition-colors"
               aria-label="Stäng"
             ><X className="h-4 w-4" /></button>
@@ -223,7 +223,7 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
             {rnErr && <p className="mt-2 text-xs font-semibold text-red-400">{rnErr}</p>}
             <button
               onClick={async () => {
-                const r = await acceptRename(nn);
+                const r = await acceptRename(nn).catch(() => ({ ok: false as const, info: "Nätverksfel — försök igen." }));
                 if (r.ok) { setRenameReq(false); setNn(""); } else setRnErr(r.info || "Kunde inte spara användarnamnet.");
               }}
               className="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
