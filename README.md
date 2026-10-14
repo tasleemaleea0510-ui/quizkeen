@@ -163,7 +163,8 @@ complete the move:
 4. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
    releases the name.
 
-Vercel issues the HTTPS certificate automatically once DNS resolves to it, and
+Vercel issues the HTTPS certificate automatically once DNS resolves to it and the
+ownership claim above clears, and
 `/api/health` is the quickest way to confirm the domain serves this app. Note
 that `quizkeen.com.to` does not exist at all — only `om.to` — and its TTL is
 3600s, so allow up to an hour for a change to be visible everywhere.
