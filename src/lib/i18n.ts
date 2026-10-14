@@ -519,7 +519,7 @@ function escapeRegExp(s: string) {
 }
 
 function buildMatcher(map: Map<string, string>): Matcher {
-  const keys = [...map.keys()]
+  const keys = Array.from(map.keys())
     .filter((k) => k.length >= 2)
     .sort((a, b) => b.length - a.length);
   return { re: new RegExp(keys.map(escapeRegExp).join("|"), "g"), map };
@@ -530,7 +530,9 @@ const MATCHERS: Record<Lang, Matcher> = {
   sv: buildMatcher(EN_TO_SV),
 };
 
-const WORD = /[\p{L}\p{N}]/u;
+// Latin letters (including the Swedish ones) and digits. Written as an explicit
+// class instead of \p{L} so this file type-checks under the project's es5 target.
+const WORD = /[0-9A-Za-z\u00C0-\u024F]/;
 function isWordChar(c: string | undefined) {
   return !!c && WORD.test(c);
 }
@@ -554,7 +556,7 @@ function matchExact(text: string, map: Map<string, string>): string | null {
   if (!trimmed) return null;
   const hit = map.get(trimmed);
   if (hit !== undefined) return text.replace(trimmed, hit);
-  const core = trimmed.replace(/^[^\p{L}\p{N}]+/u, "").replace(/[^\p{L}\p{N}]+$/u, "");
+  const core = trimmed.replace(/^[^0-9A-Za-z\u00C0-\u024F]+/, "").replace(/[^0-9A-Za-z\u00C0-\u024F]+$/, "");
   if (core && core !== trimmed) {
     const coreHit = map.get(core);
     if (coreHit !== undefined) return text.replace(core, coreHit);
