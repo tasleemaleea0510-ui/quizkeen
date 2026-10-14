@@ -68,10 +68,12 @@ the ones the watcher makes, so the whole chain is hands-off.
 2. Import the repository `tasleemaleea0510-ui/quizkeen`. (The local remote used to
    point at the old name `quizkeenGOOGLE`, which GitHub only still resolves by
    redirect; it has been updated to the canonical URL.)
-3. Keep the detected framework preset (Next.js). Vercel finds `npm run
-   vercel-build` — `prisma generate && next build` — and uses it in place of
-   `build`, so the Prisma client exists before the build without breaking local
-   builds (see the note below).
+3. Keep the detected framework preset (Next.js); there are no build settings to
+   change. Vercel runs the install step first, and its `postinstall` hook
+   generates the Prisma client, then it runs the `build` script. `vercel.json`
+   additionally pins the build command to `npm run vercel-build`
+   (`prisma generate && next build`) so that generation is guaranteed by an
+   explicit setting rather than only implied by the install step.
 4. Add the four environment variables the code actually reads. The values live
    in `.env.local`, which is gitignored and must never be committed or pasted
    anywhere else:
