@@ -67,6 +67,25 @@ export async function studentGetChats(targetRole: string) {
   });
   return msgs.map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
 }
+// One round-trip for the whole overlay chrome. The individual getters below are
+// still exported, but the banner polls this instead: each server action costs a
+// Supabase auth round-trip, so three of them per tick made the banner feel slow.
+export async function getOverlayState() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const [settings, profile] = await Promise.all([
+    prisma.adminSettings.findUnique({ where: { id: 1 }, select: { broadcast: true } }),
+    user
+      ? prisma.profile.findUnique({ where: { id: user.id }, select: { passwordNote: true, renameRequested: true } })
+      : Promise.resolve(null),
+  ]);
+  return {
+    broadcast: settings?.broadcast ?? null,
+    passwordNote: profile?.passwordNote ?? null,
+    renameRequested: !!profile?.renameRequested,
+  };
+}
+
 export async function getRenameRequest() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
