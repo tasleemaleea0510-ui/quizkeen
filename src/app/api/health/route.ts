@@ -14,6 +14,7 @@ export function GET() {
     // `git rev-parse HEAD` proves whether a push actually reached production.
     commit: sha ? sha.slice(0, 7) : "local",
     environment: process.env.VERCEL_ENV ?? "local",
+    region: process.env.VERCEL_REGION ?? "local",
     time: new Date().toISOString(),
   });
 }
