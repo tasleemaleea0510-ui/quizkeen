@@ -117,3 +117,23 @@ Open `/api/health` on the live site. It answers with the short commit hash, the
 environment and a timestamp, so you can compare it against `git rev-parse HEAD`
 and see whether a push actually reached production rather than guessing from a
 "Ready" badge.
+
+### Custom domain (quizkeen.om.to)
+
+As of writing, this domain points at GitHub Pages, not Vercel: its A records are
+GitHub's `185.199.108.153`, `.109`, `.110` and `.111`, so GitHub answers and
+returns "File not found" — this app has no static `index.html` for Pages to
+serve. To move it:
+
+1. Vercel → project → Settings → Domains → add `quizkeen.om.to`, and note the
+   record Vercel asks for.
+2. In the registry that owns `om.to` (the Intent Panel, `panel.int.yt`), log in
+   and replace the four GitHub A records with what Vercel showed — a CNAME to
+   `cname.vercel-dns.com`, or an A record to `76.76.21.21` if only A records are
+   supported. One or the other, never both.
+3. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
+   stops claiming the name.
+
+Vercel issues the HTTPS certificate automatically once DNS resolves to it, and
+`/api/health` is the quickest way to confirm the domain is serving this app.
+Note that `quizkeen.com.to` does not exist at all — only `om.to`.
