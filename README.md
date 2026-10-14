@@ -87,6 +87,12 @@ the ones the watcher makes, so the whole chain is hands-off.
    only time they leave `.env.local`.
 5. Deploy. Pushes to `main` redeploy from then on.
 
+Before importing, check whether a `quizkeen` project already exists in your
+Vercel dashboard. `quizkeen.vercel.app` is already serving this app as an older,
+broken build (an unclaimed name would answer `404 DEPLOYMENT_NOT_FOUND` instead).
+If that project is yours, add the four variables to *that* project and redeploy
+rather than importing a second one, so the address does not change.
+
 ### Build status
 
 `npm run build` succeeds and every route is listed as `ƒ (Dynamic)` — rendered
