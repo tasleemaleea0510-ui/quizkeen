@@ -87,11 +87,19 @@ the ones the watcher makes, so the whole chain is hands-off.
    only time they leave `.env.local`.
 5. Deploy. Pushes to `main` redeploy from then on.
 
-Before importing, check whether a `quizkeen` project already exists in your
-Vercel dashboard. `quizkeen.vercel.app` is already serving this app as an older,
-broken build (an unclaimed name would answer `404 DEPLOYMENT_NOT_FOUND` instead).
-If that project is yours, add the four variables to *that* project and redeploy
-rather than importing a second one, so the address does not change.
+### The Vercel project is linked to a different repository
+
+`quizkeen.vercel.app` already serves QuizKeen, but the project builds from
+`tasleemaleea0510-ui/quizkeenOG` — its newest commit, `1fff507`, exists only
+there. *This* repo (`tasleemaleea0510-ui/quizkeen`) is not connected to it, so
+pushes from here do not deploy. Relink it under Vercel → project → Settings →
+Git → Connect Git Repository → `tasleemaleea0510-ui/quizkeen`; the domain and
+the environment variables stay as they are.
+
+Also expect this: plain command-line requests to the live site answer `500`
+while real browsers — including a fresh incognito window with no cookies —
+render normally. The site works for visitors; that gap looks like platform bot
+handling and can affect crawlers, link previews and uptime monitors.
 
 ### Build status
 
