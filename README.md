@@ -110,3 +110,10 @@ Keep `prisma generate` out of the plain `build` script: while `next dev` is
 running it holds Prisma's engine DLL, so regeneration fails with
 `EPERM ... query_engine-windows.dll.node`. `postinstall` and `vercel-build`
 cover the build host instead, where no dev server is holding the file.
+
+### Is production up to date?
+
+Open `/api/health` on the live site. It answers with the short commit hash, the
+environment and a timestamp, so you can compare it against `git rev-parse HEAD`
+and see whether a push actually reached production rather than guessing from a
+"Ready" badge.
