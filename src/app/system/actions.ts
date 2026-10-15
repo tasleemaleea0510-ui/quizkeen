@@ -76,13 +76,28 @@ export async function getOverlayState() {
   const [settings, profile] = await Promise.all([
     prisma.adminSettings.findUnique({ where: { id: 1 }, select: { broadcast: true } }),
     user
-      ? prisma.profile.findUnique({ where: { id: user.id }, select: { passwordNote: true, renameRequested: true } })
+      ? prisma.profile.findUnique({
+          where: { id: user.id },
+          select: { passwordNote: true, renameRequested: true, forceRelogin: true },
+        })
       : Promise.resolve(null),
   ]);
+
+  // "Tvinga ny inloggning" from the owner console. This is the one place that
+  // runs as a server action on a timer for every signed-in user, so it is where
+  // the flag can actually end the session: clear it first (so a failure can't
+  // lock someone in a sign-out loop) and then drop the auth cookies.
+  if (profile?.forceRelogin && user) {
+    await prisma.profile.update({ where: { id: user.id }, data: { forceRelogin: false } }).catch(() => {});
+    await supabase.auth.signOut().catch(() => {});
+    return { broadcast: settings?.broadcast ?? null, passwordNote: null, renameRequested: false, signedOut: true };
+  }
+
   return {
     broadcast: settings?.broadcast ?? null,
     passwordNote: profile?.passwordNote ?? null,
     renameRequested: !!profile?.renameRequested,
+    signedOut: false,
   };
 }
 

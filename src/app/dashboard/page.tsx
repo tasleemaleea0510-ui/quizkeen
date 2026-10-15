@@ -66,6 +66,9 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.profile.findMany({
+      // "Skugga" in the owner console: the account plays normally but is left
+      // out of the top list, and the next player takes its place.
+      where: { shadowed: false },
       orderBy: { xp: "desc" },
       take: 5,
       select: { username: true, xp: true, level: true, role: true },

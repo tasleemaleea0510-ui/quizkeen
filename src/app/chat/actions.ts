@@ -13,6 +13,36 @@ async function me() {
   }
 }
 
+/**
+ * "Tysta chatten" in the staff consoles writes `chatMutedUntil`.
+ * 0 minutes means "for all time" and is stored as the year 2099, so anything
+ * past that date is permanent. Returns null when the user may talk.
+ */
+function mutedMessage(until: Date | null | undefined): string | null {
+  if (!until) return null;
+  const now = Date.now();
+  const end = new Date(until).getTime();
+  if (!Number.isFinite(end) || end <= now) return null;
+  if (new Date(until).getFullYear() >= 2099) return "Du är tystad i chatten för alltid av personalen.";
+  const mins = Math.max(1, Math.ceil((end - now) / 60000));
+  if (mins >= 60) return `Du är tystad i chatten i ca ${Math.ceil(mins / 60)} tim av personalen.`;
+  return `Du är tystad i chatten i ${mins} min av personalen.`;
+}
+
+/** The one channel a muted user may still use: their line to staff. */
+function isStaffLine(channel: string) {
+  return channel.startsWith("STU|");
+}
+
+/**
+ * Ghost mode ("Osynlig" in the security console) hides a user's messages in the
+ * shared rooms. Two-person conversations (TS|, DM|) are left alone, because a
+ * message that silently never arrives would look like a bug to the other side.
+ */
+function isPrivateLine(channel: string) {
+  return channel.startsWith("TS|") || channel.startsWith("DM|");
+}
+
 async function canSee(p: any, channel: string): Promise<boolean> {
   try {
     if (["OWNER", "ADMIN", "SECURITY"].includes(p.role)) return true;
@@ -55,6 +85,7 @@ export async function getChatHub() {
       classes,
       students,
       reqs: reqs.map((r) => ({ id: r.id, from: r.fromUser, to: r.toUser, status: r.status })),
+      muted: mutedMessage(p.chatMutedUntil),
     };
   } catch (e) {
     return null;
@@ -65,12 +96,23 @@ export async function getChat(channel: string) {
   try {
     const p = await me();
     if (!p || !(await canSee(p, channel))) return null;
+    const isStaff = ["OWNER", "ADMIN", "SECURITY"].includes(p.role);
     let where: any = { channel };
-    if (channel.startsWith("STU|") && !["OWNER", "ADMIN", "SECURITY"].includes(p.role)) {
+    if (channel.startsWith("STU|") && !isStaff) {
       where = { channel, OR: [{ fromRole: p.username }, { fromRole: channel.split("|")[1] }] };
     }
-    const msgs = await prisma.staffChat.findMany({ where, orderBy: { createdAt: "asc" }, take: 100 });
-    return msgs.map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
+    const [msgs, ghosted] = await Promise.all([
+      prisma.staffChat.findMany({ where, orderBy: { createdAt: "asc" }, take: 100 }),
+      // Staff see everything (that is what the tool is for); a ghosted user sees
+      // their own messages so the chat doesn't look broken to them.
+      prisma.profile.findMany({ where: { ghostMode: true }, select: { username: true } }),
+    ]);
+    const hidden = new Set(ghosted.map((g) => g.username));
+    const show = (m: { fromRole: string }) =>
+      isStaff || isPrivateLine(channel) || m.fromRole === p.username || !hidden.has(m.fromRole);
+    return msgs
+      .filter(show)
+      .map((m) => ({ id: m.id, from: m.fromRole, text: m.text, createdAt: m.createdAt.toISOString() }));
   } catch (e) {
     return [];
   }
@@ -80,6 +122,8 @@ export async function sendTo(channel: string, text: string) {
   try {
     const p = await me();
     if (!p || !(await canSee(p, channel)) || !text.trim()) return { ok: false };
+    const muted = isStaffLine(channel) ? null : mutedMessage(p.chatMutedUntil);
+    if (muted) return { ok: false, info: muted };
     await prisma.staffChat.create({ data: { channel, fromRole: p.username, text: text.trim().slice(0, 500) } });
     return { ok: true };
   } catch (e) {

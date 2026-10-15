@@ -863,10 +863,19 @@ export default function OwnerPage() {
                     <p className="mt-3 flex items-center gap-1.5 text-xs font-bold text-slate-400">
                       <Coins className="h-3.5 w-3.5" /> Mynt & bonus
                     </p>
+                    {/* Honest label: these two write a flag, but QuizKeen has no
+                        coin spending and no daily bonus yet, so nothing obeys it.
+                        Better a visible note than a button that quietly does nothing. */}
+                    <p className="mt-1 flex items-start gap-1.5 rounded-lg bg-slate-800/70 px-2 py-1.5 text-[11px] font-bold text-slate-400">
+                      <Warning className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" />
+                      Frys mynt och Daglig bonus är <b className="text-amber-300">inte aktiva än</b> — QuizKeen har ingen
+                      mynt-utgift och ingen daglig bonus, så flaggan sparas men inget ändras.
+                    </p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       <button
                         type="button"
                         onClick={() => run(toggleFreezeCoins(session, sel.id, sel.username))}
+                        title="Inte aktiv än — ingen mynt-utgift finns i QuizKeen"
                         className="flex items-center gap-1 rounded-lg bg-cyan-600 px-2 py-1 text-xs font-bold text-white hover:bg-cyan-500"
                       >
                         <Snowflake className="h-3 w-3" /> Frys mynt
@@ -874,6 +883,7 @@ export default function OwnerPage() {
                       <button
                         type="button"
                         onClick={() => run(toggleDailyBonus(session, sel.id, sel.username))}
+                        title="Inte aktiv än — ingen daglig bonus finns i QuizKeen"
                         className="flex items-center gap-1 rounded-lg bg-orange-600 px-2 py-1 text-xs font-bold text-white hover:bg-orange-500"
                       >
                         <Gift className="h-3 w-3" /> Daglig bonus

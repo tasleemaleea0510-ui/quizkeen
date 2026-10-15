@@ -11,7 +11,8 @@ import {
   Check, 
   X, 
   Bell, 
-  MessageCircle
+  MessageCircle,
+  Ban
 } from "lucide-react";
 
 const QUICK_PHRASES = ["Hej!", "Bra spelat!", "Tack!", "Är du redo?", "Ses i klassrummet!"];
@@ -145,6 +146,9 @@ export default function ChatPage() {
   }
 
   const me = hub.username;
+  // "Tysta chatten" from the staff consoles. The line to staff stays open on
+  // purpose: a muted user must still be able to ask for help or appeal.
+  const mutedHere = Boolean(hub.muted) && !(chan ?? "").startsWith("STU|");
   const convos: { chan: string; label: string; badge: string }[] = [];
   hub.classes.forEach((c: any) => {
     convos.push({ chan: `CLASS|${c.id}`, label: `${c.name} (Klassrum)`, badge: "KLASS" });
@@ -166,10 +170,15 @@ export default function ChatPage() {
 
   async function send(t?: string) {
     const body = (t ?? text).trim();
-    if (!body || !chan) return;
-    await sendTo(chan!, body);
+    if (!body || !chan || mutedHere) return;
+    const r = await sendTo(chan, body).catch(() => ({ ok: false as const, info: "" }));
+    if (r && r.ok === false) {
+      // Leave the text in the box so a refusal never eats what they typed.
+      setInfo(r.info || "Meddelandet kunde inte skickas.");
+      return;
+    }
     setText("");
-    const m = await getChat(chan!);
+    const m = await getChat(chan);
     if (m) setMsgs(m);
   }
 
@@ -289,14 +298,24 @@ export default function ChatPage() {
                 ))}
               </div>
               
+              {mutedHere && (
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
+                  <Ban className="h-4 w-4 shrink-0" />
+                  <span>
+                    {hub.muted} Du kan fortfarande läsa allt och skriva till personalen.
+                  </span>
+                </div>
+              )}
+
               <div className="mt-3 flex items-center gap-2">
                 <input 
                   ref={inputRef}
                   value={text} 
                   onChange={(e) => setText(e.target.value)} 
                   onKeyDown={(e) => { if (e.key === "Enter") send(); }}
-                  placeholder="Skriv ett meddelande..." 
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400" 
+                  disabled={mutedHere}
+                  placeholder={mutedHere ? "Du är tystad i chatten" : "Skriv ett meddelande..."} 
+                  className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 disabled:cursor-not-allowed disabled:opacity-60" 
                 />
                 <EmojiPicker onPick={insertEmoji} />
                 <button 
@@ -313,7 +332,8 @@ export default function ChatPage() {
                 </button>
                 <button 
                   onClick={() => send()} 
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+                  disabled={mutedHere}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
                   <span>Skicka</span>

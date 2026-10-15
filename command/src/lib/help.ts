@@ -409,11 +409,13 @@ const OWNER: HelpDoc = {
               name: "Frys mynt",
               what: "Låser myntplånboken: personen kan inte spendera mynt.||Freezes the wallet: the person cannot spend coins.",
               how: "Växlar. Bra om ett konto verkar köpa saker på fel sätt.||Toggles. Useful if an account seems to be buying things the wrong way.",
+              warn: "Inte aktiv än. QuizKeen har ingen mynt-utgift — knappen sparar flaggan, men inget ändras för personen.||Not active yet. QuizKeen has no coin spending — the button saves the flag but nothing changes for the person.",
             },
             {
               name: "Daglig bonus",
               what: "Slår av eller på den dagliga belöningen för personen.||Turns the daily reward off or on for that person.",
               how: "Växlar. Bra om bonusen missbrukas.||Toggles. Useful if the bonus is being abused.",
+              warn: "Inte aktiv än. Det finns ingen daglig bonus i QuizKeen än, så flaggan sparas utan effekt.||Not active yet. There is no daily bonus in QuizKeen yet, so the flag is saved with no effect.",
             },
             {
               name: "Tvinga ny inloggning",
@@ -603,8 +605,8 @@ const ADMIN: HelpDoc = {
             },
             {
               name: "Tysta (lila)||Mute (purple)",
-              what: "Tystar chatten. En ruta frågar hur många minuter — 0 = för alltid.||Mutes the chat. A dialog asks how many minutes — 0 = forever.",
-              how: "Personen kan läsa men inte skriva. En admin, säkerhet eller ägaren kan öppna chatten igen.||The person can read but not write. An admin, security or the owner can unmute.",
+              what: "Tystar chatten. En ruta frågar hur många minuter — 0 = för alltid. Personen ser själv en gul ruta i chatten som säger att de är tystade.||Mutes the chat. A dialog asks how many minutes — 0 = forever. The person sees a yellow notice in the chat saying they're muted.",
+              how: "De kan läsa men inte skicka. En admin, säkerhet eller ägaren kan öppna chatten igen. Linjan till personalen är alltid öppen.||They can read but not send. An admin, security or the owner can unmute. The line to staff always stays open.",
               warn: "Används bättre än ban för småsaker. Den syns inte för andra i chatten.||Better than a ban for small things. It isn't visible to others in the chat.",
             },
             {
@@ -800,8 +802,8 @@ const SECURITY: HelpDoc = {
             },
             {
               name: "Tysta (lila)||Mute (purple)",
-              what: "Tystar chatten. En ruta frågar hur många minuter — 0 = för alltid.||Mutes the chat. A dialog asks how many minutes — 0 = forever.",
-              how: "Personen kan läsa men inte skriva. Du hör inget mer från dem i chatten.||The person can read but not write. You hear nothing more from them in the chat.",
+              what: "Tystar chatten. En ruta frågar hur många minuter — 0 = för alltid. Personen ser själv en gul ruta i chatten som säger att de är tystade.||Mutes the chat. A dialog asks how many minutes — 0 = forever. The person sees a yellow notice in the chat saying they're muted.",
+              how: "Du hör inget mer från dem i klasschatten. Deras linja till personalen är alltid öppen, så de kan fortfarande be om hjälp.||You hear nothing more from them in the class chat. Their line to staff always stays open, so they can still ask for help.",
             },
             {
               name: "Öppna chatten (grön, högtalare)||Unmute (green, speaker)",
@@ -809,9 +811,9 @@ const SECURITY: HelpDoc = {
             },
             {
               name: "Osynlig (grå, spöke)||Ghost (grey, ghost)",
-              what: "Personens meddelanden blir osynliga för alla andra. De kan fortfarande skriva.||The person's messages become invisible to everyone else. They can still type.",
-              how: "Växlar av och på. Bra mot spam eller taskig text innan du hinner prata med dem.||Toggles. Good against spam or nasty text before you get a chance to talk to them.",
-              warn: "Bara du har den här knappen bland personalen. Använd den inte i hemlighet som straff — berätta i stabs-chatten.||You're the only staff member with this button. Don't use it secretly as punishment — tell the staff chat.",
+              what: "Personens meddelanden blir osynliga i de gemensamma chattarna (klass och personal). De kan fortfarande skriva, och de ser sina egna meddelanden — men ingen annan gör det.||The person's messages become invisible in the shared chats (class and staff). They can still type and they see their own messages — nobody else does.",
+              how: "Växlar av och på. Bra mot spam eller taskig text innan du hinner prata med dem. Personalen ser alltid allt, även osynliga meddelanden.||Toggles. Good against spam or nasty text before you get a chance to talk to them. Staff always see everything, including ghosted messages.",
+              warn: "Bara du har den här knappen bland personalen, och direkta samtal (elev↔lärare) påverkas inte — där vore ett tyst försvinnande förvirrande. Berätta i stabs-chatten vad du gjort.||You're the only staff member with this button, and direct conversations (student↔teacher) are not affected — a message silently vanishing there would only confuse. Tell the staff chat what you did.",
             },
             {
               name: "Fäst (rosa)||Pin (pink)",

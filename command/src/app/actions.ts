@@ -535,7 +535,12 @@ export async function toggleGhost(s: S, id: string, username: string) {
     const next = !u.ghostMode;
     await prisma.profile.update({ where: { id }, data: { ghostMode: next } });
     await log(`[${s.role}]`, next ? `ghostmode PÅ ${username}` : `ghostmode AV ${username}`);
-    return { ok: true, info: next ? `${username}: meddelanden osynliga för andra!` : `${username}: synlig igen!` };
+    return {
+      ok: true,
+      info: next
+        ? `${username}: meddelanden osynliga i gemensamma chattar (direkta samtal fungerar som vanligt)!`
+        : `${username}: synlig igen!`,
+    };
   });
 }
 

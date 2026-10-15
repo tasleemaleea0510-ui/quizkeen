@@ -146,6 +146,13 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
     const iv = setInterval(async () => {
       const s = await getOverlayState().catch(() => null);
       if (!s) return;
+      // The owner pressed "Tvinga ny inloggning": the server action already
+      // ended the session, so send them to the login screen instead of leaving
+      // them on a page whose actions will all start failing.
+      if (s.signedOut) {
+        window.location.href = "/login";
+        return;
+      }
       const { passwordNote: n, broadcast: b, renameRequested: rr } = s;
       if (n) { setNote(n); setShowNote(true); }
       setBc(b);
