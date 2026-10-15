@@ -89,16 +89,46 @@ export async function GET() {
     check("frozen wallet still gets the free pack", frozenFree.ok, JSON.stringify(frozenFree).slice(0, 120));
     await prisma.profile.update({ where: { id }, data: { coinsFrozen: false } });
 
-    // 6. a race for the last coins: exactly one may win
+    // 6a. two packs racing for the same coins. Both MAY succeed here, because
+    // duplicate refunds put coins back mid-flight — what must never happen is a
+    // negative balance, or coins appearing from nowhere.
     await prisma.profile.update({ where: { id }, data: { coins: 1500 } });
     const [r1, r2] = await Promise.all([openPack(id, "mytisk", 5), openPack(id, "mytisk", 5)]);
     const wins = [r1, r2].filter((r) => r.ok).length;
+    const credited = [r1, r2].reduce((a, r) => a + (r.ok ? r.refunded : 0), 0);
+    const charged = [r1, r2].reduce((a, r) => a + (r.ok ? r.spent : 0), 0);
     const coinsNow = await balance();
-    check("exactly one of two racing packs succeeds", wins === 1, `wins=${wins}`);
     check("racing never drives coins negative", coinsNow >= 0, `coins=${coinsNow}`);
-    // The only coins left are duplicate refunds, so they can never exceed the
-    // value of the five Keens the winner pulled.
-    check("leftovers are only refunds", coinsNow <= 5 * 1200, `coins=${coinsNow}`);
+    check(
+      "the ledger balances exactly",
+      coinsNow === 1500 - charged + credited,
+      `${coinsNow} vs ${1500 - charged + credited} (wins=${wins})`
+    );
+
+    // 6b. a market race, where nothing is refunded: the balance covers exactly
+    // one of the two buys, so exactly one may take it.
+    const epicKeen = Object.values(KEEN_BY_ID).find((k) => k.rarity === "EPISK" && !state.owned[k.id])!;
+    const beforeRace = await prisma.profileKeen.findUnique({
+      where: { profileId_keenId: { profileId: id, keenId: epicKeen.id } },
+      select: { count: true },
+    });
+    const epicPrice = marketPriceFor(epicKeen.id)!;
+    await prisma.profile.update({ where: { id }, data: { coins: epicPrice * 5 } });
+    const [b1, b2] = await Promise.all([buyKeen(id, epicKeen.id, 5), buyKeen(id, epicKeen.id, 5)]);
+    const bought = [b1, b2].filter((r) => r.ok).length;
+    const coinsAfterRace = await balance();
+    check("exactly one of two racing buys succeeds", bought === 1, `wins=${bought} ${JSON.stringify([b1, b2])}`);
+    check("the winner paid exactly the price", coinsAfterRace === 0, `coins=${coinsAfterRace}`);
+    check(
+      "the loser was refused for lack of coins",
+      [b1, b2].filter((r) => !r.ok).every((r: any) => r.error === "coins"),
+      JSON.stringify([b1, b2])
+    );
+    const ownedEpic = await prisma.profileKeen.findUnique({
+      where: { profileId_keenId: { profileId: id, keenId: epicKeen.id } },
+      select: { count: true },
+    });
+    check("only five copies were granted", ownedEpic?.count === (beforeRace?.count ?? 0) + 5, JSON.stringify({ before: beforeRace, after: ownedEpic }));
 
     // 7. market: buy then sell round trip
     await prisma.profile.update({ where: { id }, data: { coins: 10000 } });
