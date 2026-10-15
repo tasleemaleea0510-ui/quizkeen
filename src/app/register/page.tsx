@@ -49,7 +49,7 @@ export default function RegisterPage() {
     }
 
     if (data.user) {
-      const made = await createProfile(data.user.id, username, role).catch(() => null);
+      const made = await createProfile(data.user.id, username, role, email).catch(() => null);
       if (!made) {
         setError("Kunde inte skapa profilen — försök igen.");
         setLoading(false);

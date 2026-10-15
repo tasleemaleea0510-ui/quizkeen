@@ -1,6 +1,6 @@
 "use server";
 import { prisma } from "@/lib/prisma";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabaseAdmin, hasServiceRoleKey } from "@/lib/supabaseAdmin";
 import { checkEmail, normalizeEmail, USERNAME_RE } from "@/lib/email-check";
 
 export type SignupCheck = { ok: true } | { ok: false; error: string };
@@ -45,23 +45,31 @@ export async function checkRegistration(email: string, username: string): Promis
  * ducked the form — or a browser that skipped it — never gets one, and the
  * orphaned auth user is deleted again so the address stays free to retry.
  */
+async function authoritativeEmail(userId: string): Promise<string> {
+  if (!hasServiceRoleKey) return "";
+  try {
+    const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
+    return normalizeEmail(data?.user?.email ?? "");
+  } catch {
+    return "";
+  }
+}
+
 export async function createProfile(
   userId: string,
   username: string,
-  role: "STUDENT" | "TEACHER"
+  role: "STUDENT" | "TEACHER",
+  emailHint = ""
 ): Promise<ProfileResult> {
   const name = (username || "").trim();
   if (!USERNAME_RE.test(name)) return { ok: false, error: "Ogiltigt användarnamn." };
 
-  // Ask the auth service what address this account actually has, instead of
-  // trusting anything the browser sent us.
-  let email = "";
-  try {
-    const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
-    email = normalizeEmail(data?.user?.email ?? "");
-  } catch {
-    email = "";
-  }
+  // Ask the auth service what address this account actually has, rather than
+  // trusting anything the browser sent us. Only when that is impossible — no
+  // service-role key on this deploy (see supabaseAdmin.ts) or a failing lookup
+  // — fall back to the address from the form, which faces the same DNS check.
+  // A missing key must never cost us every signup.
+  const email = (await authoritativeEmail(userId)) || normalizeEmail(emailHint);
 
   const verdict = email ? await checkEmail(email) : { ok: false as const };
   if (!verdict.ok) {
