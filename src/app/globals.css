@@ -104,6 +104,61 @@
   background-clip: content-box;
 }
 
+/* ── Keens ────────────────────────────────────────────────────────────────
+   Kroma Keens are not a colour, they are every colour: a rotating conic
+   gradient behind the character and a sliding one through the text. Both live
+   outside the Tailwind layers on purpose — they have to beat the utility
+   classes that set a flat text colour on the very same element. */
+.keen-chroma {
+  background-image: conic-gradient(
+    from 0deg,
+    #ff5f6d,
+    #ffc371,
+    #47e891,
+    #38bdf8,
+    #a855f7,
+    #f472b6,
+    #ff5f6d
+  );
+  background-size: 180% 180%;
+  animation: keen-chroma-rotate 7s linear infinite;
+  filter: saturate(1.35);
+}
+
+@keyframes keen-chroma-rotate {
+  0% { transform: rotate(0deg) scale(1.4); }
+  100% { transform: rotate(360deg) scale(1.4); }
+}
+
+.keen-chroma-text {
+  background-image: linear-gradient(
+    90deg,
+    #ff8fa3,
+    #ffd166,
+    #7ae582,
+    #6ec6ff,
+    #c084fc,
+    #f472b6,
+    #ff8fa3
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The collection grid scrolls inside its own card; a visible scrollbar on a
+   grid of characters is noise. */
+.keen-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.keen-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
 /* Click feedback */
 button, a {
   transition: transform 0.08s ease, filter 0.08s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
