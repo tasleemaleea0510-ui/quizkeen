@@ -58,7 +58,15 @@ const userShape = (u: any) => ({
   lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
   livePath: u.livePath,
   secretNote: u.secretNote,
+  pinned: Boolean(u.pinned),
 });
+
+/**
+ * "Fäst" puts a user on top of every staff list; the queries come back newest
+ * first, so a stable sort by the pin flag keeps that order inside each group.
+ * Without this the pin button wrote to the database and nothing ever moved.
+ */
+const byPinnedFirst = (a: { pinned: boolean }, b: { pinned: boolean }) => Number(b.pinned) - Number(a.pinned);
 
 const time = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -96,7 +104,7 @@ export async function getOwnerData(s: S) {
     const totXP = users.reduce((a, u) => a + u.xp, 0);
     const totCoins = users.reduce((a, u) => a + u.coins, 0);
     return {
-      users: users.map(userShape),
+      users: users.map(userShape).sort(byPinnedFirst),
       settings: settings || { ownerCode: "", adminCode: "", securityCode: "", broadcast: "", shutdown: false },
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
       stats: { users: users.length, teachers, quizzes, decks, games, totXP, totCoins },
@@ -114,7 +122,7 @@ export async function getAdminData(s: S) {
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
     ]);
     return {
-      users: users.map(userShape),
+      users: users.map(userShape).sort(byPinnedFirst),
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
     };
   } catch {
@@ -130,7 +138,7 @@ export async function getSecurityData(s: S) {
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
     ]);
     return {
-      users: users.map(userShape),
+      users: users.map(userShape).sort(byPinnedFirst),
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
     };
   } catch {
