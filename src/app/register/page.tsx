@@ -6,7 +6,8 @@ import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createProfile } from "./actions";
+import { createProfile, checkRegistration } from "./actions";
+import { authErrorSv } from "@/lib/auth-messages";
 import { GraduationCap, School, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,22 +20,82 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      setError(error.message);
+
+    // Server-side gate first: a real email shape, a domain that can receive
+    // mail, and a free username. Nothing is created until it passes.
+    const gate = await checkRegistration(email, username).catch(() => null);
+    if (!gate) {
+      setError("Kunde inte nå servern — försök igen.");
       setLoading(false);
       return;
     }
-    if (data.user) {
-      await createProfile(data.user.id, username, role);
+    if (!gate.ok) {
+      setError(gate.error);
+      setLoading(false);
+      return;
     }
+
+    const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password });
+    if (error) {
+      setError(authErrorSv(error.message));
+      setLoading(false);
+      return;
+    }
+
+    if (data.user) {
+      const made = await createProfile(data.user.id, username, role).catch(() => null);
+      if (!made) {
+        setError("Kunde inte skapa profilen — försök igen.");
+        setLoading(false);
+        return;
+      }
+      if (!made.ok) {
+        // createProfile removes the half-made account again, so drop the
+        // session too and let them correct the form.
+        await supabase.auth.signOut().catch(() => {});
+        setError(made.error);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // With email confirmation switched on in Supabase there is no session yet.
+    if (!data.session) {
+      setSent(true);
+      setLoading(false);
+      return;
+    }
+
     router.push("/dashboard");
     router.refresh();
+  }
+
+  if (sent) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
+        <Card className="animate-fade-up">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base text-slate-300">Nästan klart!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-slate-300">
+            <p>
+              Vi har skickat ett mejl till <b className="text-white" data-no-translate>{email}</b>. Öppna det och tryck
+              på länken för att aktivera kontot.
+            </p>
+            <p className="text-slate-400">Hittar du inget mejl? Kolla skräpposten. Adressen måste vara en riktig adress som du äger.</p>
+            <Link href="/login" className="inline-block font-semibold text-indigo-400 hover:text-indigo-300">
+              Till inloggningen
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

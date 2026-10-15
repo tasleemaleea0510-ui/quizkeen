@@ -6,6 +6,7 @@ import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { authErrorSv } from "@/lib/auth-messages";
 import { Zap } from "lucide-react";
 
 export default function LoginPage() {
@@ -20,9 +21,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
     if (error) {
-      setError(error.message);
+      setError(authErrorSv(error.message));
       setLoading(false);
     } else {
       router.push("/dashboard");
