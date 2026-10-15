@@ -2,6 +2,29 @@
 
 Multiplayer live quiz platform with PIN lobbies, flashcard battles, and classroom management.
 
+## Keens (collectibles)
+
+Keens are collectible characters bought with the coins you earn answering
+questions: open packs, get a rarity roll, and complete the set of 48.
+
+- `/keens` — your collection with filters, search and a detail card per Keen.
+- `/keens/packs` — the free daily pack plus six themed packs (1/3/5 at a time).
+- `/keens/market` — buy any Keen outright, sell duplicates, three daily −30 % deals.
+
+Economics live in `src/lib/keens-store.ts` and are deliberately plain functions
+of a profile id, so they can be driven directly against the database: coins are
+only ever spent by a guarded `updateMany` (balance must still cover the price and
+the wallet must be unfrozen), the price comes from the server's copy of the
+catalogue, and granting a Keen plus taking the coins happen in one transaction.
+Contents of the catalogue (rarities, prices, pack odds, every Keen) are in
+`src/lib/keens.ts` and shared by server and browser, so the pack the server
+rolls and the animation the browser plays can never disagree.
+
+Schema: `Profile.lastFreePackAt`, `ProfileKeen` and `KeenOpen`. `prisma db push`
+hangs against Supabase's pooled connection (pgBouncer, port 6543), so schema
+changes have to be applied as SQL against the same `DATABASE_URL` — the deployed
+build only runs `prisma generate && next build`, it never migrates.
+
 ## Automatic sync (auto-commit + auto-push)
 
 This repo ships a watcher that keeps GitHub in sync without any manual git
