@@ -434,7 +434,8 @@ const OWNER: HelpDoc = {
           items: [
             {
               name: "Tysta chatten — 1 tim / 1 dag / FÖR ALLTID",
-              what: "Personen kan läsa chatten men inte skriva.||The person can read the chat but not write.",
+              what: "Personen kan läsa allt men inte skicka meddelanden: klasschattar och direktsamtal är stängda, och skrivrutan säger att de är tystade.||The person can read everything but cannot send: class chats and direct messages are closed, and the composer tells them they're muted.",
+              how: "Deras linje till personalen är alltid öppen, så de kan fortfarande be om hjälp eller överklaga.||Their line to staff always stays open, so they can still ask for help or appeal.",
               warn: "FÖR ALLTID är verkligen för alltid — bara du, en admin eller säkerhet kan öppna den igen.||FOREVER really means forever — only you, an admin or security can open it again.",
             },
             {
