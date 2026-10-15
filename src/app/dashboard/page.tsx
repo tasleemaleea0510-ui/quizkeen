@@ -21,8 +21,11 @@ import {
   Layers,
   Swords,
   BarChart3,
+  Sparkles,
+  ArrowRight,
   Lock,
 } from "lucide-react";
+import { TOTAL_KEENS } from "@/lib/keens";
 
 function roleTheme(role: string) {
   if (role === "OWNER") return { cls: "text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.9)]", badge: "ÄGARE", label: "ÄGARE" };
@@ -229,6 +232,10 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // How many Keens this account has found, for the collection banner below.
+  // Degrades to zero if the Keens tables are not migrated on this deploy yet.
+  const keenCount = await prisma.profileKeen.count({ where: { profileId: user.id } }).catch(() => 0);
+
   const subtitle =
     profile.role === "OWNER" ? "ÄGARE — Portalansvarig" :
     profile.role === "ADMIN" ? "ADMIN — Systemoperatör" :
@@ -268,6 +275,26 @@ export default async function DashboardPage() {
         <StatCard label="Erfarenhet (XP)" value={profile.xp} icon={Zap} tone="text-emerald-400" />
         <StatCard label="Mynt" value={profile.coins} icon={Coins} tone="text-amber-400" />
       </div>
+
+      <Link
+        href="/keens"
+        className="group mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-r from-indigo-600/20 via-violet-600/10 to-transparent p-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-400/50 hover:shadow-glow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl border border-indigo-400/30 bg-indigo-500/20 text-xl animate-float">
+            ✨
+          </span>
+          <div>
+            <p className="font-display text-base font-extrabold text-white">Dina Keens</p>
+            <p data-no-translate className="text-xs text-slate-400">
+              {keenCount}/{TOTAL_KEENS} samlade · köp paket med dina mynt och handla i marknaden
+            </p>
+          </div>
+        </div>
+        <span className="flex items-center gap-1.5 text-sm font-bold text-indigo-300 group-hover:text-indigo-200">
+          Öppna paket <ArrowRight className="h-4 w-4" />
+        </span>
+      </Link>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
         <Card className="border-white/5">

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
 import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-import { School, BarChart3, Layers, Settings, LogOut, Zap } from "lucide-react";
+import { School, BarChart3, Layers, Sparkles, Settings, LogOut, Zap } from "lucide-react";
 
 export default function Navbar() {
   const { supabase, session } = useSupabase();
@@ -34,6 +34,7 @@ export default function Navbar() {
     { href: "/classroom", label: "Klassrum", icon: School },
     ...(me?.role === "TEACHER" ? [{ href: "/classroom/analytics", label: "Analys", icon: BarChart3 }] : []),
     { href: "/flashcards", label: "Gloskort", icon: Layers },
+    { href: "/keens", label: "Keens", icon: Sparkles },
     { href: "/settings", label: "Inställningar", icon: Settings },
   ];
 

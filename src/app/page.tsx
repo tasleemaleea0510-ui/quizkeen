@@ -75,11 +75,12 @@ export default function Home() {
         </Card>
       </div>
 
-      <div className="mt-14 grid gap-5 sm:grid-cols-3">
+      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { icon: Gamepad2, title: "Starta en quiz", text: "Välj en quiz, få en PIN-kod och dela med klassen." },
           { icon: Layers, title: "Plugga med gloskort", text: "Bygg kortlekar och vänd kort för att träna inför prov." },
           { icon: Swords, title: "Utmana i strid", text: "Kör realtidsstrider på dina kortlekar — vem vinner?" },
+          { icon: Sparkles, title: "Samla Keens", text: "Öppna paket, samla figurer och handla sällsynta Keens i marknaden." },
         ].map((s, i) => {
           const Icon = s.icon;
           return (
@@ -97,6 +98,27 @@ export default function Home() {
           );
         })}
       </div>
+
+      <Link
+        href="/keens"
+        className="group mt-14 flex flex-col items-center justify-between gap-4 overflow-hidden rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-indigo-600/20 via-violet-600/10 to-slate-900/40 p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-400/50 hover:shadow-glow-sm sm:flex-row sm:p-8"
+      >
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-indigo-400/30 bg-indigo-500/20 text-2xl animate-float">
+            ✨
+          </span>
+          <div>
+            <p className="font-display text-xl font-extrabold text-white">Samla Keens</p>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-400">
+              48 figurer i sex paket och sex sällsynthetsgrader — från vanliga till Kroma. Tjäna mynt genom att
+              svara rätt, öppna paket, och byt till dig de du saknar i marknaden.
+            </p>
+          </div>
+        </div>
+        <span className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-colors group-hover:bg-white/10">
+          Till samlingen <ArrowRight className="h-4 w-4 text-indigo-400" />
+        </span>
+      </Link>
     </div>
   );
 }
