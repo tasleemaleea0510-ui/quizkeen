@@ -11,8 +11,11 @@ import { KEEN_BY_ID, PACKS } from "@/lib/keens";
  *
  * Every reason a purchase can fail has one Swedish sentence, so a client
  * component can render the result without knowing anything about the rules.
+ *
+ * Kept private on purpose: a "use server" file may only export async
+ * functions, so this map lives here as a plain const rather than a public one.
  */
-export const KEEN_ERRORS: Record<string, string> = {
+const KEEN_ERRORS: Record<string, string> = {
   auth: "Du måste vara inloggad.",
   pack: "Det paketet finns inte.",
   count: "Du kan inte öppna så många paket på en gång.",
