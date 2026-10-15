@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal, { ConfirmModal } from "../../components/prompt-modal";
+import { HelpButton, HelpPanel } from "../../components/help-guide";
 import {
   getOwnerData,
   banUser,
@@ -84,6 +85,7 @@ import {
   Clock,
   Shield,
   Search,
+  Help,
 } from "../../components/icons";
 
 type User = {
@@ -100,7 +102,7 @@ type User = {
   secretNote: string | null;
 };
 
-type TabId = "stats" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log";
+type TabId = "stats" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log" | "help";
 
 const TABS: { id: TabId; Icon: typeof Crown; label: string }[] = [
   { id: "stats", Icon: Chart, label: "Översikt" },
@@ -111,6 +113,7 @@ const TABS: { id: TabId; Icon: typeof Crown; label: string }[] = [
   { id: "broadcast", Icon: Megaphone, label: "Sändning" },
   { id: "codes", Icon: Keypad, label: "Koder" },
   { id: "log", Icon: Scroll, label: "Logg" },
+  { id: "help", Icon: Help, label: "Hjälp" },
 ];
 
 const ROLES = ["STUDENT", "TEACHER", "ADMIN", "OWNER", "SECURITY"];
@@ -1137,7 +1140,11 @@ export default function OwnerPage() {
             </div>
           </>
         )}
+
+        {tab === "help" && <HelpPanel kind="OWNER" />}
       </main>
+
+      <HelpButton kind="OWNER" />
 
       {timeMachine && sel && (
         <PromptModal

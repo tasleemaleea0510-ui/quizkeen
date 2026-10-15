@@ -32,6 +32,13 @@ export function writeLang(lang: Lang) {
   } catch {
     /* storage unavailable — translation still works this session */
   }
+  // Lets a component that renders its own two languages (the help guide, which
+  // can't use the word-by-word engine) follow the switch immediately.
+  try {
+    window.dispatchEvent(new Event("qk-lang"));
+  } catch {
+    /* no window (server render) — nothing to notify */
+  }
 }
 
 /**
@@ -303,6 +310,7 @@ const PAIRS: [string, string][] = [
   ["Kontrollen misslyckades. Lås upp igen.", "That check failed. Unlock again."],
   ["Kod", "Code"],
   ["Tips", "Tip"],
+  ["Hjälp", "Help"],
 ];
 
 // ── compiled lookup tables ───────────────────────────────────────────────

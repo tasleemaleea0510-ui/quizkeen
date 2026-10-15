@@ -463,6 +463,17 @@ export function Send(p: IconProps) {
   );
 }
 
+/** Question mark in a circle — the "what does this button do?" button. */
+export function Help(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.5 9.6a2.6 2.6 0 114.2 2.2c-1 .8-1.7 1.3-1.7 2.5" />
+      <path d="M12 17.5h.01" />
+    </Svg>
+  );
+}
+
 export function Dot({ online = false, ...p }: IconProps & { online?: boolean }) {
   return (
     <svg viewBox="0 0 12 12" width="1em" height="1em" aria-hidden="true" focusable="false" {...p}>

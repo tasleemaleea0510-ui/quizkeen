@@ -19,6 +19,7 @@ import {
 import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
+import { HelpButton, HelpPanel } from "../../components/help-guide";
 import {
   Detective,
   Users,
@@ -40,10 +41,11 @@ import {
   Dot,
   Clock,
   Shield,
+  Help,
 } from "../../components/icons";
 
 type S = { role: string; code: string };
-type NavId = "users" | "chats" | "chat" | "log";
+type NavId = "users" | "chats" | "chat" | "log" | "help";
 
 export default function SecurityPage() {
   const router = useRouter();
@@ -134,6 +136,7 @@ export default function SecurityPage() {
     { id: "chats", Icon: Detective, label: "Chatspaning" },
     { id: "chat", Icon: ChatIcon, label: "Stabs-chatt" },
     { id: "log", Icon: Scroll, label: "Logg" },
+    { id: "help", Icon: Help, label: "Hjälp" },
   ];
 
   return (
@@ -391,6 +394,8 @@ export default function SecurityPage() {
               </div>
             )}
 
+            {section === "help" && <HelpPanel kind="SECURITY" />}
+
             {section === "log" && (
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
@@ -417,6 +422,8 @@ export default function SecurityPage() {
           </div>
         )}
       </div>
+
+      <HelpButton kind="SECURITY" />
 
       {mute && (
         <PromptModal

@@ -18,6 +18,7 @@ import {
 import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
+import { HelpButton, HelpPanel } from "../../components/help-guide";
 import {
   Shield,
   Users,
@@ -39,10 +40,11 @@ import {
   Eraser,
   Dot,
   Clock,
+  Help,
 } from "../../components/icons";
 
 type S = { role: string; code: string };
-type NavId = "users" | "chats" | "broadcast" | "chat" | "log";
+type NavId = "users" | "chats" | "broadcast" | "chat" | "log" | "help";
 
 const QUICK = [
   { label: "5 min", min: 5 },
@@ -149,6 +151,7 @@ export default function AdminPage() {
     { id: "broadcast", Icon: Megaphone, label: "Sändning" },
     { id: "chat", Icon: ChatIcon, label: "Stabs-chatt" },
     { id: "log", Icon: Scroll, label: "Logg" },
+    { id: "help", Icon: Help, label: "Hjälp" },
   ];
 
   return (
@@ -435,6 +438,8 @@ export default function AdminPage() {
               </div>
             )}
 
+            {section === "help" && <HelpPanel kind="ADMIN" />}
+
             {section === "log" && (
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
@@ -461,6 +466,8 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      <HelpButton kind="ADMIN" />
 
       {gift && (
         <PromptModal
