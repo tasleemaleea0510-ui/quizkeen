@@ -354,6 +354,8 @@ export type KeenState = {
   freeWaitMs: number;
   owned: Record<string, number>;
   distinct: number;
+  /** Spare copies you could sell, i.e. everything above one of each. */
+  dupes: number;
   total: number;
   recent: { keenId: string; rarity: Rarity; isNew: boolean; refund: number; packId: string; at: string }[];
 };
@@ -371,7 +373,13 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
   ]);
 
   const owned: Record<string, number> = {};
-  for (const r of rows) if (r.count > 0 && KEEN_BY_ID[r.keenId]) owned[r.keenId] = r.count;
+  let dupes = 0;
+  for (const r of rows) {
+    if (r.count > 0 && KEEN_BY_ID[r.keenId]) {
+      owned[r.keenId] = r.count;
+      dupes += Math.max(0, r.count - 1);
+    }
+  }
 
   return {
     coins: profile?.coins ?? 0,
@@ -381,6 +389,7 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
     freeWaitMs: freePackWait(profile?.lastFreePackAt ?? null),
     owned,
     distinct: Object.keys(owned).length,
+    dupes,
     total: TOTAL_KEENS,
     recent: recent.map((r) => ({
       keenId: r.keenId,
