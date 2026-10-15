@@ -38,12 +38,9 @@ export async function checkRegistration(email: string, username: string): Promis
 }
 
 /**
- * Create the profile row every page needs.
- *
- * This is the real gate. A profile is what makes an account usable in QuizKeen
- * (every page redirects back to /register without one), so an address that
- * ducked the form — or a browser that skipped it — never gets one, and the
- * orphaned auth user is deleted again so the address stays free to retry.
+ * The address Supabase itself holds for this account — the only source we
+ * can't be lied to about. "" means "couldn't ask", never "no email": either no
+ * service-role key is configured or the lookup failed.
  */
 async function authoritativeEmail(userId: string): Promise<string> {
   if (!hasServiceRoleKey) return "";
@@ -55,6 +52,14 @@ async function authoritativeEmail(userId: string): Promise<string> {
   }
 }
 
+/**
+ * Create the profile row every page needs.
+ *
+ * This is the real gate. A profile is what makes an account usable in QuizKeen
+ * (every page redirects back to /register without one), so an address that
+ * ducked the form — or a browser that skipped it — never gets one, and the
+ * orphaned auth user is deleted again so the address stays free to retry.
+ */
 export async function createProfile(
   userId: string,
   username: string,
