@@ -456,6 +456,101 @@ export const KEENS: Keen[] = [
   P(ADMIN_PACK, "MYSTISK", 30, "omeisaurus", "Omeisaurus", "Omeisaurus", "🐉"),
 ];
 
+/**
+ * One line of personality per Keen.
+ *
+ * The catalogue above is about game play — rarity, price, odds. These are about
+ * the character: what it does when nobody is looking, in the detail card where
+ * there is room for a sentence. Kept as a separate map (rather than an eighth
+ * argument on every `P(...)` row) so the big table stays readable as a table.
+ */
+export const KEEN_BIOS: Record<string, string> = {
+  // ── Djurpaketet ───────────────────────────────────────────────────────────
+  kisse: "Sover 18 timmar om dagen och vinner resten av tiden.",
+  vovve: "Hämtar alltid bollen — även när du inte kastat den.",
+  kaninen: "Hoppar hellre än går, och räknar morötter bäst i klassen.",
+  turt: "Långsam på frågor, omöjlig att slå på tålamod.",
+  pippi: "Pip pip! Sjunger svaret när du inte hinner.",
+  sly: "Lånar dina pennor och lämnar tillbaka dem oslipade.",
+  bruno: "Sover genom provet och drömmer om honung.",
+  fenrir: "Ylar mot månen och svarar rätt på ren instinkt.",
+
+  // ── Skolpaketet ───────────────────────────────────────────────────────────
+  penny: "Spetsad och redo — suddar aldrig ett rätt svar.",
+  gummi: "Tar bort misstag, ett sudd i taget.",
+  bag: "Bär alla böcker, glömmer alltid läxan hemma.",
+  kalkyl: "Räknar snabbare än du hinner skriva.",
+  prov: "Blir alltid nervös, även när det är grupparbete.",
+  larsson: "Rättar i röd penna och ler ändå.",
+  nobel: "Vinsten är tung att bära — men den är snygg.",
+  rektor: "Utropar studiedag med ett litet leende.",
+
+  // ── Rymdpaketet ───────────────────────────────────────────────────────────
+  raffe: "Räknar ned från tio och lämnar atmosfären.",
+  stella: "Lyser upp mörka nätter och svåra tal.",
+  luna: "Halv, full eller bara trött — alltid vacker.",
+  kalle: "Kommer farande med svansen av glöd.",
+  tella: "Ser allt som är för långt borta för att se.",
+  astro: "Tar ett litet steg, sedan en hel lektion.",
+  saturnus: "Har ringar, attityd och alldeles för många månar.",
+  zorg: "Pratar i signaler och förstår ändå alla frågor.",
+
+  // ── Djungelpaketet ────────────────────────────────────────────────────────
+  polly: "Upprepar allt du säger — även rätt svar.",
+  ving: "Byter skepnad och landar på rätt svar.",
+  abbe: "Klänger på allt, även riktigt svåra uppgifter.",
+  slir: "Ringlar fram utan ben och utan brådska.",
+  groda: "Sitter still, sedan hopp — rätt svar.",
+  leo: "Snabb, fläckig och misstänkt självsäker.",
+  elsa: "Glömmer aldrig något — och verkligen inget prov.",
+  leon: "Kungen av djungeln, men rädd för bin.",
+
+  // ── Godispaketet ──────────────────────────────────────────────────────────
+  klubba: "Söt ut i tåspetsarna, kladdig i marginalen.",
+  kex: "Knaprig, med choklad i varje hörn.",
+  munk: "Ett hål i mitten och socker överallt.",
+  choklad: "Smälter i handen, aldrig i provet.",
+  glass: "Tre kulor, en kula och alltid i tid.",
+  tarta: "Ett lager för varje rätt svar.",
+  cupcake: "Liten, men med glasyr över hela krönet.",
+  rainbow: "Alla färger på en gång — och smakar regnbåge.",
+
+  // ── Mytiskapaketet ────────────────────────────────────────────────────────
+  uno: "Ett horn, ett ben, ett rätt svar.",
+  drako: "Eldar bara när svaret är fel.",
+  fenix: "Reser sig ur provet och börjar om.",
+  marina: "Bubblar fram svaret från havets botten.",
+  merlin: "Trollar fram rätt svar med en vink av staven.",
+  kromakatt: "Byter färg varje gång du blinkar.",
+  kromadrake: "Äter guldmynt och andas glitter.",
+  kromakrona: "Regnbågens krona — den sista på hyllan.",
+
+  // ── Gamerpaketet ──────────────────────────────────────────────────────────
+  invader: "Landar i åtta bitar och flyttar sig i sidled.",
+  crewmate: "Åtta i besättningen, och en av dem ljuger.",
+  chubbypig: "Rund, arg och överraskande svårfångad.",
+  creeper: "Kommer tyst, exploderar mitt i provet.",
+  pixelthorne: "En skugga med tänder — bara några har sett den.",
+
+  // ── Halloweenpaketet ──────────────────────────────────────────────────────
+  pumpkin: "Lyser upp mörkret och ler bredare än alla andra.",
+  chickenchick: "Frusen sedan i tisdags — men kammen är röd och glad.",
+  chickchicken: "Samma kyckling, tinad, med slör och allt.",
+  frogula: "Sover i kistan på dagen och hoppar i provet på natten.",
+  cookiepumpkin: "Gräddad i pumpform, med choklad i ögonen.",
+  cookiemummy: "Lindad i band och redo för evigheten.",
+  cookieghost: "Gladast av alla spöken — den är söt, inte hemsk.",
+  pumpkinking: "Kungen i mörkret: 0,1 % chans och en hel armé av pumpor.",
+
+  // ── Admin-Keenen ──────────────────────────────────────────────────────────
+  omeisaurus: "Chefens egen drake — delas bara ut av en admin.",
+};
+
+/** The one-liner for a Keen, or an empty string if it has none yet. */
+export function keenBio(keen: Keen): string {
+  return KEEN_BIOS[keen.id] ?? "";
+}
+
 export const KEEN_BY_ID: Record<string, Keen> = Object.fromEntries(KEENS.map((k) => [k.id, k]));
 export const PACK_BY_ID: Record<string, Pack> = Object.fromEntries(PACKS.map((p) => [p.id, p]));
 
@@ -648,6 +743,26 @@ export function dailyDeals(dateKey: string): { keen: Keen; price: number; off: n
 /** UTC day key (2026-10-15) — the same string in every timezone. */
 export function dayKey(d: Date = new Date()): string {
   return d.toISOString().slice(0, 10);
+}
+
+// ── Daily spotlight ──────────────────────────────────────────────────────────
+
+/**
+ * Today's Keen: one character, the same for everyone, until midnight UTC.
+ *
+ * A reason to come back tomorrow, and a reason to look at a Keen you would
+ * otherwise never study. It is drawn from the chase tiers (Episk and up) because
+ * a spotlight on the fifth common is not a spotlight — and it is a pure function
+ * of the date, so the server and every browser agree on who it is.
+ */
+export function keenOfTheDay(dateKey: string, pool?: Keen[]): Keen | null {
+  const chase = (pool ?? OBTAINABLE_KEENS).filter((k) => RARITY_META[k.rarity].order >= RARITY_META.EPISK.order);
+  const list = chase.length ? chase : pool ?? OBTAINABLE_KEENS;
+  if (!list.length) return null;
+  let seed = 0;
+  for (let i = 0; i < dateKey.length; i++) seed = (seed * 31 + dateKey.charCodeAt(i)) >>> 0;
+  seed = (seed * 1103515245 + 12345) >>> 0;
+  return list[seed % list.length];
 }
 
 // ── Collection helper ────────────────────────────────────────────────────────
