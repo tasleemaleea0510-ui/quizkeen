@@ -795,3 +795,44 @@ export function packProgress(owned: OwnedMap, pack: AnyPackId) {
   const have = list.filter((k) => owned[k.id] > 0).length;
   return { have, total: list.length, percent: list.length ? Math.round((have / list.length) * 100) : 0 };
 }
+
+// ── Collector rank ───────────────────────────────────────────────────────────
+
+/**
+ * What a collection is worth, and what that makes you.
+ *
+ * Counting Keens alone makes a shelf of 22 commons look the same as a shelf with
+ * a Pumpkin King on it, so a Keen is worth its rung on the ladder: a common is a
+ * point, and the crown of a pack is worth eight. Nothing here is stored — it is
+ * derived from what you own, so the rank can never drift out of date.
+ */
+export const RANKS: { points: number; label: string; labelEn: string }[] = [
+  { points: 0, label: "Nyfiken", labelEn: "Curious" },
+  { points: 8, label: "Samlare", labelEn: "Collector" },
+  { points: 20, label: "Jägare", labelEn: "Hunter" },
+  { points: 40, label: "Kännare", labelEn: "Connoisseur" },
+  { points: 65, label: "Mästare", labelEn: "Master" },
+  { points: 90, label: "Legendar", labelEn: "Legend" },
+  { points: 106, label: "Keen-Kungen", labelEn: "Keen King" },
+];
+
+/** A collection's score: one point for a common, eight for a Mystisk. */
+export function collectorPoints(owned: OwnedMap): number {
+  return Object.entries(owned).reduce((sum, [id, count]) => {
+    const keen = KEEN_BY_ID[id];
+    if (!keen || count <= 0 || !isObtainable(keen)) return sum;
+    return sum + RARITY_META[keen.rarity].order + 1;
+  }, 0);
+}
+
+/** Current rank, and how far the next one is. */
+export function collectorRank(owned: OwnedMap) {
+  const points = collectorPoints(owned);
+  let index = 0;
+  for (let i = 0; i < RANKS.length; i++) if (points >= RANKS[i].points) index = i;
+  const rank = RANKS[index];
+  const next = RANKS[index + 1] ?? null;
+  const progress = next ? Math.min(1, (points - rank.points) / Math.max(1, next.points - rank.points)) : 1;
+  const toNext = next ? Math.max(0, next.points - points) : 0;
+  return { points, rank, index, next, progress, toNext };
+}
