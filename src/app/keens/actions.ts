@@ -28,6 +28,7 @@ const KEEN_ERRORS: Record<string, string> = {
   keen: "Den Keen finns inte.",
   "none-owned": "Du äger ingen sådan Keen att sälja.",
   none: "Inget att sälja.",
+  server: "Servern hann inte med — inga mynt drogs. Försök igen!",
   unknown: "Något gick fel. Försök igen.",
 };
 
@@ -52,6 +53,21 @@ async function currentUserId(): Promise<string | null> {
   }
 }
 
+/**
+ * Run a store call and never throw at the browser.
+ *
+ * A failed database call would otherwise reject the server action: the client's
+ * `await` never settles as a reply, and the button that started it spins for
+ * ever. A plain refusal is something the UI can show and recover from.
+ */
+async function attempt<T>(run: () => Promise<T>): Promise<T | null> {
+  try {
+    return await run();
+  } catch {
+    return null;
+  }
+}
+
 export type OpenPackReply =
   | { ok: true; pulls: { keenId: string; rarity: string; isNew: boolean; refund: number; owned: number }[]; coins: number; spent: number; refunded: number; packId: string }
   | { ok: false; message: string };
@@ -61,8 +77,13 @@ export async function openPackAction(packId: string, count = 1): Promise<OpenPac
   if (!userId) return fail("auth");
   if (!PACKS.some((p) => p.id === packId)) return fail("pack");
 
-  const result = await openPack(userId, packId, Math.trunc(count) || 1);
+  const opened = Math.trunc(count) || 1;
+  const result = await attempt(() => openPack(userId, packId, opened));
+  if (!result) return fail("server");
   if (!result.ok) return fail(result.error);
+  // Charged for five, hands over five. The reveal counts the pulls it is given,
+  // so a short reply would look like the pack ate the difference.
+  if (result.pulls.length !== opened) return fail("server");
 
   touch();
   return {
@@ -88,7 +109,8 @@ export async function buyKeenAction(keenId: string, count = 1): Promise<MarketRe
   if (!userId) return fail("auth");
   if (!KEEN_BY_ID[keenId]) return fail("keen");
 
-  const result = await buyKeen(userId, keenId, Math.trunc(count) || 1);
+  const result = await attempt(() => buyKeen(userId, keenId, Math.trunc(count) || 1));
+  if (!result) return fail("server");
   if (!result.ok) return fail(result.error);
 
   touch();
@@ -100,7 +122,8 @@ export async function sellKeenAction(keenId: string, count = 1): Promise<MarketR
   if (!userId) return fail("auth");
   if (!KEEN_BY_ID[keenId]) return fail("keen");
 
-  const result = await sellKeen(userId, keenId, Math.trunc(count) || 1);
+  const result = await attempt(() => sellKeen(userId, keenId, Math.trunc(count) || 1));
+  if (!result) return fail("server");
   if (!result.ok) return fail(result.error);
 
   touch();
@@ -113,7 +136,8 @@ export async function sellDuplicatesAction(): Promise<
   const userId = await currentUserId();
   if (!userId) return fail("auth");
 
-  const result = await sellAllDuplicates(userId);
+  const result = await attempt(() => sellAllDuplicates(userId));
+  if (!result) return fail("server");
   if (!result.ok) return fail(result.error);
 
   touch();

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { RotateCcw, Sparkles, Volume2, VolumeX, X } from "lucide-react";
-import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, RARITY_ORDER, type Rarity } from "@/lib/keens";
+import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, RARITY_ORDER, rarityChance, type Rarity } from "@/lib/keens";
 import { PACK_EMBLEMS, SPRITE_BOARDS } from "@/lib/keen-sprites";
 import { cn } from "@/lib/utils";
 import KeenAvatar from "./keen-avatar";
@@ -69,7 +69,9 @@ export default function PackOpener({
   const keen = pull ? KEEN_BY_ID[pull.keenId] : undefined;
   const rarity = (pull?.rarity as Rarity) ?? "VANLIG";
   const power = RARITY_META[rarity]?.order ?? 0;
-  const chance = pack?.odds[rarity];
+  // The real chance in this pack, not the raw table: a rarity the pack cannot
+  // drop would otherwise read as a promise it never keeps.
+  const chance = pull ? rarityChance(packId, rarity) : 0;
 
   // Wind up, then land the Keen.
   React.useEffect(() => {
@@ -264,7 +266,7 @@ export default function PackOpener({
               )}
 
               <p className="mt-1 text-xs text-slate-400">
-                {chance !== undefined ? `Chans: ${String(chance).replace(".", ",")} %` : ""}
+                {chance > 0 ? `Chans: ${String(chance).replace(".", ",")} %` : ""}
                 {pull.owned > 1 ? ` · Du äger ${pull.owned} st` : ""}
               </p>
               {pulls.length > 1 && (

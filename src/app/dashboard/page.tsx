@@ -25,7 +25,7 @@ import {
   ArrowRight,
   Lock,
 } from "lucide-react";
-import { TOTAL_KEENS } from "@/lib/keens";
+import { OBTAINABLE_KEEN_IDS, TOTAL_KEENS } from "@/lib/keens";
 
 function roleTheme(role: string) {
   if (role === "OWNER") return { cls: "text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.9)]", badge: "ÄGARE", label: "ÄGARE" };
@@ -234,7 +234,10 @@ export default async function DashboardPage() {
 
   // How many Keens this account has found, for the collection banner below.
   // Degrades to zero if the Keens tables are not migrated on this deploy yet.
-  const keenCount = await prisma.profileKeen.count({ where: { profileId: user.id } }).catch(() => 0);
+  // Only the Keens that are still obtainable, so this matches the Keens page.
+  const keenCount = await prisma.profileKeen
+    .count({ where: { profileId: user.id, keenId: { in: OBTAINABLE_KEEN_IDS } } })
+    .catch(() => 0);
 
   const subtitle =
     profile.role === "OWNER" ? "ÄGARE — Portalansvarig" :

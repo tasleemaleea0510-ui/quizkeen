@@ -23,11 +23,13 @@ import {
   FREE_COOLDOWN_MS,
   FREE_PACK,
   KEEN_BY_ID,
+  OBTAINABLE_KEEN_IDS,
   PACK_BY_ID,
   RARITY_META,
   dayKey,
   dailyDeals,
   freePackWait,
+  isObtainableId,
   marketPrice,
   rollKeen,
   sellPrice,
@@ -118,6 +120,9 @@ export async function openPack(profileId: string, packId: string, count: number)
   // Roll first (pure) so the reveal is decided before any row is written.
   const rolled = Array.from({ length: count }, () => rollKeen(pack.id as AnyPackId));
 
+  // A big open is a dozen statements, so it gets a budget to match: the default
+  // five-second transaction timeout is exactly what turned a slow moment into a
+  // failed purchase.
   const result = await prisma.$transaction(async (tx) => {
     if (isFree) {
       // Claiming the day IS the guard: two taps arriving together, one wins and
@@ -139,50 +144,62 @@ export async function openPack(profileId: string, packId: string, count: number)
     const pulls: Pull[] = [];
     let refunded = 0;
 
+    // One read for the whole open, then one write per Keen that was actually
+    // rolled. The old loop asked the database three times per pull, so a
+    // five-pack was a twenty-statement transaction: seconds of waiting, and on a
+    // slow connection it hit Prisma's five-second transaction budget and failed
+    // outright — that is what made opening packs feel unstable.
+    const rows = await tx.profileKeen.findMany({
+      where: { profileId, keenId: { in: Array.from(new Set(rolled.map((k) => k.id))) } },
+      select: { keenId: true, count: true },
+    });
+    const current = new Map(rows.map((r) => [r.keenId, r.count]));
+    const alreadyHeld = new Set(rows.map((r) => r.keenId));
+    const gained = new Map<string, number>();
+
     for (const keen of rolled) {
-      const existing = await tx.profileKeen.findUnique({
-        where: { profileId_keenId: { profileId, keenId: keen.id } },
-        select: { count: true },
-      });
-
-      let owned: number;
-      let refund = 0;
-      if (existing) {
-        owned = existing.count + 1;
-        refund = sellPrice(keen);
-        refunded += refund;
-        await tx.profileKeen.update({
-          where: { profileId_keenId: { profileId, keenId: keen.id } },
-          data: { count: { increment: 1 }, lastAt: new Date() },
-        });
-      } else {
-        owned = 1;
-        await tx.profileKeen.create({ data: { profileId, keenId: keen.id } });
-      }
-
-      pulls.push({ keenId: keen.id, rarity: keen.rarity, isNew: !existing, refund, owned });
-      await tx.keenOpen.create({
-        data: {
-          profileId,
-          username: v.username,
-          packId: pack.id,
-          keenId: keen.id,
-          rarity: keen.rarity,
-          isNew: !existing,
-          refund,
-          spent,
-        },
-      });
+      const before = current.get(keen.id) ?? 0;
+      // Every copy past the first pays for itself right away, like every pack
+      // game does.
+      const refund = before > 0 ? sellPrice(keen) : 0;
+      refunded += refund;
+      const owned = before + 1;
+      current.set(keen.id, owned);
+      gained.set(keen.id, (gained.get(keen.id) ?? 0) + 1);
+      pulls.push({ keenId: keen.id, rarity: keen.rarity, isNew: before === 0, refund, owned });
     }
 
-    // Duplicates pay for themselves right away, like every pack game does.
+    for (const [keenId, add] of Array.from(gained.entries())) {
+      if (alreadyHeld.has(keenId)) {
+        await tx.profileKeen.update({
+          where: { profileId_keenId: { profileId, keenId } },
+          data: { count: { increment: add }, lastAt: new Date() },
+        });
+      } else {
+        await tx.profileKeen.create({ data: { profileId, keenId, count: add } });
+      }
+    }
+
+    await tx.keenOpen.createMany({
+      data: pulls.map((p) => ({
+        profileId,
+        username: v.username,
+        packId: pack.id,
+        keenId: p.keenId,
+        rarity: p.rarity,
+        isNew: p.isNew,
+        refund: p.refund,
+        spent,
+      })),
+    });
+
     if (refunded > 0) {
       await tx.profile.update({ where: { id: profileId }, data: { coins: { increment: refunded } } });
     }
 
     const after = await tx.profile.findUnique({ where: { id: profileId }, select: { coins: true } });
     return { ok: true as const, pulls, coins: after?.coins ?? v.coins - spent + refunded, spent, refunded };
-  });
+  }, { timeout: 20000, maxWait: 10000 });
 
   if (result.ok) {
     const got = result.pulls
@@ -378,11 +395,18 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
   ]);
 
   const owned: Record<string, number> = {};
+  let distinct = 0;
   let dupes = 0;
   for (const r of rows) {
-    if (r.count > 0 && KEEN_BY_ID[r.keenId]) {
+    const keen = KEEN_BY_ID[r.keenId];
+    if (r.count > 0 && keen) {
       owned[r.keenId] = r.count;
-      dupes += Math.max(0, r.count - 1);
+      // A Keen from a pack that is no longer on sale still sits in the showcase,
+      // but it is not part of the collection the app counts towards.
+      if (isObtainableId(r.keenId)) distinct += 1;
+      // Spares that are worth coins — the same filter the cash-out uses, so the
+      // number on the button is the number the market pays for.
+      if (RARITY_META[keen.rarity].tradeable) dupes += Math.max(0, r.count - 1);
     }
   }
 
@@ -393,7 +417,7 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
     lastFreePackAt: profile?.lastFreePackAt ? profile.lastFreePackAt.toISOString() : null,
     freeWaitMs: freePackWait(profile?.lastFreePackAt ?? null),
     owned,
-    distinct: Object.keys(owned).length,
+    distinct,
     dupes,
     total: TOTAL_KEENS,
     recent: recent.map((r) => ({
@@ -412,6 +436,8 @@ export async function topCollectors(take = 5) {
   const grouped = await prisma.profileKeen.groupBy({
     by: ["profileId"],
     _count: { _all: true },
+    // The leaderboard measures the same collection the rest of the app does.
+    where: { keenId: { in: OBTAINABLE_KEEN_IDS } },
   });
 
   const ids = [...grouped]

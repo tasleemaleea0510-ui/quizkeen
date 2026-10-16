@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
+import { getNavUser } from "@/app/system/actions";
 import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { School, BarChart3, Layers, Sparkles, Settings, LogOut, Zap } from "lucide-react";
@@ -15,17 +16,22 @@ export default function Navbar() {
   const [me, setMe] = useState<{ username: string; role: string } | null>(null);
 
   useEffect(() => {
-    if (session) {
-      supabase
-        .from("Profile")
-        .select("username, role")
-        .eq("id", session.user.id)
-        .single()
-        .then(({ data }: any) => setMe(data ? { username: data.username, role: data.role } : null));
-    } else {
+    if (!session) {
       setMe(null);
+      return;
     }
-  }, [session, supabase]);
+    let cancelled = false;
+    getNavUser()
+      .then((user) => {
+        if (!cancelled) setMe(user);
+      })
+      .catch(() => {
+        if (!cancelled) setMe(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const theme = ROLE_THEME[me?.role ?? "STUDENT"];
 

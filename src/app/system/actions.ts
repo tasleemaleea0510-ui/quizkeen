@@ -38,6 +38,22 @@ export async function getProfileStats() {
 export async function logActivity(username: string, action: string) {
   await prisma.activity.create({ data: { username, action } });
 }
+
+/**
+ * Who the navbar is looking at — name and role, one row.
+ *
+ * The Browser used to read the Profile table straight with the anon key, which
+ * row level security refuses: a 403 on every page and a teacher's nav that never
+ * learned it was dealing with a teacher. The server has the session cookie, so it
+ * can answer this without loosening a policy.
+ */
+export async function getNavUser(): Promise<{ username: string; role: string } | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const p = await prisma.profile.findUnique({ where: { id: user.id }, select: { username: true, role: true } });
+  return p ? { username: p.username, role: p.role } : null;
+}
 export async function getBroadcast() {
   const s = await prisma.adminSettings.findUnique({ where: { id: 1 } });
   return s?.broadcast ?? null;

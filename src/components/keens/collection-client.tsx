@@ -3,17 +3,19 @@
 import * as React from "react";
 import { Coins, Search, Sparkles, Store, Tag } from "lucide-react";
 import {
-  KEENS,
+  ADMIN_PACK,
   KEEN_BY_ID,
-  PACKS,
+  OBTAINABLE_KEENS,
   PACK_BY_ID,
   RARITY_META,
   RARITY_ORDER,
   TOTAL_KEENS,
   isGiftKeen,
+  isObtainable,
   marketPrice,
+  rarityChance,
+  retiredKeens,
   sellPrice,
-  type AnyPackId,
   type Keen,
   type Rarity,
 } from "@/lib/keens";
@@ -31,7 +33,7 @@ type Sort = "sallhet" | "namn" | "antal";
 export default function CollectionClient({ state }: { state: KeenState }) {
   const { toasts, push, dismiss } = useToasts();
   const [rarity, setRarity] = React.useState<Rarity | "ALLA">("ALLA");
-  const [pack, setPack] = React.useState<AnyPackId | "ALLA">("ALLA");
+  const [pack, setPack] = React.useState<Keen["pack"] | "ALLA">("ALLA");
   const [view, setView] = React.useState<View>("alla");
   const [sort, setSort] = React.useState<Sort>("sallhet");
   const [query, setQuery] = React.useState("");
@@ -42,9 +44,28 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   const owned = state.owned;
   const distinct = state.distinct;
 
+  /**
+   * What this page shows: every Keen a player can still get, plus the ones they
+   * own from a pack that has left the shelf — something you were given must never
+   * quietly vanish from your showcase. Only the obtainable ones count towards the
+   * total, so a retired Keen can never push a collection past 100 %.
+   */
+  const collection = React.useMemo(() => [...OBTAINABLE_KEENS, ...retiredKeens(owned)], [owned]);
+
+  // Only the packs this collection actually spans: a dropdown of retired themes
+  // you own nothing from is just noise.
+  const packOptions = React.useMemo(() => {
+    const ids = Array.from(new Set(collection.map((k) => k.pack)));
+    return ids.map((id) => {
+      const theme = PACK_BY_ID[id];
+      if (!theme) return { id, label: id === ADMIN_PACK ? "Admin-gåva" : id };
+      return { id, label: theme.hidden ? `${theme.name} (utgången)` : theme.name };
+    });
+  }, [collection]);
+
   const list = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = KEENS.filter((k) => {
+    const filtered = collection.filter((k) => {
       if (rarity !== "ALLA" && k.rarity !== rarity) return false;
       if (pack !== "ALLA" && k.pack !== pack) return false;
       const count = owned[k.id] ?? 0;
@@ -56,9 +77,8 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
     const byRarity = (a: Keen, b: Keen) => RARITY_META[b.rarity].order - RARITY_META[a.rarity].order;
     if (sort === "namn") return filtered.sort((a, b) => a.name.localeCompare(b.name, "sv"));
-    if (sort === "antal") return filtered.sort((a, b) => (owned[b.id] ?? 0) - (owned[a.id] ?? 0) || byRarity(a, b));
-    return filtered.sort((a, b) => byRarity(a, b) || a.name.localeCompare(b.name, "sv"));
-  }, [rarity, pack, view, sort, query, owned]);
+    if (sort === "antal") return filtered.sort((a, b) => (owned[b.id] ?? 0) - (owned[a.id] ?? 0) || byRarity(a, b));      return filtered.sort((a, b) => byRarity(a, b) || a.name.localeCompare(b.name, "sv"));
+  }, [collection, rarity, pack, view, sort, query, owned]);
 
   const percent = Math.round((distinct / TOTAL_KEENS) * 100);
 
@@ -67,6 +87,8 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   const selectedGift = selected ? isGiftKeen(selected) : false;
   const selectedPack = selected ? PACK_BY_ID[selected.pack] : undefined;
   const selectedTradeable = selected ? RARITY_META[selected.rarity].tradeable : false;
+  // ``Owned but no longer obtainable`` — its pack left the shelf.
+  const selectedRetired = selected ? !isObtainable(selected) : false;
 
   async function sellAll() {
     setBusy(true);
@@ -174,13 +196,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
           </div>
           <select
             value={pack}
-            onChange={(e) => setPack(e.target.value as AnyPackId | "ALLA")}
+            onChange={(e) => setPack(e.target.value as Keen["pack"] | "ALLA")}
             className="h-10 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
           >
             <option value="ALLA">Alla paket</option>
-            {PACKS.filter((p) => !p.free).map((p) => (
+            {packOptions.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.label}
               </option>
             ))}
           </select>
@@ -225,10 +247,10 @@ export default function CollectionClient({ state }: { state: KeenState }) {
           >
             Alla
           </button>
-          {RARITY_ORDER.map((r) => {
+          {RARITY_ORDER.filter((r) => collection.some((k) => k.rarity === r)).map((r) => {
             const meta = RARITY_META[r];
-            const total = KEENS.filter((k) => k.rarity === r).length;
-            const have = KEENS.filter((k) => k.rarity === r && (owned[k.id] ?? 0) > 0).length;
+            const total = collection.filter((k) => k.rarity === r).length;
+            const have = collection.filter((k) => k.rarity === r && (owned[k.id] ?? 0) > 0).length;
             return (
               <button
                 key={r}
@@ -259,6 +281,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               keen={k}
               owned={owned[k.id] ?? 0}
               index={i}
+              badge={
+                isObtainable(k) ? undefined : (
+                  <span className="absolute -right-1.5 -top-1.5 rounded-full border border-slate-500/40 bg-slate-950/90 px-1.5 py-px text-[9px] font-extrabold text-slate-300">
+                    Utgången
+                  </span>
+                )
+              }
               onSelect={() => setSelected(k)}
             />
           ))}
@@ -340,7 +369,9 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               <div className="flex justify-between">
                 <dt className="text-slate-400">Paket</dt>
                 <dd className="font-semibold text-slate-200">
-                  {selectedGift ? "Admin-gåva" : `${selectedPack?.emoji ?? ""} ${selectedPack?.name ?? "—"}`}
+                  {selectedGift
+                    ? "Admin-gåva"
+                    : `${selectedPack?.emoji ?? ""} ${selectedPack?.name ?? "—"}${selectedRetired ? " (utgången)" : ""}`}
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -348,7 +379,9 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                 <dd data-no-translate className="font-semibold text-slate-200">
                   {selectedGift
                     ? "Delas ut"
-                    : `${String(selectedPack?.odds[selected.rarity] ?? 0).replace(".", ",")} %`}
+                    : selectedRetired || !selectedPack
+                      ? "Paketet är utgånget"
+                      : `${String(rarityChance(selectedPack.id, selected.rarity)).replace(".", ",")} %`}
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -368,6 +401,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
             {selected.rarity === "KROMA" && (
               <p className="mt-3 text-[11px] text-slate-400">
                 Kroma-Keens finns bara i Mytiskapaketet — eller i marknaden.
+              </p>
+            )}
+
+            {selectedRetired && (
+              <p className="mt-3 text-[11px] text-slate-400">
+                Den här Keen kommer från ett paket som inte är till salu längre, så den går bara att sälja — den syns
+                kvar i samlingen för att du redan har den.
               </p>
             )}
 

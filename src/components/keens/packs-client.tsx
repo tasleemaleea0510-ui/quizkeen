@@ -7,10 +7,10 @@ import {
   HIDDEN_PACKS,
   PACK_BY_ID,
   RARITY_META,
-  RARITY_ORDER,
   SHELF_PACKS,
   formatWait,
   keensInPack,
+  rarityOdds,
   type AnyPackId,
   type Pack,
 } from "@/lib/keens";
@@ -35,6 +35,9 @@ export default function PacksClient({ state }: { state: KeenState }) {
   const [opening, setOpening] = React.useState<Opening | null>(null);
   const [wait, setWait] = React.useState(state.freeWaitMs);
   const nonce = React.useRef(0);
+  // A ref, not `busy`: two clicks can arrive before React has re-rendered, and
+  // with the state alone both would pass the guard and open two packs.
+  const opening_ = React.useRef(false);
 
   // Server truth whenever the page re-renders (after a revalidatePath).
   React.useEffect(() => {
@@ -54,7 +57,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
   const freeReady = wait === 0 && !live.dailyBonusDisabled;
 
   async function refresh() {
-    const fresh = await getKeenStateAction();
+    const fresh = await getKeenStateAction().catch(() => null);
     if (fresh) {
       setLive(fresh);
       setWait(fresh.freeWaitMs);
@@ -63,28 +66,37 @@ export default function PacksClient({ state }: { state: KeenState }) {
   }
 
   async function open(pack: Pack, count: number) {
-    if (busy) return;
+    if (opening_.current) return;
+    opening_.current = true;
     const key = `${pack.id}-${count}`;
     setBusy(key);
     if (pack.price > 0) playWindUp();
-    const res = await openPackAction(pack.id, count);
-    setBusy(null);
 
-    if (!res.ok) {
+    try {
+      const res = await openPackAction(pack.id, count);
+      if (!res.ok) {
+        playError();
+        push(res.message, "err");
+        return;
+      }
+
+      nonce.current += 1;
+      setOpening({
+        packId: res.packId,
+        pulls: res.pulls,
+        coins: res.coins,
+        spent: res.spent,
+        refunded: res.refunded,
+        nonce: nonce.current,
+      });
+    } catch {
+      // A refused request used to leave the button reading "Öppnar…" for ever.
       playError();
-      push(res.message, "err");
-      return;
+      push("Något gick fel — inga mynt drogs. Försök igen!", "err");
+    } finally {
+      opening_.current = false;
+      setBusy(null);
     }
-
-    nonce.current += 1;
-    setOpening({
-      packId: res.packId,
-      pulls: res.pulls,
-      coins: res.coins,
-      spent: res.spent,
-      refunded: res.refunded,
-      nonce: nonce.current,
-    });
   }
 
   return (
@@ -101,9 +113,9 @@ export default function PacksClient({ state }: { state: KeenState }) {
               <p className="font-display text-lg font-extrabold text-white">{free.name}</p>
               <p className="max-w-md text-xs text-slate-400">{free.tagline}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {RARITY_ORDER.filter((r) => free.odds[r]).map((r) => (
-                  <span key={r} className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", RARITY_META[r].chip)}>
-                    {RARITY_META[r].label} {String(free.odds[r]).replace(".", ",")} %
+                {rarityOdds(free.id).map(({ rarity, chance }) => (
+                  <span key={rarity} className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", RARITY_META[rarity].chip)}>
+                    {RARITY_META[rarity].label} {String(chance).replace(".", ",")} %
                   </span>
                 ))}
               </div>
@@ -191,7 +203,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
           refunded={opening.refunded}
           onClose={() => {
             setOpening(null);
-            void refresh();
+            void refresh().catch(() => {});
           }}
           onAgain={(count) => {
             const pack = PACK_BY_ID[opening.packId];
@@ -225,6 +237,7 @@ function PackTile({
   onOpen: (pack: Pack, count: number) => void;
 }) {
   const inPack = keensInPack(pack.id as AnyPackId);
+  const odds = rarityOdds(pack.id);
   const emblem = PACK_EMBLEMS[pack.id];
   const have = inPack.filter((k) => (owned[k.id] ?? 0) > 0).length;
   const percent = inPack.length ? Math.round((have / inPack.length) * 100) : 0;
@@ -278,24 +291,24 @@ function PackTile({
 
           {/* odds */}
           <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-            {RARITY_ORDER.filter((r) => pack.odds[r]).map((r) => (
+            {odds.map(({ rarity, chance }) => (
               <span
-                key={r}
-                title={`${RARITY_META[r].label} ${String(pack.odds[r]).replace(".", ",")} %`}
-                style={{ width: `${pack.odds[r]}%`, background: RARITY_META[r].from }}
+                key={rarity}
+                title={`${RARITY_META[rarity].label} ${String(chance).replace(".", ",")} %`}
+                style={{ width: `${chance}%`, background: RARITY_META[rarity].from }}
                 className="h-full"
               />
             ))}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
-            {RARITY_ORDER.filter((r) => pack.odds[r]).map((r) => (
+            {odds.map(({ rarity, chance }) => (
               <span
-                key={r}
+                key={rarity}
                 data-no-translate
                 className="text-[9px] font-bold uppercase tracking-wide"
-                style={{ color: RARITY_META[r].from }}
+                style={{ color: RARITY_META[rarity].from }}
               >
-                {RARITY_META[r].label} {String(pack.odds[r]).replace(".", ",")}%
+                {RARITY_META[rarity].label} {String(chance).replace(".", ",")}%
               </span>
             ))}
           </div>

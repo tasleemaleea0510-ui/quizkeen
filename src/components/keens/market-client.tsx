@@ -12,6 +12,7 @@ import {
   dayKey,
   dailyDeals,
   marketPrice,
+  retiredKeens,
   sellPrice,
   type Keen,
   type Rarity,
@@ -70,11 +71,18 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
 
   const owned = live.owned;
 
+  /**
+   * What the market offers: every tradeable Keen a pack can still drop, plus the
+   * retired ones this account already owns — you can always cash in what you
+   * hold, but nothing can be bought that no pack could ever give you again.
+   */
+  const shelf = React.useMemo(() => [...MARKET_KEENS, ...retiredKeens(owned)], [owned]);
+
   const list = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
     // MARKET_KEENS, not every Keen: the Admin Keen is handed out in Command and
     // has no price, so listing it here would offer a buy the server refuses.
-    const filtered = MARKET_KEENS.filter((k) => {
+    const filtered = shelf.filter((k) => {
       if (rarity !== "ALLA" && k.rarity !== rarity) return false;
       const count = owned[k.id] ?? 0;
       if (filter === "agda" && count <= 0) return false;
@@ -87,7 +95,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
     if (sort === "pris") return filtered.sort((a, b) => priceOf(a) - priceOf(b) || byRarity(a, b));
     if (sort === "namn") return filtered.sort((a, b) => a.name.localeCompare(b.name, "sv"));
     return filtered.sort((a, b) => byRarity(a, b) || priceOf(a) - priceOf(b));
-  }, [query, rarity, filter, sort, owned, priceOf]);
+  }, [shelf, query, rarity, filter, sort, owned, priceOf]);
 
   async function refresh() {
     const fresh = await getKeenStateAction();
@@ -98,49 +106,64 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
   async function buy(keen: Keen, count = 1) {
     if (busy) return;
     setBusy(`buy-${keen.id}`);
-    const res = await buyKeenAction(keen.id, count);
-    if (!res.ok) {
-      setBusy(null);
+    try {
+      const res = await buyKeenAction(keen.id, count);
+      if (!res.ok) {
+        playError();
+        push(res.message, "err");
+        return;
+      }
+      playCoin();
+      push(`${keen.name} köpt för ${res.price * count} mynt. Du äger ${res.owned} st.`, "ok");
+      await refresh();
+    } catch {
       playError();
-      push(res.message, "err");
-      return;
+      push("Något gick fel — inga mynt drogs. Försök igen!", "err");
+    } finally {
+      setBusy(null);
     }
-    playCoin();
-    push(`${keen.name} köpt för ${res.price * count} mynt. Du äger ${res.owned} st.`, "ok");
-    await refresh();
-    setBusy(null);
   }
 
   async function sell(keen: Keen, count = 1) {
     if (busy) return;
     setBusy(`sell-${keen.id}`);
-    const res = await sellKeenAction(keen.id, count);
-    if (!res.ok) {
-      setBusy(null);
+    try {
+      const res = await sellKeenAction(keen.id, count);
+      if (!res.ok) {
+        playError();
+        push(res.message, "err");
+        return;
+      }
+      playSell();
+      push(`Sålde ${count} × ${keen.name} för ${sellPrice(keen) * count} mynt.`, "ok");
+      await refresh();
+    } catch {
       playError();
-      push(res.message, "err");
-      return;
+      push("Något gick fel — inget såldes. Försök igen!", "err");
+    } finally {
+      setBusy(null);
     }
-    playSell();
-    push(`Sålde ${count} × ${keen.name} för ${sellPrice(keen) * count} mynt.`, "ok");
-    await refresh();
-    setBusy(null);
   }
 
   async function sellAll() {
     if (busy) return;
     setBusy("sell-all");
-    const res = await sellDuplicatesAction();
-    if (!res.ok) {
-      setBusy(null);
+    try {
+      const res = await sellDuplicatesAction();
+      if (!res.ok) {
+        playError();
+        push(res.message, "err");
+        return;
+      }
+      playSell();
+      push(`Sålde ${res.sold} dubbletter för ${res.earned} mynt!`, "ok");
+      await refresh();
+    } catch {
       playError();
-      push(res.message, "err");
-      return;
+      push("Något gick fel — inget såldes. Försök igen!", "err");
+    } finally {
+      setBusy(null);
     }
-    playSell();
-    push(`Sålde ${res.sold} dubbletter för ${res.earned} mynt!`, "ok");
-    await refresh();
-    setBusy(null);
   }
 
   const affordable = list.filter((k) => (owned[k.id] ?? 0) === 0 && live.coins >= priceOf(k)).length;

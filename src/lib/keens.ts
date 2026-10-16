@@ -419,7 +419,35 @@ export const KEENS: Keen[] = [
 
 export const KEEN_BY_ID: Record<string, Keen> = Object.fromEntries(KEENS.map((k) => [k.id, k]));
 export const PACK_BY_ID: Record<string, Pack> = Object.fromEntries(PACKS.map((p) => [p.id, p]));
-export const TOTAL_KEENS = KEENS.length;
+
+/**
+ * Can a player still get this Keen?
+ *
+ * Yes for a Keen from a pack that is on the shelf, and yes for one that is
+ * handed out. No for a Keen whose only pack is marked `hidden`: nobody can open
+ * that pack, so counting it would promise a collection nobody can complete.
+ */
+export function isObtainable(keen: Keen): boolean {
+  return isGiftKeen(keen) || !PACK_BY_ID[keen.pack]?.hidden;
+}
+
+/**
+ * The whole obtainable catalogue — what "samla N figurer" actually counts.
+ *
+ * It follows the shelf instead of the file: putting a pack back on sale (delete
+ * its `hidden: true`) grows this set again, and every counter in the app with it.
+ */
+export const OBTAINABLE_KEENS: Keen[] = KEENS.filter(isObtainable);
+export const OBTAINABLE_KEEN_IDS: string[] = OBTAINABLE_KEENS.map((k) => k.id);
+
+const OBTAINABLE_IDS = new Set(OBTAINABLE_KEEN_IDS);
+
+/** Same question as `isObtainable`, for a bare id coming out of the database. */
+export function isObtainableId(keenId: string): boolean {
+  return OBTAINABLE_IDS.has(keenId);
+}
+
+export const TOTAL_KEENS = OBTAINABLE_KEENS.length;
 
 /**
  * Keens the market is allowed to show, and the rarities that actually have any.
@@ -427,22 +455,55 @@ export const TOTAL_KEENS = KEENS.length;
  * The market renders from these rather than from `KEENS`, so a given-away Keen
  * (and its rarity chip) never appears with a price that cannot be honoured.
  */
-export const MARKET_KEENS: Keen[] = KEENS.filter((k) => RARITY_META[k.rarity].tradeable);
+export const MARKET_KEENS: Keen[] = OBTAINABLE_KEENS.filter((k) => RARITY_META[k.rarity].tradeable);
 export const MARKET_RARITIES: Rarity[] = RARITY_ORDER.filter((r) => MARKET_KEENS.some((k) => k.rarity === r));
 
+/**
+ * Tradeable Keens that are no longer obtainable.
+ *
+ * The market still lists the ones somebody already owns, so a collection built
+ * before a pack left the shelf can always be cashed in — but it never offers one
+ * for sale, because no pack could ever drop it again.
+ */
+export function retiredKeens(owned: OwnedMap = {}): Keen[] {
+  return KEENS.filter((k) => !isObtainable(k) && RARITY_META[k.rarity].tradeable && (owned[k.id] ?? 0) > 0);
+}
+
+/**
+ * The Keens a pack can drop.
+ *
+ * The free pack has no theme of its own: it samples the cheap end of what is on
+ * sale, so it can never hand out a Keen from a pack that was taken off the shelf
+ * (which would grow a collection past the total the app promises).
+ */
 export function keensInPack(pack: ShelfId): Keen[] {
-  if (pack === FREE_PACK) return KEENS.filter((k) => RARITY_META[k.rarity].order <= RARITY_META.SALLSYNT.order);
+  if (pack === FREE_PACK) {
+    return OBTAINABLE_KEENS.filter((k) => !isGiftKeen(k) && RARITY_META[k.rarity].order <= RARITY_META.SALLSYNT.order);
+  }
   return KEENS.filter((k) => k.pack === pack);
 }
 
-export function packPool(pack: AnyPackId): Keen[] {
+export function packPool(pack: string): Keen[] {
   const odds = PACK_BY_ID[pack]?.odds ?? {};
-  return keensInPack(pack).filter((k) => (odds[k.rarity] ?? 0) > 0);
+  return keensInPack(pack as ShelfId).filter((k) => (odds[k.rarity] ?? 0) > 0);
 }
 
-export function rarityOdds(pack: AnyPackId): { rarity: Rarity; chance: number }[] {
+export function rarityOdds(pack: string): { rarity: Rarity; chance: number }[] {
   const odds = PACK_BY_ID[pack]?.odds ?? {};
-  return RARITY_ORDER.filter((r) => (odds[r] ?? 0) > 0).map((rarity) => ({ rarity, chance: odds[rarity] as number }));
+  const pool = packPool(pack);
+  // A rarity this pack has no Keen left for is dropped and the rest rescaled,
+  // because a chance the pack cannot honour is a lie: the free pack used to
+  // advertise "Ovanlig 30 %" while nothing uncommon could ever come out of it.
+  const rows = RARITY_ORDER.filter((r) => (odds[r] ?? 0) > 0 && pool.some((k) => k.rarity === r));
+  const total = rows.reduce((a, r) => a + (odds[r] as number), 0) || 1;
+  // Two decimals, because the catalogue's rarest rolls live there (0,02 %):
+  // rounding those to a tenth would print a secret Keen as "0 %".
+  return rows.map((rarity) => ({ rarity, chance: Math.round(((odds[rarity] as number) / total) * 10000) / 100 }));
+}
+
+/** One rarity's real chance in a pack, as the pack's own chip shows it. */
+export function rarityChance(pack: string, rarity: Rarity): number {
+  return rarityOdds(pack).find((row) => row.rarity === rarity)?.chance ?? 0;
 }
 
 /**
@@ -554,10 +615,18 @@ export function dayKey(d: Date = new Date()): string {
 export type OwnedMap = Record<string, number>;
 
 export function collectionStats(owned: OwnedMap) {
-  const distinct = Object.keys(owned).filter((id) => KEEN_BY_ID[id] && owned[id] > 0).length;
+  // Only Keens that are still obtainable count towards the total, so a retired
+  // one can never push a collection past 100 %.
+  const distinct = Object.keys(owned).filter((id) => isObtainableId(id) && owned[id] > 0).length;
   const copies = Object.values(owned).reduce((a, n) => a + n, 0);
-  const dupes = Object.entries(owned).reduce((a, [id, n]) => a + (KEEN_BY_ID[id] ? Math.max(0, n - 1) : 0), 0);
-  const percent = Math.round((distinct / TOTAL_KEENS) * 100);
+  // Only spares worth coins: the "sell all duplicates" button must never promise
+  // more than the market pays, and it skips Keens that cannot be sold.
+  const dupes = Object.entries(owned).reduce((a, [id, n]) => {
+    const keen = KEEN_BY_ID[id];
+    if (!keen || !RARITY_META[keen.rarity].tradeable) return a;
+    return a + Math.max(0, n - 1);
+  }, 0);
+  const percent = TOTAL_KEENS ? Math.min(100, Math.round((distinct / TOTAL_KEENS) * 100)) : 0;
   const best = KEENS.reduce<Keen | null>((acc, k) => {
     if (!owned[k.id]) return acc;
     if (!acc) return k;
