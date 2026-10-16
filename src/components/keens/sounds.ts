@@ -61,18 +61,25 @@ function tone({ freq, dur = 0.18, type = "triangle", gain = 0.05, delay = 0, sli
   if (isMuted()) return;
   const ac = audio();
   if (!ac) return;
-  const start = ac.currentTime + delay;
-  const osc = ac.createOscillator();
-  const amp = ac.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, start);
-  if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), start + dur);
-  amp.gain.setValueAtTime(0.0001, start);
-  amp.gain.exponentialRampToValueAtTime(gain, start + 0.012);
-  amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-  osc.connect(amp).connect(ac.destination);
-  osc.start(start);
-  osc.stop(start + dur + 0.02);
+  // A sound must never be able to break the thing it is decorating: a reveal
+  // waits on this call, and one thrown WebAudio error used to leave the pack
+  // spinning on "Öppnar…" with a Keen already paid for.
+  try {
+    const start = ac.currentTime + delay;
+    const osc = ac.createOscillator();
+    const amp = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), start + dur);
+    amp.gain.setValueAtTime(0.0001, start);
+    amp.gain.exponentialRampToValueAtTime(gain, start + 0.012);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(amp).connect(ac.destination);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  } catch {
+    /* silent failure, exactly like a browser that has no WebAudio at all */
+  }
 }
 
 /** Rising wind-up while the pack shakes. */

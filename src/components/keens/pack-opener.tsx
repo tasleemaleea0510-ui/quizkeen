@@ -76,7 +76,8 @@ export default function PackOpener({
   // Wind up, then land the Keen.
   React.useEffect(() => {
     if (stage !== "windup" || !pull) return;
-    playWindUp();
+    // The timer goes first: the reveal is what the person is waiting for, so
+    // nothing decorative is allowed to stand between them and it.
     const t = setTimeout(() => {
       setStage("reveal");
       playReveal(rarity);
@@ -86,6 +87,7 @@ export default function PackOpener({
         setFire((f) => f + 1);
       }
     }, WINDUP_MS);
+    playWindUp();
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, index, pull?.keenId]);
