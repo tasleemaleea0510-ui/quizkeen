@@ -6,10 +6,13 @@ import {
   OBTAINABLE_KEENS,
   RARITY_META,
   TOTAL_KEENS,
+  dailyDeals,
+  dayKey,
+  isObtainable,
   keensInPack,
   rarityOdds,
 } from "@/lib/keens";
-import { loadKeenState, openPack, sellAllDuplicates, sellKeen } from "@/lib/keens-store";
+import { buyKeen, loadKeenState, marketPriceFor, openPack, sellAllDuplicates, sellKeen } from "@/lib/keens-store";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,9 @@ export async function GET() {
   check("free pack odds are honest", rarityOdds("gratis").every((r) => keensInPack("gratis").some((k) => k.rarity === r.rarity)), rarityOdds("gratis"));
   check("market shows no untradeable Keen", MARKET_KEENS.every((k) => RARITY_META[k.rarity].tradeable), MARKET_KEENS.map((k) => k.id));
   check("every obtainable Keen exists in the catalogue", OBTAINABLE_KEENS.every((k) => KEENS.includes(k)));
+  const deals = dailyDeals(dayKey());
+  check("every deal is a Keen the market can sell", deals.every((d) => isObtainable(d.keen)), deals.map((d) => d.keen.id));
+  check("every deal price is the price the server charges", deals.every((d) => marketPriceFor(d.keen.id) === d.price), deals.map((d) => [d.keen.id, d.price, marketPriceFor(d.keen.id)]));
 
   // ── scratch profile ────────────────────────────────────────────────────────
   await cleanup();
@@ -65,6 +71,11 @@ export async function GET() {
     check("one history row per pull", rows === 10, { rows });
     const owned = await prisma.profileKeen.findMany({ where: { profileId: ID }, select: { keenId: true, count: true } });
     check("collection rows match the pulls", owned.reduce((a, r) => a + r.count, 0) === 10, owned);
+
+    const retiredBuy = await buyKeen(ID, "kisse", 1);
+    check("a Keen from a retired pack cannot be bought", !retiredBuy.ok && retiredBuy.error === "retired", retiredBuy);
+    const liveBuy = await buyKeen(ID, "invader", 1);
+    check("a Keen from a pack on sale can be bought", liveBuy.ok, liveBuy);
 
     const nine = await openPack(ID, "gamer", 9);
     check("an impossible amount is refused", !nine.ok && nine.error === "count", nine);
