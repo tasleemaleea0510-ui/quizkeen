@@ -12,6 +12,7 @@ import {
   TOTAL_KEENS,
   isGiftKeen,
   isObtainable,
+  isTradeable,
   marketPrice,
   rarityChance,
   retiredKeens,
@@ -86,7 +87,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   // card asks the catalogue instead of assuming a pack exists behind every Keen.
   const selectedGift = selected ? isGiftKeen(selected) : false;
   const selectedPack = selected ? PACK_BY_ID[selected.pack] : undefined;
-  const selectedTradeable = selected ? RARITY_META[selected.rarity].tradeable : false;
+  const selectedTradeable = selected ? isTradeable(selected) : false;
   // ``Owned but no longer obtainable`` — its pack left the shelf.
   const selectedRetired = selected ? !isObtainable(selected) : false;
 

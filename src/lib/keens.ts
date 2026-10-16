@@ -14,7 +14,7 @@
 export const RARITIES = ["VANLIG", "OVANLIG", "SALLSYNT", "EPISK", "LEGENDARISK", "HEMLIG", "KROMA", "MYSTISK"] as const;
 export type Rarity = (typeof RARITIES)[number];
 
-export const PACK_IDS = ["djur", "skola", "rymd", "djungel", "godis", "gamer", "mytisk"] as const;
+export const PACK_IDS = ["djur", "skola", "rymd", "djungel", "godis", "gamer", "halloween", "mytisk"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 /** The free pack's own id — it is not a theme, it draws from every cheap Keen. */
@@ -48,6 +48,17 @@ export function isGiftKeen(keen: Keen): boolean {
   return keen.pack === ADMIN_PACK;
 }
 
+/**
+ * Can this Keen be bought and sold in the market?
+ *
+ * A gift Keen never can, whatever its rarity says — the Admin Keen is Mystisk and
+ * Mystisk is a normal pack tier, so "is it handed out?" is the question the
+ * market asks, not "which tier is it?".
+ */
+export function isTradeable(keen: Keen): boolean {
+  return RARITY_META[keen.rarity].tradeable && !isGiftKeen(keen);
+}
+
 export type RarityMeta = {
   label: string;
   labelEn: string;
@@ -57,11 +68,11 @@ export type RarityMeta = {
   sell: number;
   order: number;
   /**
-   * False for Keens that are handed out and never traded.
+   * Whether the market trades this rarity at all.
    *
-   * The market reads this instead of hard-coding a list, so a new untradeable
-   * rarity cannot be bought by accident: `buyKeen`/`sellKeen` refuse it and
-   * today's deals skip it.
+   * Read through `isTradeable(keen)` rather than directly: a Keen that is handed
+   * out is never tradeable whatever its rarity says, and that one rule is what
+   * keeps the Admin Keen out of the shop without freezing a whole rarity tier.
    */
   tradeable: boolean;
   /** Literal class strings (Tailwind only ships classes it can see in the source). */
@@ -175,10 +186,13 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
   MYSTISK: {
     label: "Mystisk",
     labelEn: "Mystical",
-    price: 0,
-    sell: 0,
+    // The crown of a pack ladder — Halloween's Pumpkin King lives here. It is a
+    // real market Keen, not a gift: the Admin Keen is kept untradeable by being a
+    // gift (`isGiftKeen`), so the tier itself does not have to be untradeable.
+    price: 3400,
+    sell: 1350,
     order: 7,
-    tradeable: false,
+    tradeable: true,
     text: "text-purple-300",
     chip: "border-purple-400/40 bg-purple-500/15 text-purple-200",
     ring: "border-purple-400/60",
@@ -305,6 +319,18 @@ export const PACKS: Pack[] = [
     sizes: [1, 3, 5],
   },
   {
+    id: "halloween",
+    name: "Halloweenpaketet",
+    nameEn: "Halloween pack",
+    tagline: "Pumpor, spöken och en kung i mörkret.",
+    taglineEn: "Pumpkins, ghosts and a king in the dark.",
+    price: 250,
+    emoji: "🎃",
+    hue: 24,
+    odds: { VANLIG: 55, SALLSYNT: 30, EPISK: 12, LEGENDARISK: 2.6, HEMLIG: 0.3, MYSTISK: 0.1 },
+    sizes: [1, 3, 5],
+  },
+  {
     id: "mytisk",
     hidden: true,
     name: "Mytiskapaketet",
@@ -411,6 +437,19 @@ export const KEENS: Keen[] = [
   P("gamer", "LEGENDARISK", 130, "creeper", "Creeper", "Creeper", "🧟"),
   P("gamer", "HEMLIG", 285, "pixelthorne", "Pixel Thorne", "Pixel Thorne", "🦔"),
 
+  // ── Halloweenpaketet ───────────────────────────────────────────────────────
+  // The partner's design sheet, top to bottom: a grinning pumpkin, the two
+  // chicken cubes, a vampire frog, two legendary cookies, a ghost cookie and the
+  // Pumpkin King on the mythic rung. Art: hand-pixelled in keen-sprites.ts.
+  P("halloween", "VANLIG", 24, "pumpkin", "Pumpan Grin", "Grin the Pumpkin", "🎃"),
+  P("halloween", "SALLSYNT", 200, "chickenchick", "Kuben Chick", "Chicken Chick", "🐤"),
+  P("halloween", "SALLSYNT", 48, "chickchicken", "Kuben Chicken", "Chick Chicken", "🐔"),
+  P("halloween", "EPISK", 120, "frogula", "Vampyrgrodan Frogula", "Frogula the Vampire Frog", "🐸"),
+  P("halloween", "LEGENDARISK", 30, "cookiepumpkin", "Kakpumpan Cookie", "Cookie Pumpkin", "🍪"),
+  P("halloween", "LEGENDARISK", 35, "cookiemummy", "Kakmumien Mummy", "Cookie Mummy", "🧟"),
+  P("halloween", "HEMLIG", 195, "cookieghost", "Kakspöket Boo", "Cookie Ghost", "👻"),
+  P("halloween", "MYSTISK", 285, "pumpkinking", "Pumpakungen", "Pumpkin King", "👑"),
+
   // ── Admin-Keenen ───────────────────────────────────────────────────────────
   // Never on a shelf: an admin in QuizKeen Command hands this one out. See
   // ADMIN_PACK above and lib/keen-grant.ts for the delivery path.
@@ -455,7 +494,7 @@ export const TOTAL_KEENS = OBTAINABLE_KEENS.length;
  * The market renders from these rather than from `KEENS`, so a given-away Keen
  * (and its rarity chip) never appears with a price that cannot be honoured.
  */
-export const MARKET_KEENS: Keen[] = OBTAINABLE_KEENS.filter((k) => RARITY_META[k.rarity].tradeable);
+export const MARKET_KEENS: Keen[] = OBTAINABLE_KEENS.filter(isTradeable);
 export const MARKET_RARITIES: Rarity[] = RARITY_ORDER.filter((r) => MARKET_KEENS.some((k) => k.rarity === r));
 
 /**
@@ -466,7 +505,7 @@ export const MARKET_RARITIES: Rarity[] = RARITY_ORDER.filter((r) => MARKET_KEENS
  * for sale, because no pack could ever drop it again.
  */
 export function retiredKeens(owned: OwnedMap = {}): Keen[] {
-  return KEENS.filter((k) => !isObtainable(k) && RARITY_META[k.rarity].tradeable && (owned[k.id] ?? 0) > 0);
+  return KEENS.filter((k) => !isObtainable(k) && isTradeable(k) && (owned[k.id] ?? 0) > 0);
 }
 
 /**
@@ -624,7 +663,7 @@ export function collectionStats(owned: OwnedMap) {
   // more than the market pays, and it skips Keens that cannot be sold.
   const dupes = Object.entries(owned).reduce((a, [id, n]) => {
     const keen = KEEN_BY_ID[id];
-    if (!keen || !RARITY_META[keen.rarity].tradeable) return a;
+    if (!keen || !isTradeable(keen)) return a;
     return a + Math.max(0, n - 1);
   }, 0);
   const percent = TOTAL_KEENS ? Math.min(100, Math.round((distinct / TOTAL_KEENS) * 100)) : 0;

@@ -31,6 +31,7 @@ import {
   freePackWait,
   isObtainable,
   isObtainableId,
+  isTradeable,
   marketPrice,
   rollKeen,
   sellPrice,
@@ -88,7 +89,7 @@ export function marketPriceFor(keenId: string, date: Date = new Date()): number 
   const keen = KEEN_BY_ID[keenId];
   // A Keen that is given out has no price. Returning null here (rather than a
   // number nobody may charge) is what keeps the market honest end to end.
-  if (!keen || !RARITY_META[keen.rarity].tradeable) return null;
+  if (!keen || !isTradeable(keen)) return null;
   const deal = dailyDeals(dayKey(date)).find((d) => d.keen.id === keenId);
   return deal ? deal.price : marketPrice(keen);
 }
@@ -216,7 +217,7 @@ export async function openPack(profileId: string, packId: string, count: number)
 
 export async function buyKeen(profileId: string, keenId: string, count = 1): Promise<MarketResult> {
   const keen = KEEN_BY_ID[keenId];
-  if (!keen || !RARITY_META[keen.rarity].tradeable || count < 1 || count > 5) return { ok: false, error: "keen" };
+  if (!keen || !isTradeable(keen) || count < 1 || count > 5) return { ok: false, error: "keen" };
   // Only what a pack on sale can still drop is for sale. A Keen from a pack that
   // left the shelf can still be sold if you own it (see `sellKeen`), but it must
   // not be buyable, or the collection total would stop meaning anything.
@@ -269,7 +270,7 @@ export async function buyKeen(profileId: string, keenId: string, count = 1): Pro
 
 export async function sellKeen(profileId: string, keenId: string, count = 1): Promise<MarketResult> {
   const keen = KEEN_BY_ID[keenId];
-  if (!keen || !RARITY_META[keen.rarity].tradeable || count < 1 || count > 99) return { ok: false, error: "keen" };
+  if (!keen || !isTradeable(keen) || count < 1 || count > 99) return { ok: false, error: "keen" };
 
   const v = await viewer(profileId);
   if (!v) return { ok: false, error: "auth" };
@@ -335,7 +336,7 @@ export async function sellAllDuplicates(
   });
   const spare = rows
     .map((r) => ({ keenId: r.keenId, extra: Math.max(0, r.count - 1), keen: KEEN_BY_ID[r.keenId] }))
-    .filter((r) => r.keen && r.extra > 0 && RARITY_META[r.keen.rarity].tradeable);
+    .filter((r) => r.keen && r.extra > 0 && isTradeable(r.keen));
   if (!spare.length) return { ok: false, error: "none-owned" };
 
   const earned = spare.reduce((a, r) => a + sellPrice(r.keen!) * r.extra, 0);
@@ -411,7 +412,7 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
       if (isObtainableId(r.keenId)) distinct += 1;
       // Spares that are worth coins — the same filter the cash-out uses, so the
       // number on the button is the number the market pays for.
-      if (RARITY_META[keen.rarity].tradeable) dupes += Math.max(0, r.count - 1);
+      if (isTradeable(keen)) dupes += Math.max(0, r.count - 1);
     }
   }
 
