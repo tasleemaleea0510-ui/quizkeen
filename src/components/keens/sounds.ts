@@ -6,7 +6,7 @@
  * engine is silently inert if WebAudio is unavailable. Muting is remembered.
  */
 
-import type { Rarity } from "@/lib/keens";
+import { RARITY_META, type Rarity } from "@/lib/keens";
 
 const MUTE_KEY = "qk_keen_muted";
 
@@ -88,11 +88,15 @@ export function playReveal(rarity: Rarity) {
     SALLSYNT: [523, 659, 784],
     EPISK: [587, 740, 880, 1175],
     LEGENDARISK: [659, 831, 988, 1319, 1661],
+    HEMLIG: [880, 1109, 1319, 1760, 2217, 2637],
     KROMA: [784, 988, 1175, 1568, 1976, 2349],
+    MYSTISK: [1047, 1319, 1568, 2093, 2637, 3136],
   };
   const notes = chords[rarity] ?? chords.VANLIG;
   notes.forEach((f, i) => tone({ freq: f, dur: 0.5 - i * 0.03, gain: 0.045, delay: i * 0.055, type: "triangle" }));
-  if (rarity === "LEGENDARISK" || rarity === "KROMA") {
+  // A sub-bass thump under the Keens at the top of the ladder. Keyed off the
+  // catalogue's order, so raising a new rarity above Legendary gets it for free.
+  if (RARITY_META[rarity]?.order >= RARITY_META.LEGENDARISK.order) {
     tone({ freq: 140, slideTo: 60, dur: 0.7, type: "sine", gain: 0.09 });
   }
 }

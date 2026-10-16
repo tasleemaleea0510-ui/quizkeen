@@ -4,20 +4,23 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Gift, Info, Lock, Sparkles, Timer } from "lucide-react";
 import {
-  PACKS,
+  HIDDEN_PACKS,
   PACK_BY_ID,
   RARITY_META,
   RARITY_ORDER,
+  SHELF_PACKS,
   formatWait,
   keensInPack,
   type AnyPackId,
   type Pack,
 } from "@/lib/keens";
+import { PACK_EMBLEMS, SPRITE_BOARDS } from "@/lib/keen-sprites";
 import { getKeenStateAction, openPackAction } from "@/app/keens/actions";
 import type { KeenState } from "@/lib/keens-store";
 import { cn } from "@/lib/utils";
 import CoinCounter from "./coin-counter";
 import KeenAvatar from "./keen-avatar";
+import PixelSprite from "./pixel-sprite";
 import PackOpener, { type OpenedPull } from "./pack-opener";
 import { Toasts, useToasts } from "./toast";
 import { playClick, playError, playWindUp } from "./sounds";
@@ -150,8 +153,14 @@ export default function PacksClient({ state }: { state: KeenState }) {
           <CoinCounter value={live.coins} className="text-lg" label="mynt" />
         </div>
 
+        {HIDDEN_PACKS.length > 0 && (
+          <p className="rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
+            Fler temapaket är inte till salu just nu — deras Keens finns kvar i samlingen och går att köpa i marknaden.
+          </p>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
-          {PACKS.filter((p) => !p.free).map((pack, i) => (
+          {SHELF_PACKS.map((pack, i) => (
             <PackTile
               key={pack.id}
               pack={pack}
@@ -216,6 +225,7 @@ function PackTile({
   onOpen: (pack: Pack, count: number) => void;
 }) {
   const inPack = keensInPack(pack.id as AnyPackId);
+  const emblem = PACK_EMBLEMS[pack.id];
   const have = inPack.filter((k) => (owned[k.id] ?? 0) > 0).length;
   const percent = inPack.length ? Math.round((have / inPack.length) * 100) : 0;
   const complete = have === inPack.length;
@@ -232,13 +242,24 @@ function PackTile({
 
       <div className="flex items-start gap-3">
         <span
-          className="relative grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-white/15 text-3xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105"
-          style={{
-            background: `linear-gradient(160deg, hsl(${pack.hue} 70% 40%), hsl(${pack.hue} 70% 18%))`,
-            boxShadow: `0 16px 34px -18px hsl(${pack.hue} 80% 50% / 0.95)`,
-          }}
+          className={cn(
+            "relative grid h-16 w-16 shrink-0 place-items-center rounded-2xl border text-3xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105",
+            emblem ? "border-fuchsia-400/70" : "border-white/15"
+          )}
+          style={
+            emblem
+              ? { background: SPRITE_BOARDS.neon.background, boxShadow: "0 16px 34px -14px rgba(255,47,208,0.85)" }
+              : {
+                  background: `linear-gradient(160deg, hsl(${pack.hue} 70% 40%), hsl(${pack.hue} 70% 18%))`,
+                  boxShadow: `0 16px 34px -18px hsl(${pack.hue} 80% 50% / 0.95)`,
+                }
+          }
         >
-          <span className="animate-keen-bob">{pack.emoji}</span>
+          {emblem ? (
+            <PixelSprite sprite={emblem} size={58} />
+          ) : (
+            <span className="animate-keen-bob">{pack.emoji}</span>
+          )}
           {complete && (
             <span className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border border-emerald-400/50 bg-emerald-500 text-[11px] font-extrabold text-emerald-950">
               ✓

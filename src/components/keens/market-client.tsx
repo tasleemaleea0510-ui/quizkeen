@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { Clock, Coins, Flame, Search, Sparkles, Store, Tag, TrendingDown, Trophy } from "lucide-react";
 import {
   DEAL_OFF,
-  KEENS,
-  PACK_BY_ID,
+  MARKET_KEENS,
+  MARKET_RARITIES,
   RARITY_META,
-  RARITY_ORDER,
   TOTAL_KEENS,
   dayKey,
   dailyDeals,
@@ -73,7 +72,9 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
 
   const list = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = KEENS.filter((k) => {
+    // MARKET_KEENS, not every Keen: the Admin Keen is handed out in Command and
+    // has no price, so listing it here would offer a buy the server refuses.
+    const filtered = MARKET_KEENS.filter((k) => {
       if (rarity !== "ALLA" && k.rarity !== rarity) return false;
       const count = owned[k.id] ?? 0;
       if (filter === "agda" && count <= 0) return false;
@@ -298,7 +299,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
           >
             Alla
           </button>
-          {RARITY_ORDER.map((r) => (
+          {MARKET_RARITIES.map((r) => (
             <button
               key={r}
               type="button"
@@ -420,7 +421,8 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
           </ol>
         )}
         <p className="mt-3 text-[11px] text-slate-500">
-          Keens finns i {Object.keys(PACK_BY_ID).length - 1} temapaket plus gratispaketet — ju sällsyntare, desto dyrare.
+          Keens kommer från flera teman. Paketen som är till salu just nu står överst — resten av Keens går att köpa i
+          marknaden. Ju sällsyntare, desto dyrare.
         </p>
       </section>
 

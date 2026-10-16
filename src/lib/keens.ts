@@ -11,15 +11,26 @@
  * animates the reveal). The database only stores what a person owns.
  */
 
-export const RARITIES = ["VANLIG", "OVANLIG", "SALLSYNT", "EPISK", "LEGENDARISK", "KROMA"] as const;
+export const RARITIES = ["VANLIG", "OVANLIG", "SALLSYNT", "EPISK", "LEGENDARISK", "HEMLIG", "KROMA", "MYSTISK"] as const;
 export type Rarity = (typeof RARITIES)[number];
 
-export const PACK_IDS = ["djur", "skola", "rymd", "djungel", "godis", "mytisk"] as const;
+export const PACK_IDS = ["djur", "skola", "rymd", "djungel", "godis", "gamer", "mytisk"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 /** The free pack's own id — it is not a theme, it draws from every cheap Keen. */
 export const FREE_PACK = "gratis" as const;
 export type AnyPackId = PackId | typeof FREE_PACK;
+
+/**
+ * The Admin Keen's own shelf.
+ *
+ * It is deliberately NOT in `PACKS`: nothing can buy it, and because it has no
+ * odds it can never be rolled either — the only way into a collection is an
+ * admin handing it out in QuizKeen Command. It still answers to `keensInPack`,
+ * which is what keeps the generic "every Keen" loops honest about it.
+ */
+export const ADMIN_PACK = "admin" as const;
+export type ShelfId = AnyPackId | typeof ADMIN_PACK;
 
 export type Keen = {
   id: string;
@@ -27,10 +38,15 @@ export type Keen = {
   nameEn: string;
   emoji: string;
   rarity: Rarity;
-  pack: PackId;
+  pack: PackId | typeof ADMIN_PACK;
   /** Base hue (0–360) for this Keen's body, so the grid looks like a collection. */
   hue: number;
 };
+
+/** True for Keens that are given out rather than collected from a pack. */
+export function isGiftKeen(keen: Keen): boolean {
+  return keen.pack === ADMIN_PACK;
+}
 
 export type RarityMeta = {
   label: string;
@@ -40,6 +56,14 @@ export type RarityMeta = {
   /** What you get back for a spare copy — a pack duplicate is refunded this. */
   sell: number;
   order: number;
+  /**
+   * False for Keens that are handed out and never traded.
+   *
+   * The market reads this instead of hard-coding a list, so a new untradeable
+   * rarity cannot be bought by accident: `buyKeen`/`sellKeen` refuse it and
+   * today's deals skip it.
+   */
+  tradeable: boolean;
   /** Literal class strings (Tailwind only ships classes it can see in the source). */
   text: string;
   chip: string;
@@ -56,6 +80,7 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     price: 30,
     sell: 12,
     order: 0,
+    tradeable: true,
     text: "text-slate-300",
     chip: "border-slate-500/40 bg-slate-500/15 text-slate-300",
     ring: "border-slate-400/40",
@@ -69,6 +94,7 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     price: 75,
     sell: 30,
     order: 1,
+    tradeable: true,
     text: "text-emerald-300",
     chip: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
     ring: "border-emerald-400/50",
@@ -82,6 +108,7 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     price: 180,
     sell: 72,
     order: 2,
+    tradeable: true,
     text: "text-sky-300",
     chip: "border-sky-500/40 bg-sky-500/15 text-sky-300",
     ring: "border-sky-400/50",
@@ -95,6 +122,7 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     price: 450,
     sell: 180,
     order: 3,
+    tradeable: true,
     text: "text-fuchsia-300",
     chip: "border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-300",
     ring: "border-fuchsia-400/50",
@@ -108,6 +136,7 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     price: 1100,
     sell: 440,
     order: 4,
+    tradeable: true,
     text: "text-amber-300",
     chip: "border-amber-500/50 bg-amber-500/15 text-amber-300",
     ring: "border-amber-400/60",
@@ -120,13 +149,42 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
     labelEn: "Chroma",
     price: 3000,
     sell: 1200,
-    order: 5,
+    order: 6,
+    tradeable: true,
     text: "text-white",
     chip: "border-white/40 bg-white/10 text-white",
     ring: "border-white/50",
     glow: "shadow-[0_0_48px_-4px_rgba(255,255,255,0.6)]",
     tile: "from-fuchsia-500/30 via-sky-500/20 to-amber-400/20",
     from: "#ffffff",
+  },
+  HEMLIG: {
+    label: "Hemlig",
+    labelEn: "Secret",
+    price: 2600,
+    sell: 950,
+    order: 5,
+    tradeable: true,
+    text: "text-pink-300",
+    chip: "border-pink-500/40 bg-pink-500/15 text-pink-300",
+    ring: "border-pink-400/60",
+    glow: "shadow-[0_0_44px_-4px_rgba(244,114,182,0.8)]",
+    tile: "from-pink-500/30 to-purple-800/10",
+    from: "#f472b6",
+  },
+  MYSTISK: {
+    label: "Mystisk",
+    labelEn: "Mystical",
+    price: 0,
+    sell: 0,
+    order: 7,
+    tradeable: false,
+    text: "text-purple-300",
+    chip: "border-purple-400/40 bg-purple-500/15 text-purple-200",
+    ring: "border-purple-400/60",
+    glow: "shadow-[0_0_44px_-4px_rgba(168,85,247,0.85)]",
+    tile: "from-purple-500/30 to-fuchsia-700/10",
+    from: "#a855f7",
   },
 };
 
@@ -147,6 +205,12 @@ export type Pack = {
   /** Packs can be opened in these amounts. */
   sizes: number[];
   free?: boolean;
+  /**
+   * Off the shelf: the pack still exists — its Keens stay in the collection, and
+   * the market still sells them — but the shop does not show it and the server
+   * refuses to open it. Delete the line to put the pack back on sale.
+   */
+  hidden?: boolean;
 };
 
 export const PACKS: Pack[] = [
@@ -165,6 +229,7 @@ export const PACKS: Pack[] = [
   },
   {
     id: "djur",
+    hidden: true,
     name: "Djurpaketet",
     nameEn: "Animal pack",
     tagline: "Katter, hundar och en och annan varg.",
@@ -177,6 +242,7 @@ export const PACKS: Pack[] = [
   },
   {
     id: "skola",
+    hidden: true,
     name: "Skolpaketet",
     nameEn: "School pack",
     tagline: "Från suddgummi till rektor.",
@@ -189,6 +255,7 @@ export const PACKS: Pack[] = [
   },
   {
     id: "rymd",
+    hidden: true,
     name: "Rymdpaketet",
     nameEn: "Space pack",
     tagline: "Raketer, planeter och något som tittar tillbaka.",
@@ -201,6 +268,7 @@ export const PACKS: Pack[] = [
   },
   {
     id: "djungel",
+    hidden: true,
     name: "Djungelpaketet",
     nameEn: "Jungle pack",
     tagline: "Vilda djur och en lejonkung.",
@@ -213,6 +281,7 @@ export const PACKS: Pack[] = [
   },
   {
     id: "godis",
+    hidden: true,
     name: "Godispaketet",
     nameEn: "Candy pack",
     tagline: "Sött, sötare, regnbåge.",
@@ -224,7 +293,20 @@ export const PACKS: Pack[] = [
     sizes: [1, 3, 5],
   },
   {
+    id: "gamer",
+    name: "Gamerpaketet",
+    nameEn: "Gamer pack",
+    tagline: "Pixlar, neon och något som rör sig i mörkret.",
+    taglineEn: "Pixels, neon and something moving in the dark.",
+    price: 180,
+    emoji: "🎮",
+    hue: 285,
+    odds: { VANLIG: 57.3, SALLSYNT: 37, EPISK: 5.01, LEGENDARISK: 0.67, HEMLIG: 0.02 },
+    sizes: [1, 3, 5],
+  },
+  {
     id: "mytisk",
+    hidden: true,
     name: "Mytiskapaketet",
     nameEn: "Mythical pack",
     tagline: "Bara det bästa — och Kroma-Keens.",
@@ -237,8 +319,20 @@ export const PACKS: Pack[] = [
   },
 ];
 
+/**
+ * What the shop shows, and what it has taken off the shelf.
+ *
+ * `PACKS` stays the whole catalogue: rolling, the "which pack drops this" hints
+ * and the collection's pack filter all read from it, so hiding a pack changes the
+ * shop and nothing else. That is deliberate — a hidden pack's Keens are still
+ * collectable (the market sells them), they just are not on sale.
+ */
+export const SHELF_PACKS: Pack[] = PACKS.filter((p) => !p.free && !p.hidden);
+export const HIDDEN_PACKS: Pack[] = PACKS.filter((p) => !p.free && p.hidden);
+
 const P = (
-  pack: PackId,
+  // `Keen["pack"]`, not `PackId`: the Admin Keen lives on its own shelf.
+  pack: Keen["pack"],
   rarity: Rarity,
   hue: number,
   id: string,
@@ -307,13 +401,36 @@ export const KEENS: Keen[] = [
   P("mytisk", "KROMA", 0, "kromakatt", "Kroma-Katten", "Chroma Cat", "😻"),
   P("mytisk", "KROMA", 0, "kromadrake", "Kroma-Draken", "Chroma Dragon", "🐲"),
   P("mytisk", "KROMA", 0, "kromakrona", "Kroma-Kronan", "Chroma Crown", "👑"),
+
+  // ── Gamerpaketet ───────────────────────────────────────────────────────────
+  // One Keen per step of the ladder, straight from the design doc: common 57,3 %,
+  // rare 37 %, epic 5,01 %, legendary 0,67 %, secret 0,02 %.
+  P("gamer", "VANLIG", 120, "invader", "Space Invader", "Space Invader", "👾"),
+  P("gamer", "SALLSYNT", 0, "crewmate", "Crewmate", "Crewmate", "🚀"),
+  P("gamer", "EPISK", 110, "chubbypig", "Chubby Pig", "Chubby Pig", "🐷"),
+  P("gamer", "LEGENDARISK", 130, "creeper", "Creeper", "Creeper", "🧟"),
+  P("gamer", "HEMLIG", 285, "pixelthorne", "Pixel Thorne", "Pixel Thorne", "🦔"),
+
+  // ── Admin-Keenen ───────────────────────────────────────────────────────────
+  // Never on a shelf: an admin in QuizKeen Command hands this one out. See
+  // ADMIN_PACK above and lib/keen-grant.ts for the delivery path.
+  P(ADMIN_PACK, "MYSTISK", 30, "omeisaurus", "Omeisaurus", "Omeisaurus", "🐉"),
 ];
 
 export const KEEN_BY_ID: Record<string, Keen> = Object.fromEntries(KEENS.map((k) => [k.id, k]));
 export const PACK_BY_ID: Record<string, Pack> = Object.fromEntries(PACKS.map((p) => [p.id, p]));
 export const TOTAL_KEENS = KEENS.length;
 
-export function keensInPack(pack: AnyPackId): Keen[] {
+/**
+ * Keens the market is allowed to show, and the rarities that actually have any.
+ *
+ * The market renders from these rather than from `KEENS`, so a given-away Keen
+ * (and its rarity chip) never appears with a price that cannot be honoured.
+ */
+export const MARKET_KEENS: Keen[] = KEENS.filter((k) => RARITY_META[k.rarity].tradeable);
+export const MARKET_RARITIES: Rarity[] = RARITY_ORDER.filter((r) => MARKET_KEENS.some((k) => k.rarity === r));
+
+export function keensInPack(pack: ShelfId): Keen[] {
   if (pack === FREE_PACK) return KEENS.filter((k) => RARITY_META[k.rarity].order <= RARITY_META.SALLSYNT.order);
   return KEENS.filter((k) => k.pack === pack);
 }
@@ -351,9 +468,14 @@ export function rollKeen(pack: AnyPackId, rand: () => number = Math.random): Kee
   return list[Math.min(list.length - 1, Math.floor(rand() * list.length))];
 }
 
-/** Cheapest pack that can drop a given Keen — shown as "hint" on locked cards. */
-export function dropsFrom(keen: Keen): Pack {
-  return PACK_BY_ID[keen.pack];
+/**
+ * The pack that can drop a given Keen — shown as "hint" on locked cards.
+ *
+ * `null` for the Admin Keen: no pack contains it, so callers must say "gift"
+ * rather than render an empty name.
+ */
+export function dropsFrom(keen: Keen): Pack | null {
+  return PACK_BY_ID[keen.pack] ?? null;
 }
 
 export function marketPrice(keen: Keen): number {
@@ -402,7 +524,9 @@ export const DEALS_PER_DAY = 3;
  * browser that shows the sticker agree — no "the deal changed under me" bugs.
  */
 export function dailyDeals(dateKey: string): { keen: Keen; price: number; off: number }[] {
-  const pool = KEENS.filter((k) => k.rarity !== "KROMA");
+  // Kroma Keens are the top of the market and never get discounted, and a
+  // Keen that is handed out has no price to discount in the first place.
+  const pool = KEENS.filter((k) => k.rarity !== "KROMA" && RARITY_META[k.rarity].tradeable);
   let seed = 0;
   for (let i = 0; i < dateKey.length; i++) seed = (seed * 31 + dateKey.charCodeAt(i)) >>> 0;
   const used = new Set<number>();

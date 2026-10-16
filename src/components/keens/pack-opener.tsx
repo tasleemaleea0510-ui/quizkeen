@@ -3,23 +3,25 @@
 import * as React from "react";
 import Link from "next/link";
 import { RotateCcw, Sparkles, Volume2, VolumeX, X } from "lucide-react";
-import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, type Rarity } from "@/lib/keens";
+import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, RARITY_ORDER, type Rarity } from "@/lib/keens";
+import { PACK_EMBLEMS, SPRITE_BOARDS } from "@/lib/keen-sprites";
 import { cn } from "@/lib/utils";
 import KeenAvatar from "./keen-avatar";
+import PixelSprite from "./pixel-sprite";
 import CoinCounter from "./coin-counter";
 import Confetti from "./confetti";
 import { isMuted, playClick, playCoin, playReveal, playWindUp, setMuted as persistMuted } from "./sounds";
 
 export type OpenedPull = { keenId: string; rarity: string; isNew: boolean; refund: number; owned: number };
 
-const HEX: Record<Rarity, string> = {
-  VANLIG: "#94a3b8",
-  OVANLIG: "#34d399",
-  SALLSYNT: "#38bdf8",
-  EPISK: "#e879f9",
-  LEGENDARISK: "#fbbf24",
-  KROMA: "#ffffff",
-};
+/**
+ * Rarity → the colour the reveal paints with.
+ *
+ * Derived from the catalogue rather than repeated: this used to be a second
+ * table, which is exactly how a newly added rarity ends up with a colour of
+ * `undefined` and a confetti burst that never fires.
+ */
+const HEX = Object.fromEntries(RARITY_ORDER.map((r) => [r, RARITY_META[r].from])) as Record<Rarity, string>;
 
 const RAINBOW = ["#ff5f6d", "#ffc371", "#47e891", "#38bdf8", "#a855f7", "#f472b6"];
 
@@ -52,6 +54,7 @@ export default function PackOpener({
   onAgain: (count: number) => void;
 }) {
   const pack = PACK_BY_ID[packId];
+  const emblem = PACK_EMBLEMS[packId];
   const [index, setIndex] = React.useState(0);
   const [stage, setStage] = React.useState<"windup" | "reveal" | "summary">("windup");
   const [fire, setFire] = React.useState(0);
@@ -167,13 +170,24 @@ export default function PackOpener({
                 style={{ background: `radial-gradient(circle, hsl(${pack?.hue ?? 260} 80% 60% / 0.55), transparent 70%)` }}
               />
               <span
-                className="relative grid h-44 w-36 place-items-center rounded-3xl border border-white/15 animate-keen-shake"
-                style={{
-                  background: `linear-gradient(160deg, hsl(${pack?.hue ?? 260} 70% 42%), hsl(${pack?.hue ?? 260} 70% 20%))`,
-                  boxShadow: `0 24px 60px -24px hsl(${pack?.hue ?? 260} 80% 50% / 0.9)`,
-                }}
+                className={cn(
+                  "relative grid h-44 w-36 place-items-center rounded-3xl border animate-keen-shake",
+                  emblem ? "border-fuchsia-400/70" : "border-white/15"
+                )}
+                style={
+                  emblem
+                    ? { background: SPRITE_BOARDS.neon.background, boxShadow: "0 24px 60px -24px rgba(255,47,208,0.95)" }
+                    : {
+                        background: `linear-gradient(160deg, hsl(${pack?.hue ?? 260} 70% 42%), hsl(${pack?.hue ?? 260} 70% 20%))`,
+                        boxShadow: `0 24px 60px -24px hsl(${pack?.hue ?? 260} 80% 50% / 0.9)`,
+                      }
+                }
               >
-                <span className="text-6xl">{pack?.emoji}</span>
+                {emblem ? (
+                  <PixelSprite sprite={emblem} size={104} />
+                ) : (
+                  <span className="text-6xl">{pack?.emoji}</span>
+                )}
                 <span className="absolute inset-x-3 bottom-3 h-2 rounded-full bg-black/30" />
               </span>
             </div>

@@ -25,6 +25,33 @@ hangs against Supabase's pooled connection (pgBouncer, port 6543), so schema
 changes have to be applied as SQL against the same `DATABASE_URL` — the deployed
 build only runs `prisma generate && next build`, it never migrates.
 
+### The two Keens that no pack contains
+
+`ADMIN_PACK` (`"admin"`) is a shelf that exists only so a given-away Keen has a
+home in the data model. It is deliberately absent from `PACKS`, and because it
+has no odds, `rollKeen` can never reach it either.
+
+- **The Admin Keen** — `omeisaurus`, rarity `MYSTISK` — is handed out one person
+  at a time from QuizKeen Command → **Admin-Keen**. Its `RarityMeta.tradeable` is
+  `false`, which is what makes `buyKeen`, `sellKeen`, `sellAllDuplicates` and the
+  daily deals skip it; the market renders from `MARKET_KEENS`/`MARKET_RARITIES`,
+  so it can never be listed with a price. Clicking the button twice is safe: the
+  insert is `ON CONFLICT DO NOTHING` and the console says "already has it".
+  Because the two apps are separate deployments sharing one database, and
+  Command's Prisma schema has no Keen models, the row is written with
+  parameterised SQL from `command/src/lib/keen-grant.ts`. The Keen **id lives in
+  both repositories** — `ADMIN_KEEN_ID` there and `P(...)` in `src/lib/keens.ts`
+  here — so rename it in both or the gift lands on an id the app ignores.
+- **`HEMLIG`** ("Hemlig", Secret) is the Gamer pack's 0,02 % chase: pink, above
+  Legendary, below Kroma. It is tradeable, just very unlikely to drop.
+
+The Gamer pack's odds are the design document's own — `57,3 / 37 / 5,01 / 0,67 /
+0,02` — and its artwork is pixel art drawn in code: `src/lib/keen-sprites.ts`
+holds the bitmaps and `src/components/keens/pixel-sprite.tsx` draws them as SVG,
+so there is still no image file to ship, host or lose. `KeenAvatar` prefers a
+sprite when the Keen has one and falls back to the hue tile plus emoji for the
+rest of the catalogue.
+
 ## Automatic sync (auto-commit + auto-push)
 
 This repo ships a watcher that keeps GitHub in sync without any manual git
@@ -57,9 +84,13 @@ QK_QUIET_MS=10000 npm run autocommit
 ### Starting at logon (Windows)
 
 `QuizKeen-AutoGit.cmd` in your Startup folder
-(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`) launches
-`scripts/autocommit.cmd` when you log in. **Delete that file to stop syncing at
-logon**, or delete it and run `npm run autocommit` by hand instead.
+(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`) used to launch
+`scripts/autocommit.cmd` when you log in. **That launcher is now a no-op** (it was
+turned off on 2026-10-16, because it kept opening a console window): the file is
+still there but starts nothing, and it is safe to delete. To sync by hand, run
+`npm run autocommit`; to bring the logon behaviour back, replace the launcher's
+contents with the `start "QuizKeen AutoGit" /min "…\scripts\autocommit.cmd"`
+line it used to hold.
 
 ### Only one watcher at a time
 

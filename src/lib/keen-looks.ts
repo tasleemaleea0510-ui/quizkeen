@@ -7,6 +7,11 @@
  * in `components/keens/keen-creature.tsx` turns one row here into a cartoon
  * character drawn from the Keen's own hue, so 48 distinct characters come out of
  * one small table instead of 48 hand-written drawings.
+ *
+ * NOT YET WIRED UP, and the pixel Keens bypass it: the Gamer pack and the Admin
+ * Keen are hand-pixelled bitmaps in `lib/keen-sprites.ts`, which `KeenAvatar`
+ * draws directly. This table is the plan for the other Keens; nothing imports it
+ * yet, so editing it changes nothing on screen.
  */
 
 export type Ear = "none" | "cat" | "dog" | "round" | "big" | "long" | "horn" | "stalk";

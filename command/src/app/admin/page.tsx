@@ -9,6 +9,8 @@ import {
   adminRequestBan,
   adminGiveXP,
   adminSetBroadcast,
+  adminGiveAdminKeen,
+  adminKeenHoldersList,
   requestLive,
   muteChat,
   togglePin,
@@ -44,7 +46,7 @@ import {
 } from "../../components/icons";
 
 type S = { role: string; code: string };
-type NavId = "users" | "chats" | "broadcast" | "chat" | "log" | "help";
+type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "log" | "help";
 
 const QUICK = [
   { label: "5 min", min: 5 },
@@ -63,6 +65,10 @@ export default function AdminPage() {
   const [chats, setChats] = useState<any>(null);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  // Admin-Keen: who to give it to, whose name to search, and who already has it.
+  const [kq, setKq] = useState("");
+  const [keenFor, setKeenFor] = useState<any>(null);
+  const [holders, setHolders] = useState<string[]>([]);
 
   // styled replacements for window.prompt()
   const [gift, setGift] = useState<{ user: any; amount: string } | null>(null);
@@ -108,6 +114,31 @@ export default function AdminPage() {
     spyOnChats(s).then(setChats).catch(() => setChats(null));
   }, [section, s]);
 
+  // Loaded when the section is opened, and again after every grant, so the
+  // badges never claim someone is missing a Keen they were just given.
+  const loadHolders = async (sess: S | null) => {
+    if (!sess) return;
+    try {
+      const r = await adminKeenHoldersList(sess);
+      if (r?.ok) setHolders(r.holders ?? []);
+    } catch {
+      /* leave the last known badges in place */
+    }
+  };
+
+  useEffect(() => {
+    if (section !== "keen" || !s) return;
+    let alive = true;
+    adminKeenHoldersList(s)
+      .then((r) => {
+        if (alive && r?.ok) setHolders(r.holders ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [section, s]);
+
   async function refresh() {
     if (!s) return;
     try {
@@ -150,6 +181,7 @@ export default function AdminPage() {
     { id: "chats", Icon: Detective, label: "Chatspaning" },
     { id: "broadcast", Icon: Megaphone, label: "Sändning" },
     { id: "chat", Icon: ChatIcon, label: "Stabs-chatt" },
+    { id: "keen", Icon: Gift, label: "Admin-Keen" },
     { id: "log", Icon: Scroll, label: "Logg" },
     { id: "help", Icon: Help, label: "Hjälp" },
   ];
@@ -435,6 +467,101 @@ export default function AdminPage() {
                 <div className="mt-4">
                   <StaffChat s={s} accent="bg-red-600" />
                 </div>
+              </div>
+            )}
+
+            {section === "keen" && (
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
+                  <Gift className="h-5 w-5 text-purple-400" /> Admin-Keen
+                </h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — den
+                  kan bara delas ut härifrån. Välj personen, och den hamnar i samlingen direkt.
+                </p>
+
+                {keenFor ? (
+                  <div className="mt-4 rounded-2xl border border-purple-500/40 bg-purple-500/10 p-4">
+                    <p className="text-sm font-bold text-white">
+                      Ge Admin-Keenen till <span className="text-purple-300">{keenFor.username}</span>?
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Den läggs i personens samling direkt och går inte att ta tillbaka härifrån. Allt loggas.
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          const target = keenFor;
+                          setKeenFor(null);
+                          await run(adminGiveAdminKeen(s, target.id, target.username));
+                          await loadHolders(s);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500 disabled:opacity-50"
+                      >
+                        <Gift className="h-4 w-4" /> Ja, ge den
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKeenFor(null)}
+                        className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white hover:bg-slate-600"
+                      >
+                        Avbryt
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5">
+                      <Search className="h-4 w-4 text-slate-500" />
+                      <input
+                        value={kq}
+                        onChange={(e) => setKq(e.target.value)}
+                        placeholder="Sök användare..."
+                        className="w-40 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
+                      {data.users
+                        .filter((u: any) => u.username.toLowerCase().includes(kq.toLowerCase()))
+                        .map((u: any) => {
+                          const has = holders.includes(u.id);
+                          return (
+                            <div
+                              key={u.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3"
+                            >
+                              <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
+                                <span data-no-translate>{u.username}</span>
+                                <span className="text-xs font-normal text-slate-500">
+                                  {u.role} · {u.coins} mynt
+                                </span>
+                                {has && (
+                                  <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-bold text-purple-300">
+                                    har den
+                                  </span>
+                                )}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={has || busy}
+                                onClick={() => setKeenFor(u)}
+                                className={
+                                  has
+                                    ? "flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1 text-xs font-bold text-slate-500"
+                                    : "flex items-center gap-1 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-200 hover:bg-purple-600/20"
+                                }
+                              >
+                                <Gift className="h-3 w-3" /> Ge Admin-Keen
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -1,14 +1,21 @@
 import * as React from "react";
 import { RARITY_META, type Keen } from "@/lib/keens";
+import { KEEN_SPRITES, SPRITE_BOARDS, type SpriteBoard } from "@/lib/keen-sprites";
 import { cn } from "@/lib/utils";
+import PixelSprite from "./pixel-sprite";
 
 /**
  * A Keen, drawn.
  *
- * There is no artwork to load, so each character is built from its own hue:
- * a rounded body with a highlight, little arms, and the Keen's emoji as the
- * face. That keeps 48 characters in one small file, makes every rarity
- * instantly distinguishable, and lets Kroma Keens animate.
+ * Two ways, and the Keen picks:
+ *  - the Gamer pack and the Admin Keen have hand-pixelled bitmaps in
+ *    `lib/keen-sprites.ts`, drawn by `PixelSprite`;
+ *  - everyone else is built from their own hue — a rounded body with a
+ *    highlight, little arms, and the Keen's emoji as the face.
+ *
+ * Either way there is no artwork to load, every rarity is instantly
+ * distinguishable, and Kroma Keens still animate. Locked Keens never reveal
+ * which of the two they are: they all show the same silhouette tile.
  */
 export default function KeenAvatar({
   keen,
@@ -27,6 +34,10 @@ export default function KeenAvatar({
   const chroma = keen.rarity === "KROMA";
   const hue = keen.hue;
 
+  // A locked Keen is a mystery in both directions: no sprite, no emoji, just "?".
+  const sprite = locked ? undefined : KEEN_SPRITES[keen.id];
+  const board: SpriteBoard = sprite?.board ?? "tile";
+
   const arms = size >= 56;
 
   return (
@@ -41,17 +52,22 @@ export default function KeenAvatar({
         width: size,
         height: size,
         ...style,
-        ...(chroma && !locked ? {} : {
-          background: locked
-            ? "linear-gradient(160deg, #1e293b 0%, #0f172a 100%)"
-            : `radial-gradient(130% 130% at 30% 10%, hsl(${hue} 92% 76%) 0%, hsl(${hue} 74% 48%) 52%, hsl(${hue} 64% 27%) 100%)`,
-        }),
+        ...(sprite && board !== "tile"
+          ? SPRITE_BOARDS[board]
+          : chroma && !locked
+            ? {}
+            : {
+                background: locked
+                  ? "linear-gradient(160deg, #1e293b 0%, #0f172a 100%)"
+                  : `radial-gradient(130% 130% at 30% 10%, hsl(${hue} 92% 76%) 0%, hsl(${hue} 74% 48%) 52%, hsl(${hue} 64% 27%) 100%)`,
+              }),
       }}
     >
       {chroma && !locked && <span className="keen-chroma absolute inset-0" />}
 
-      {/* body shading: a bright crown and a dark floor turn a square into a creature */}
-      {!locked && (
+      {/* body shading: a bright crown and a dark floor turn a square into a creature.
+          The pixel Keens bring their own plate, so they skip it. */}
+      {!locked && !sprite && (
         <>
           <span className="pointer-events-none absolute inset-x-[14%] top-[7%] h-[20%] rounded-full bg-white/35 blur-[5px]" />
           <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[26%] bg-gradient-to-t from-black/45 to-transparent" />
@@ -70,16 +86,20 @@ export default function KeenAvatar({
         </>
       )}
 
-      <span
-        className={cn(
-          "relative z-10 leading-none",
-          locked ? "text-slate-500" : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]",
-          chroma && !locked && "drop-shadow-[0_0_10px_rgba(255,255,255,0.85)]"
-        )}
-        style={{ fontSize: Math.round(size * 0.54) }}
-      >
-        {locked ? "?" : keen.emoji}
-      </span>
+      {sprite ? (
+        <PixelSprite sprite={sprite} size={Math.round(size * 0.84)} className="relative z-10" />
+      ) : (
+        <span
+          className={cn(
+            "relative z-10 leading-none",
+            locked ? "text-slate-500" : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]",
+            chroma && !locked && "drop-shadow-[0_0_10px_rgba(255,255,255,0.85)]"
+          )}
+          style={{ fontSize: Math.round(size * 0.54) }}
+        >
+          {locked ? "?" : keen.emoji}
+        </span>
+      )}
     </div>
   );
 }

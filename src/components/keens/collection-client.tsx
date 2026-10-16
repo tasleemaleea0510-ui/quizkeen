@@ -10,6 +10,7 @@ import {
   RARITY_META,
   RARITY_ORDER,
   TOTAL_KEENS,
+  isGiftKeen,
   marketPrice,
   sellPrice,
   type AnyPackId,
@@ -60,6 +61,12 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   }, [rarity, pack, view, sort, query, owned]);
 
   const percent = Math.round((distinct / TOTAL_KEENS) * 100);
+
+  // A given-away Keen (the Admin Keen) has no shelf and no price, so the detail
+  // card asks the catalogue instead of assuming a pack exists behind every Keen.
+  const selectedGift = selected ? isGiftKeen(selected) : false;
+  const selectedPack = selected ? PACK_BY_ID[selected.pack] : undefined;
+  const selectedTradeable = selected ? RARITY_META[selected.rarity].tradeable : false;
 
   async function sellAll() {
     setBusy(true);
@@ -278,7 +285,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                   <div className="leading-tight">
                     <p className="max-w-[7.5rem] truncate text-[11px] font-bold text-white">{keen.name}</p>
                     <p className={cn("text-[9px] font-bold uppercase", RARITY_META[keen.rarity].text)}>
-                      {r.packId === "marknad" ? (r.refund ? `Såld +${r.refund}` : "Marknad") : PACK_BY_ID[r.packId]?.name ?? r.packId}
+                      {r.packId === "marknad"
+                        ? r.refund
+                          ? `Såld +${r.refund}`
+                          : "Marknad"
+                        : r.packId === "gava"
+                          ? "Admin-gåva"
+                          : PACK_BY_ID[r.packId]?.name ?? r.packId}
                     </p>
                   </div>
                 </div>
@@ -312,7 +325,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                 selected.rarity === "KROMA" ? "keen-chroma-text animate-keen-pan" : "text-white"
               )}
             >
-              {(owned[selected.id] ?? 0) === 0 ? "Inte hittad än" : selected.name}
+              {(owned[selected.id] ?? 0) === 0 ? (selectedGift ? "Inte utdelad än" : "Inte hittad än") : selected.name}
             </h3>
             <span
               className={cn(
@@ -327,13 +340,15 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               <div className="flex justify-between">
                 <dt className="text-slate-400">Paket</dt>
                 <dd className="font-semibold text-slate-200">
-                  {PACK_BY_ID[selected.pack].emoji} {PACK_BY_ID[selected.pack].name}
+                  {selectedGift ? "Admin-gåva" : `${selectedPack?.emoji ?? ""} ${selectedPack?.name ?? "—"}`}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-slate-400">Chans i paketet</dt>
                 <dd data-no-translate className="font-semibold text-slate-200">
-                  {String(PACK_BY_ID[selected.pack].odds[selected.rarity] ?? 0).replace(".", ",")} %
+                  {selectedGift
+                    ? "Delas ut"
+                    : `${String(selectedPack?.odds[selected.rarity] ?? 0).replace(".", ",")} %`}
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -345,7 +360,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               <div className="flex justify-between">
                 <dt className="text-slate-400">Marknadspris</dt>
                 <dd data-no-translate className="font-semibold text-amber-300">
-                  {marketPrice(selected)} mynt
+                  {selectedTradeable ? `${marketPrice(selected)} mynt` : "Går inte att köpa"}
                 </dd>
               </div>
             </dl>
@@ -356,17 +371,26 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </p>
             )}
 
+            {selectedGift && (
+              <p className="mt-3 text-[11px] text-slate-400">
+                Den här Keen finns inte i något paket. Bara en admin i QuizKeen Command kan dela ut den, och då hamnar
+                den direkt i samlingen — den går aldrig att köpa eller sälja.
+              </p>
+            )}
+
             <div className="mt-5 flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => buy(selected)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-all hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50"
-              >
-                <Store className="h-4 w-4" />
-                Köp för {marketPrice(selected)} mynt
-              </button>
-              {(owned[selected.id] ?? 0) > 1 && (
+              {selectedTradeable && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => buy(selected)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition-all hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50"
+                >
+                  <Store className="h-4 w-4" />
+                  Köp för {marketPrice(selected)} mynt
+                </button>
+              )}
+              {selectedTradeable && (owned[selected.id] ?? 0) > 1 && (
                 <button
                   type="button"
                   disabled={busy}

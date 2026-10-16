@@ -47,6 +47,19 @@ export function writeLang(lang: Lang) {
  * does most of the work here.
  */
 const PAIRS: [string, string][] = [
+  // ── the Admin Keen ───────────────────────────────────────────────────
+  ["Admin-Keen", "Admin Keen"],
+  ["Ge Admin-Keen", "Give Admin Keen"],
+  ["Ge Admin-Keenen till", "Give the Admin Keen to"],
+  ["Ja, ge den", "Yes, give it"],
+  ["har den", "already has it"],
+  ["Avbryt", "Cancel"],
+  ["Mystisk", "Mystical"],
+  [
+    "Den läggs i personens samling direkt och går inte att ta tillbaka härifrån. Allt loggas.",
+    "It lands in their collection right away and cannot be taken back from here. Everything is logged.",
+  ],
+
   // ── gate ─────────────────────────────────────────────────────────────
   ["COMMAND CENTER", "COMMAND CENTER"],
   ["Ägare", "OWNER"],

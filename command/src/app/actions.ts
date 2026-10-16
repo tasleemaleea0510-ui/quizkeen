@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
+import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen } from "@/lib/keen-grant";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -10,7 +11,7 @@ const supabaseAdmin = createClient(
 
 type S = { role: string; code: string };
 type Level = "STAFF" | "SECURITY" | "ADMIN" | "OWNER";
-type Res = { ok: boolean; info?: string; newOwner?: string; role?: string; code?: string };
+type Res = { ok: boolean; info?: string; newOwner?: string; role?: string; code?: string; holders?: string[] };
 
 const GENERIC_FAILURE = "Något gick fel. Försök igen.";
 
@@ -643,4 +644,36 @@ export async function secUnban(s: S, username: string) {
     await log("[SECURITY]", `unbannade ${username}`);
     return { ok: true, info: `${username} är fri!` };
   });
+}
+
+// ─── the Admin Keen ──────────────────────────────────────────────────────
+
+/**
+ * Give the Admin Keen to one person.
+ *
+ * ADMIN and above, like every other power in this console, and the whole thing
+ * is logged with the [ADMIN] tag so the owner can see who handed one out. The
+ * delivery itself lives in `lib/keen-grant.ts` — it writes the row straight
+ * into the shared database, because QuizKeen Command and QuizKeen are separate
+ * deployments. Clicking twice is safe: the helper reports "already owned"
+ * instead of adding a second one.
+ */
+export async function adminGiveAdminKeen(s: S, profileId: string, username: string) {
+  return withAuth("ADMIN", s, async () => {
+    const res = await giveAdminKeen(profileId, username);
+    if (!res.ok) {
+      return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };
+    }
+    if (res.alreadyOwned) {
+      await log("[ADMIN]", `försökte ge ${ADMIN_KEEN_NAME} till ${username}, som redan hade den`);
+      return { ok: true, info: `${username} har redan ${ADMIN_KEEN_NAME}.` };
+    }
+    await log("[ADMIN]", `gav ${ADMIN_KEEN_NAME} till ${username}`);
+    return { ok: true, info: `${username} fick ${ADMIN_KEEN_NAME}! Den ligger i samlingen nu.` };
+  });
+}
+
+/** Profile ids that already own the Admin Keen, for the picker's badges. */
+export async function adminKeenHoldersList(s: S) {
+  return withAuth("ADMIN", s, async () => ({ ok: true, info: "", holders: await adminKeenHolders() }));
 }

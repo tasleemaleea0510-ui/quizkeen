@@ -41,6 +41,28 @@ export function writeLang(lang: Lang) {
 
 /** [swedish, english] — the single source of truth for both directions. */
 const PAIRS: [string, string][] = [
+  // ── Keens: rarities, the Gamer pack, the Admin gift ───────────────────
+  ["Mystisk", "Mystical"],
+  ["Hemlig", "Secret"],
+  ["Gamerpaketet", "Gamer pack"],
+  ["Pixlar, neon och något som rör sig i mörkret.", "Pixels, neon and something moving in the dark."],
+  ["Admin-gåva", "Admin gift"],
+  [
+    "Fler temapaket är inte till salu just nu — deras Keens finns kvar i samlingen och går att köpa i marknaden.",
+    "More theme packs are not for sale right now — their Keens stay in the collection and can still be bought in the market.",
+  ],
+  [
+    "Keens kommer från flera teman. Paketen som är till salu just nu står överst — resten av Keens går att köpa i marknaden. Ju sällsyntare, desto dyrare.",
+    "Keens come from several themes. The packs on sale right now are at the top — the rest of the Keens can be bought in the market. The rarer, the dearer.",
+  ],
+  ["Inte utdelad än", "Not given out yet"],
+  ["Delas ut", "Handed out"],
+  ["Går inte att köpa", "Not for sale"],
+  [
+    "Den här Keen finns inte i något paket. Bara en admin i QuizKeen Command kan dela ut den, och då hamnar den direkt i samlingen — den går aldrig att köpa eller sälja.",
+    "This Keen is not in any pack. Only an admin in QuizKeen Command can hand it out, and it lands in the collection right away — it can never be bought or sold.",
+  ],
+
   // ── navigation & chrome ──────────────────────────────────────────────
   ["Översikt", "Dashboard"],
   ["Instrumentpanel", "Dashboard"],

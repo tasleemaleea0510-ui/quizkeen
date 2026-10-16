@@ -46,7 +46,7 @@ export type Pull = {
 
 export type OpenResult =
   | { ok: true; pulls: Pull[]; coins: number; spent: number; refunded: number }
-  | { ok: false; error: "auth" | "pack" | "count" | "coins" | "frozen" | "cooldown" | "banned" | "daily-off" };
+  | { ok: false; error: "auth" | "pack" | "count" | "coins" | "frozen" | "cooldown" | "banned" | "daily-off" | "hidden" };
 
 export type MarketResult =
   | { ok: true; coins: number; owned: number; price: number }
@@ -83,7 +83,9 @@ function banned(v: Viewer): boolean {
 /** Coins spent on a market buy, honouring today's discount (recomputed here). */
 export function marketPriceFor(keenId: string, date: Date = new Date()): number | null {
   const keen = KEEN_BY_ID[keenId];
-  if (!keen) return null;
+  // A Keen that is given out has no price. Returning null here (rather than a
+  // number nobody may charge) is what keeps the market honest end to end.
+  if (!keen || !RARITY_META[keen.rarity].tradeable) return null;
   const deal = dailyDeals(dayKey(date)).find((d) => d.keen.id === keenId);
   return deal ? deal.price : marketPrice(keen);
 }
@@ -97,6 +99,9 @@ async function logActivity(username: string, action: string) {
 export async function openPack(profileId: string, packId: string, count: number): Promise<OpenResult> {
   const pack = PACK_BY_ID[packId];
   if (!pack) return { ok: false, error: "pack" };
+  // A pack that is off the shelf cannot be opened even by a request that names it
+  // outright: the shop and the server agree, so a stale page cannot buy one.
+  if (pack.hidden) return { ok: false, error: "hidden" };
   if (!pack.sizes.includes(count)) return { ok: false, error: "count" };
 
   const v = await viewer(profileId);
@@ -193,7 +198,7 @@ export async function openPack(profileId: string, packId: string, count: number)
 
 export async function buyKeen(profileId: string, keenId: string, count = 1): Promise<MarketResult> {
   const keen = KEEN_BY_ID[keenId];
-  if (!keen || count < 1 || count > 5) return { ok: false, error: "keen" };
+  if (!keen || !RARITY_META[keen.rarity].tradeable || count < 1 || count > 5) return { ok: false, error: "keen" };
 
   const v = await viewer(profileId);
   if (!v) return { ok: false, error: "auth" };
@@ -242,7 +247,7 @@ export async function buyKeen(profileId: string, keenId: string, count = 1): Pro
 
 export async function sellKeen(profileId: string, keenId: string, count = 1): Promise<MarketResult> {
   const keen = KEEN_BY_ID[keenId];
-  if (!keen || count < 1 || count > 99) return { ok: false, error: "keen" };
+  if (!keen || !RARITY_META[keen.rarity].tradeable || count < 1 || count > 99) return { ok: false, error: "keen" };
 
   const v = await viewer(profileId);
   if (!v) return { ok: false, error: "auth" };
@@ -308,7 +313,7 @@ export async function sellAllDuplicates(
   });
   const spare = rows
     .map((r) => ({ keenId: r.keenId, extra: Math.max(0, r.count - 1), keen: KEEN_BY_ID[r.keenId] }))
-    .filter((r) => r.keen && r.extra > 0);
+    .filter((r) => r.keen && r.extra > 0 && RARITY_META[r.keen.rarity].tradeable);
   if (!spare.length) return { ok: false, error: "none-owned" };
 
   const earned = spare.reduce((a, r) => a + sellPrice(r.keen!) * r.extra, 0);
