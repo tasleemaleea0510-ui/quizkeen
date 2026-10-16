@@ -33,7 +33,15 @@ function seeded(seed: number) {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // ?art=1 returns the raw bitmaps, so the shapes can be eyeballed as text.
+  if (new URL(req.url).searchParams.has("art")) {
+    const art = { ...KEEN_SPRITES, halloween_emblem: HALLOWEEN_EMBLEM };
+    return NextResponse.json(
+      Object.fromEntries(Object.entries(art).map(([name, s]) => [name, { rows: s.rows, alt: s.alt, board: s.board }]))
+    );
+  }
+
   const checks: { name: string; pass: boolean; info?: unknown }[] = [];
   const check = (name: string, pass: boolean, info?: unknown) => checks.push({ name, pass, info });
 
