@@ -407,7 +407,6 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
       R: "#b91c1c",
       P: "#6d28d9",
       p: "#4c1d95",
-      // eslint-disable-next-line no-unused-vars
     },
     rows: [
       "..Y..Y..Y..Y..Y.",
@@ -415,7 +414,7 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
       "..yyyyyyyyyyyy..",
       "KKOOOOOOOOOOOOKK",
       "KKOWWOOOOOOWWOKK",
-      "RROWWO OOOWWO ORR".replace(" ", ""),
+      "RROWWO OOOOOOWWO RR",
       "KKOOOOOOOOOOOOKK",
       "KKOKKKKKKKKKKOKK",
       "GGooooooooooooGG",
