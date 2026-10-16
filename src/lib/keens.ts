@@ -585,9 +585,10 @@ export const DEALS_PER_DAY = 3;
  * browser that shows the sticker agree — no "the deal changed under me" bugs.
  */
 export function dailyDeals(dateKey: string): { keen: Keen; price: number; off: number }[] {
-  // Kroma Keens are the top of the market and never get discounted, and a
-  // Keen that is handed out has no price to discount in the first place.
-  const pool = KEENS.filter((k) => k.rarity !== "KROMA" && RARITY_META[k.rarity].tradeable);
+  // MARKET_KEENS, not every Keen: a deal has to be something the market can
+  // actually sell. Kroma Keens are the top of the market and never get
+  // discounted, and a Keen that is handed out has no price to discount at all.
+  const pool = MARKET_KEENS.filter((k) => k.rarity !== "KROMA");
   let seed = 0;
   for (let i = 0; i < dateKey.length; i++) seed = (seed * 31 + dateKey.charCodeAt(i)) >>> 0;
   const used = new Set<number>();

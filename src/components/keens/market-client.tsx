@@ -77,6 +77,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
    * hold, but nothing can be bought that no pack could ever give you again.
    */
   const shelf = React.useMemo(() => [...MARKET_KEENS, ...retiredKeens(owned)], [owned]);
+  const retiredIds = React.useMemo(() => new Set(retiredKeens(owned).map((k) => k.id)), [owned]);
 
   const list = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -166,7 +167,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
     }
   }
 
-  const affordable = list.filter((k) => (owned[k.id] ?? 0) === 0 && live.coins >= priceOf(k)).length;
+  const affordable = list.filter((k) => !retiredIds.has(k.id) && (owned[k.id] ?? 0) === 0 && live.coins >= priceOf(k)).length;
 
   return (
     <div className="space-y-6">
@@ -349,7 +350,9 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
             const have = owned[keen.id] ?? 0;
             const price = priceOf(keen);
             const deal = dealByKeen.get(keen.id);
-            const canBuy = live.coins >= price && !live.coinsFrozen;
+            // Retired: you can cash in the one you own, never buy another.
+            const retired = retiredIds.has(keen.id);
+            const canBuy = !retired && live.coins >= price && !live.coinsFrozen;
             return (
               <KeenCard
                 key={keen.id}
@@ -357,7 +360,11 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
                 owned={have}
                 index={i}
                 badge={
-                  deal ? (
+                  retired ? (
+                    <span className="absolute -left-1.5 -top-1.5 rounded-full border border-slate-500/40 bg-slate-950/90 px-1.5 py-px text-[9px] font-extrabold text-slate-300">
+                      Utgången
+                    </span>
+                  ) : deal ? (
                     <span
                       data-no-translate
                       className="absolute -left-1.5 -top-1.5 rounded-full border border-amber-400/50 bg-amber-500 px-1.5 py-px text-[10px] font-extrabold text-amber-950 shadow-raise animate-keen-pulse"
@@ -378,19 +385,25 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
                         {price} mynt
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      disabled={!canBuy || busy !== null}
-                      onClick={() => buy(keen)}
-                      className={cn(
-                        "rounded-lg px-2 py-1.5 text-[11px] font-extrabold transition-all",
-                        canBuy && !busy
-                          ? "bg-indigo-500/15 text-indigo-200 ring-1 ring-inset ring-indigo-400/30 hover:bg-indigo-500/30"
-                          : "cursor-not-allowed bg-slate-800 text-slate-500"
-                      )}
-                    >
-                      {busy === `buy-${keen.id}` ? "…" : "Köp"}
-                    </button>
+                    {retired ? (
+                      <span className="rounded-lg bg-slate-800/60 px-2 py-1.5 text-[11px] font-extrabold text-slate-500">
+                        Går inte att köpa
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!canBuy || busy !== null}
+                        onClick={() => buy(keen)}
+                        className={cn(
+                          "rounded-lg px-2 py-1.5 text-[11px] font-extrabold transition-all",
+                          canBuy && !busy
+                            ? "bg-indigo-500/15 text-indigo-200 ring-1 ring-inset ring-indigo-400/30 hover:bg-indigo-500/30"
+                            : "cursor-not-allowed bg-slate-800 text-slate-500"
+                        )}
+                      >
+                        {busy === `buy-${keen.id}` ? "…" : "Köp"}
+                      </button>
+                    )}
                     {have > 1 && (
                       <button
                         type="button"
@@ -444,8 +457,8 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
           </ol>
         )}
         <p className="mt-3 text-[11px] text-slate-500">
-          Keens kommer från flera teman. Paketen som är till salu just nu står överst — resten av Keens går att köpa i
-          marknaden. Ju sällsyntare, desto dyrare.
+          Marknaden säljer Keens som paketen i butiken kan ge. En Keen från ett paket som tagits bort syns bara om du
+          redan har den, och då kan du sälja den — men inte köpa fler.
         </p>
       </section>
 

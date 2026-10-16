@@ -26,6 +26,7 @@ const KEEN_ERRORS: Record<string, string> = {
   banned: "Ditt konto är avstängt och kan inte handla.",
   "daily-off": "Daglig bonus är avstängd på ditt konto.",
   keen: "Den Keen finns inte.",
+  retired: "Den Keen går inte att köpa längre — paketet den kom ifrån är inte till salu.",
   "none-owned": "Du äger ingen sådan Keen att sälja.",
   none: "Inget att sälja.",
   server: "Servern hann inte med — inga mynt drogs. Försök igen!",

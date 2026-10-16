@@ -29,6 +29,7 @@ import {
   dayKey,
   dailyDeals,
   freePackWait,
+  isObtainable,
   isObtainableId,
   marketPrice,
   rollKeen,
@@ -52,7 +53,7 @@ export type OpenResult =
 
 export type MarketResult =
   | { ok: true; coins: number; owned: number; price: number }
-  | { ok: false; error: "auth" | "keen" | "coins" | "frozen" | "banned" | "none" | "none-owned" };
+  | { ok: false; error: "auth" | "keen" | "retired" | "coins" | "frozen" | "banned" | "none" | "none-owned" };
 
 type Viewer = {
   id: string;
@@ -216,6 +217,10 @@ export async function openPack(profileId: string, packId: string, count: number)
 export async function buyKeen(profileId: string, keenId: string, count = 1): Promise<MarketResult> {
   const keen = KEEN_BY_ID[keenId];
   if (!keen || !RARITY_META[keen.rarity].tradeable || count < 1 || count > 5) return { ok: false, error: "keen" };
+  // Only what a pack on sale can still drop is for sale. A Keen from a pack that
+  // left the shelf can still be sold if you own it (see `sellKeen`), but it must
+  // not be buyable, or the collection total would stop meaning anything.
+  if (!isObtainable(keen)) return { ok: false, error: "retired" };
 
   const v = await viewer(profileId);
   if (!v) return { ok: false, error: "auth" };
