@@ -2,96 +2,74 @@
 import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import { KEEN_BY_ID, type Keen } from "@/lib/keens";
-import { KEEN_SPRITES } from "@/lib/keen-sprites";
+import { keenArtDataUri } from "@/lib/keen-art";
 import { wornIdFromCookieString } from "@/lib/worn";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
 const WORLD_END = 170000;
 const RUN_SPEED = 270;
-const KEEN_TEX = 52;
+/** How big the runner is drawn on screen. */
+const KEEN_RUNNER = 60;
+/** Texture resolution: 4× the runner, so the SVG rasterises crisp. */
+const KEEN_TEX = 256;
 
 /**
- * Draw a Keen into a Phaser texture, once per Keen per game.
+ * Turn a Keen into a Phaser texture, once per Keen per game.
  *
- * The runner you steer in the lobby is your Keen: the hand-pixelled ones are
- * rasterised pixel for pixel (the same bitmaps the collection draws with
- * `PixelSprite`), everyone else gets their hue as a rounded tile with their own
- * emoji on it — the same way `KeenAvatar` draws them. If anything at all goes
- * wrong the caller keeps the plain coloured player, so the minigame can never be
- * broken by a character.
+ * The runner you steer in the lobby is the *same* drawing as the card in your
+ * collection — `keen-art.ts` renders it to an SVG data URI, the browser decodes
+ * that, and Phaser keeps the resulting image. Nothing is re-drawn by hand here,
+ * which is why the admin dragon, the vampire frog and the starter Keens all look
+ * in the minigame exactly like they look on the shelf.
+ *
+ * It resolves to `null` on any failure, and the caller keeps the plain coloured
+ * player, so a character can never break the game.
  */
-function keenTextureKey(keenId: string): string {
-  return `keen-${keenId}`;
+const keenTextureCache = new WeakMap<Phaser.Scene, Map<string, Promise<string | null>>>();
+
+function ensureKeenTexture(scene: Phaser.Scene, keen: Keen): Promise<string | null> {
+  const key = `keen-${keen.id}`;
+  if (scene.textures.exists(key)) return Promise.resolve(key);
+
+  let cache = keenTextureCache.get(scene);
+  if (!cache) {
+    cache = new Map();
+    keenTextureCache.set(scene, cache);
+  }
+  const pending = cache.get(key);
+  if (pending) return pending;
+
+  const job = new Promise<string | null>((resolve) => {
+    if (typeof Image === "undefined") return resolve(null);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        if (scene.textures.exists(key)) return resolve(key);
+        const tex = scene.textures.addImage(key, img);
+        resolve(tex ? key : null);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = keenArtDataUri(keen, KEEN_TEX);
+  });
+
+  cache.set(key, job);
+  return job;
 }
 
-function ensureKeenTexture(scene: Phaser.Scene, keen: Keen): string | null {
-  const key = keenTextureKey(keen.id);
-  if (scene.textures.exists(key)) return key;
-
-  try {
-    const size = KEEN_TEX;
-    const tile = scene.make.graphics({ x: 0, y: 0 }, false);
-    const face = Phaser.Display.Color.HSLToColor(keen.hue / 360, 0.62, 0.5).color;
-    const deep = Phaser.Display.Color.HSLToColor(keen.hue / 360, 0.7, 0.28).color;
-    tile.fillStyle(0x05060f, 1).fillRoundedRect(0, 0, size, size, 13);
-    tile.fillStyle(face, 1).fillRoundedRect(3, 3, size - 6, size - 6, 11);
-    tile.fillStyle(deep, 1).fillRoundedRect(3, size * 0.62, size - 6, size * 0.32, 8);
-
-    const rt = scene.make.renderTexture({ x: 0, y: 0, width: size, height: size }, false);
-    const sprite = KEEN_SPRITES[keen.id];
-    if (sprite) {
-      // Pixel art: every run of one colour becomes one rect, exactly like the
-      // SVG renderer does, scaled to fit the tile.
-      const px = Math.max(1, Math.floor((size - 10) / Math.max(sprite.rows[0].length, sprite.rows.length)));
-      const w = sprite.rows[0].length * px;
-      const h = sprite.rows.length * px;
-      const ox = Math.floor((size - w) / 2);
-      const oy = Math.floor((size - h) / 2);
-      const art = scene.make.graphics({ x: 0, y: 0 }, false);
-      sprite.rows.forEach((row, y) => {
-        let x = 0;
-        while (x < row.length) {
-          const letter = row[x];
-          const fill = sprite.palette[letter];
-          if (!fill) {
-            x += 1;
-            continue;
-          }
-          let run = 1;
-          while (x + run < row.length && row[x + run] === letter) run += 1;
-          art.fillStyle(Phaser.Display.Color.HexStringToColor(fill).color, 1);
-          art.fillRect(ox + x * px, oy + y * px, run * px, px);
-          x += run;
-        }
-      });
-      rt.draw(tile);
-      rt.draw(art);
-      art.destroy();
-    } else {
-      const label = scene.make.text(
-        {
-          x: 0,
-          y: 0,
-          text: keen.emoji,
-          style: {
-            fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-            fontSize: `${Math.round(size * 0.62)}px`,
-          },
-        },
-        false
-      );
-      rt.draw(tile);
-      rt.draw(label, (size - label.width) / 2, (size - label.height) / 2 - 2);
-      label.destroy();
-    }
-
-    tile.destroy();
-    rt.saveTexture(key);
-    rt.destroy();
-    return scene.textures.exists(key) ? key : null;
-  } catch {
-    return null;
-  }
+/** Swap a sprite that was created with a plain colour over to its Keen art. */
+function wearTexture(sprite: Phaser.Physics.Arcade.Sprite, keen: Keen | undefined) {
+  if (!keen) return;
+  const scene = sprite.scene;
+  ensureKeenTexture(scene, keen).then((key) => {
+    if (!key || !sprite.active) return;
+    sprite.setTexture(key);
+    sprite.setDisplaySize(KEEN_RUNNER, KEEN_RUNNER);
+    const body = sprite.body as Phaser.Physics.Arcade.Body | null;
+    if (body) body.setSize(KEEN_RUNNER, KEEN_RUNNER, true);
+  });
 }
 
 function colorIndexFor(name: string): number {
@@ -266,13 +244,11 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         ground.refreshBody();
         ground.setDepth(5);
 
-        const mine = KEEN_BY_ID[wornKeenId ?? ""];
-        const myTexture = (mine && ensureKeenTexture(this, mine)) || `player-${myColor}`;
-        this.player = this.physics.add.sprite(120, 200, myTexture);
-        if (myTexture !== `player-${myColor}`) {
-          this.player.setDisplaySize(56, 56);
-          (this.player.body as Phaser.Physics.Arcade.Body).setSize(56, 56).setOffset(0, 0);
-        }
+        this.player = this.physics.add.sprite(120, 200, `player-${myColor}`);
+        // The Keen art arrives asynchronously (an SVG has to be decoded first), so
+        // the player exists from the first frame as a coloured runner and wears
+        // its character a moment later.
+        wearTexture(this.player, KEEN_BY_ID[wornKeenId ?? ""]);
         this.player.setCollideWorldBounds(true);
         this.player.setDepth(8);
         const pb = this.player.body as Phaser.Physics.Arcade.Body;
@@ -528,9 +504,8 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
         // Wear their Keen too, so a lobby looks like a room full of characters
         // rather than a room full of squares.
         const theirKeen = k ? KEEN_BY_ID[k] : undefined;
-        const theirTexture = (theirKeen && ensureKeenTexture(scene, theirKeen)) || `player-${c}`;
-        s = scene.physics.add.sprite(x, y, theirTexture);
-        if (theirTexture !== `player-${c}`) s.setDisplaySize(56, 56);
+        s = scene.physics.add.sprite(x, y, `player-${c}`);
+        wearTexture(s, theirKeen);
         s.setDepth(8);
         const sb = s.body as Phaser.Physics.Arcade.Body;
         if (sb) {
