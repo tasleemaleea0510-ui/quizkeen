@@ -46,11 +46,10 @@ has no odds, `rollKeen` can never reach it either.
   Legendary, below Kroma. It is tradeable, just very unlikely to drop.
 
 The Gamer pack's odds are the design document's own — `57,3 / 37 / 5,01 / 0,67 /
-0,02` — and its artwork is pixel art drawn in code: `src/lib/keen-sprites.ts`
-holds the bitmaps and `src/components/keens/pixel-sprite.tsx` draws them as SVG,
-so there is still no image file to ship, host or lose. `KeenAvatar` prefers a
-sprite when the Keen has one and falls back to the hue tile plus emoji for the
-rest of the catalogue.
+0,02` — and its artwork is drawn in code: `src/lib/keen-art.ts` holds one recipe
+per Keen, the pixel-led ones on a fixed rectangle grid and the rest as curves, so
+there is still no image file to ship, host or lose. The same drawing is both the
+card in the collection and the round runner in the minigame.
 
 ## Automatic sync (auto-commit + auto-push)
 

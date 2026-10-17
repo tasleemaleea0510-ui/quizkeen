@@ -9,15 +9,13 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "check:sprites": "node scripts/check-sprites.mjs",
     "autocommit": "node scripts/auto-git.mjs"
   },
   "dependencies": {
-   "peerjs": "^1.5.4",
+    "peerjs": "^1.5.4",
     "@prisma/client": "^5.14.0",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.4",
-    
     "clsx": "^2.1.1",
     "lucide-react": "^0.378.0",
     "phaser": "^3.80.1",

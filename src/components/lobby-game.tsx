@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import { KEEN_BY_ID, type Keen } from "@/lib/keens";
-import { keenArtDataUri } from "@/lib/keen-art";
+import { keenRunnerDataUri } from "@/lib/keen-art";
 import { wornIdFromCookieString } from "@/lib/worn";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
@@ -10,17 +10,18 @@ const WORLD_END = 170000;
 const RUN_SPEED = 270;
 /** How big the runner is drawn on screen. */
 const KEEN_RUNNER = 60;
-/** Texture resolution: 4× the runner, so the SVG rasterises crisp. */
-const KEEN_TEX = 256;
+/** Texture resolution: just over 2× the runner, plenty for a token. */
+const KEEN_TEX = 128;
 
 /**
  * Turn a Keen into a Phaser texture, once per Keen per game.
  *
  * The runner you steer in the lobby is the *same* drawing as the card in your
- * collection — `keen-art.ts` renders it to an SVG data URI, the browser decodes
- * that, and Phaser keeps the resulting image. Nothing is re-drawn by hand here,
- * which is why the admin dragon, the vampire frog and the starter Keens all look
- * in the minigame exactly like they look on the shelf.
+ * collection, in its round-token form: `keen-art.ts` renders it to an SVG data
+ * URI, the browser decodes that, and Phaser keeps the resulting image. A square
+ * card shrunk to 60 px read as a coloured blob, which is why the minigame now
+ * uses the runner frame — the character fills a circle instead of sitting on a
+ * card nobody can read.
  *
  * It resolves to `null` on any failure, and the caller keeps the plain coloured
  * player, so a character can never break the game.
@@ -28,7 +29,7 @@ const KEEN_TEX = 256;
 const keenTextureCache = new WeakMap<Phaser.Scene, Map<string, Promise<string | null>>>();
 
 function ensureKeenTexture(scene: Phaser.Scene, keen: Keen): Promise<string | null> {
-  const key = `keen-${keen.id}`;
+  const key = `keen-runner-${keen.id}`;
   if (scene.textures.exists(key)) return Promise.resolve(key);
 
   let cache = keenTextureCache.get(scene);
@@ -52,7 +53,7 @@ function ensureKeenTexture(scene: Phaser.Scene, keen: Keen): Promise<string | nu
       }
     };
     img.onerror = () => resolve(null);
-    img.src = keenArtDataUri(keen, KEEN_TEX);
+    img.src = keenRunnerDataUri(keen, KEEN_TEX);
   });
 
   cache.set(key, job);
@@ -68,7 +69,9 @@ function wearTexture(sprite: Phaser.Physics.Arcade.Sprite, keen: Keen | undefine
     sprite.setTexture(key);
     sprite.setDisplaySize(KEEN_RUNNER, KEEN_RUNNER);
     const body = sprite.body as Phaser.Physics.Arcade.Body | null;
-    if (body) body.setSize(KEEN_RUNNER, KEEN_RUNNER, true);
+    // Bodies are sized in texture pixels, not display pixels: using the runner
+    // size here left the actual hitbox at less than half the visible token.
+    if (body) body.setSize(sprite.width, sprite.height, true);
   });
 }
 
@@ -500,11 +503,18 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       scene.remote[name] = { x, y, vx, vy, at: now };
 
       let s = scene.others[name];
+      // Someone changed the Keen they are wearing mid-lobby: swap the texture
+      // rather than leaving them as the character they arrived in.
+      if (s && s.getData("keen") !== (k ?? null)) {
+        s.setData("keen", k ?? null);
+        wearTexture(s, k ? KEEN_BY_ID[k] : undefined);
+      }
       if (!s) {
         // Wear their Keen too, so a lobby looks like a room full of characters
         // rather than a room full of squares.
         const theirKeen = k ? KEEN_BY_ID[k] : undefined;
         s = scene.physics.add.sprite(x, y, `player-${c}`);
+        s.setData("keen", k ?? null);
         wearTexture(s, theirKeen);
         s.setDepth(8);
         const sb = s.body as Phaser.Physics.Arcade.Body;

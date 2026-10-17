@@ -17,8 +17,6 @@
  * like one set.
  */
 
-import { KEEN_SPRITES } from "./keen-sprites";
-
 export type ArtKeen = {
   id: string;
   hue: number;
@@ -191,6 +189,32 @@ type Shape =
   | "rainbow"
   | "butterfly";
 
+/**
+ * The rounded square a Keen is printed on.
+ *
+ * Every Keen used to sit on the same violet tile, which made the plate fight the
+ * character: a green alien on a green-lit violet tile read as one muddy blob at
+ * 60 px. A plate is now part of the art direction — near-black for the Gamer
+ * pack, neon-framed for the secret, deep purple for the Admin Keen — and the
+ * glow behind the character defaults to the Keen's own hue.
+ */
+type Plate = {
+  from: string;
+  to: string;
+  /** Colour of the light behind the character. Defaults to the Keen's hue. */
+  glow?: string;
+};
+
+const VIOLET_PLATE: Plate = { from: hsl(262, 58, 38), to: hsl(262, 72, 15) };
+/** The Gamer pack's arcade black, with the lime glow the design sheet shows. */
+const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#7cf03a" };
+/** A mossy green corner for the Creeper, so the face reads as a block in grass. */
+const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#57c33f" };
+/** Pixel Thorne: black board, neon frame drawn by the character itself. */
+const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#ff2fd0" };
+/** The Admin Keen's purple, taken from the design sheet. */
+const ROYAL_PLATE: Plate = { from: "#8b3ae0", to: "#4c1594", glow: "#c084fc" };
+
 type Recipe = {
   shape: Shape;
   eyes?: Eyes;
@@ -200,8 +224,8 @@ type Recipe = {
   colors?: Partial<Colors>;
   /** Hand-drawn in `CUSTOM` instead of the generic parts. */
   custom?: Custom;
-  /** Gamer pack: the bitmap in `lib/keen-sprites.ts` is the artwork. */
-  pixel?: boolean;
+  /** The tile this Keen is printed on. */
+  plate?: Plate;
   /** Override the face position for tall or wide silhouettes. */
   face?: { cx?: number; cy?: number; gap?: number; r?: number; mouthY?: number };
   /** Skip the plate gloss (busy drawings read better without it). */
@@ -218,6 +242,11 @@ type Custom =
   | "cookieMummy"
   | "cookiePumpkin"
   | "pumpkinKing"
+  | "invader"
+  | "crewmate"
+  | "chubbypig"
+  | "creeper"
+  | "pixelthorne"
   | "chroma";
 
 const RECIPES: Record<string, Recipe> = {
@@ -294,11 +323,15 @@ const RECIPES: Record<string, Recipe> = {
   kromakrona: { shape: "blob", extras: ["crown"], eyes: "sparkle", mouth: "grin", custom: "chroma" },
 
   // ── Gamerpaketet ───────────────────────────────────────────────────────────
-  invader: { shape: "blob", pixel: true },
-  crewmate: { shape: "blob", pixel: true },
-  chubbypig: { shape: "blob", pixel: true },
-  creeper: { shape: "blob", pixel: true },
-  pixelthorne: { shape: "blob", pixel: true },
+  // The pack is pixel-led, but the reference sheet is not all one style: the
+  // alien, the creeper and Pixel Thorne are blocky, the Crewmate and the pig are
+  // smooth cartoons. Each is drawn the way the sheet draws it, on a dark plate
+  // so a bright green character has somewhere to sit.
+  invader: { shape: "blob", custom: "invader", noGloss: true, plate: DARK_PLATE },
+  crewmate: { shape: "blob", custom: "crewmate", noGloss: true },
+  chubbypig: { shape: "blob", custom: "chubbypig", noGloss: true },
+  creeper: { shape: "blob", custom: "creeper", noGloss: true, plate: MOSS_PLATE },
+  pixelthorne: { shape: "blob", custom: "pixelthorne", noGloss: true, plate: VOID_PLATE },
 
   // ── Halloweenpaketet ───────────────────────────────────────────────────────
   pumpkin: { shape: "pumpkin", custom: "halloweenPumpkin" },
@@ -311,7 +344,7 @@ const RECIPES: Record<string, Recipe> = {
   pumpkinking: { shape: "pumpkin", custom: "pumpkinKing" },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
-  omeisaurus: { shape: "blob", custom: "omeisaurus", noGloss: true },
+  omeisaurus: { shape: "blob", custom: "omeisaurus", noGloss: true, plate: ROYAL_PLATE },
 };
 
 const DEFAULT_RECIPE: Recipe = { shape: "blob", eyes: "big", mouth: "smile" };
@@ -752,101 +785,174 @@ function buildExtras(list: Extra[], c: Colors): { back: string; front: string } 
 
 /* ── Pixel Keens ─────────────────────────────────────────────────────────── */
 
-function pixelLayer(id: string): string | null {
-  const sprite = KEEN_SPRITES[id];
-  if (!sprite) return null;
-  const cols = Math.max(...sprite.rows.map((r) => r.length));
-  const rows = sprite.rows.length;
-  const box = 56;
-  const scale = Math.floor(box / Math.max(cols, rows)) || 1;
-  const w = cols * scale;
-  const h = rows * scale;
-  const ox = (100 - w) / 2;
-  const oy = (100 - h) / 2 + 2;
+type PixelBox = { x: number; y: number; cell: number };
 
+/**
+ * A bitmap on a chosen pixel grid, drawn as solid rectangles.
+ *
+ * `rows` is one string per pixel row and `.` is transparent. Rects are grown by
+ * a hair on the right and bottom (0.25 of a unit) so neighbours overlap instead
+ * of leaving a seam when the browser scales the SVG — the one artefact that made
+ * the old pixel Keens look noisy at 60 px.
+ */
+function pixelRows(rows: string[], palette: Record<string, string>, box: PixelBox): string {
   let out = "";
-  sprite.rows.forEach((row, y) => {
-    let x = 0;
-    while (x < row.length) {
-      const letter = row[x];
-      const fill = sprite.palette[letter];
+  rows.forEach((row, ry) => {
+    let rx = 0;
+    while (rx < row.length) {
+      const letter = row[rx];
+      const fill = palette[letter];
       if (!fill) {
-        x += 1;
+        rx += 1;
         continue;
       }
       let run = 1;
-      while (x + run < row.length && row[x + run] === letter) run += 1;
-      out += `<rect x="${ox + x * scale}" y="${oy + y * scale}" width="${run * scale}" height="${scale}" fill="${fill}"/>`;
-      x += run;
+      while (rx + run < row.length && row[rx + run] === letter) run += 1;
+      out += `<rect x="${box.x + rx * box.cell}" y="${box.y + ry * box.cell}" width="${run * box.cell + 0.25}" height="${box.cell + 0.25}" fill="${fill}"/>`;
+      rx += run;
     }
   });
   return out;
 }
 
+/** A deterministic spray of squares, for the board behind a pixel character. */
+function pixelNoise(size: number, cell: number, colors: string[]): string {
+  let out = "";
+  let seed = 7;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      if (seed % 100 < 46) continue;
+      out += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}" fill="${colors[seed % colors.length]}" opacity="${0.1 + ((seed >> 8) % 30) / 100}"/>`;
+    }
+  }
+  return out;
+}
+
 /* ── Hand-drawn characters ───────────────────────────────────────────────── */
 
-function customArt(kind: Custom, id: string, c: Colors): { back: string; body: string; front: string; face?: Built["face"] } {
+function customArt(
+  kind: Custom,
+  id: string,
+  c: Colors
+): { back: string; body: string; front: string; face?: Built["face"] | null; ornament?: boolean } {
   const grad = `url(#${id}-body)`;
 
   switch (kind) {
-    // The admin dragon: red scale plates, gold curls, small fangs, purple plate.
+    // Omeisaurus, straight off the Admin sheet: a wide red-orange dragon head
+    // filling the plate, gold flame curls over the brow and cheeks, two cream
+    // horns, big round eyes, a gold muzzle with a wide grin and two small fangs.
     case "omeisaurus":
       return {
-        back: `<ellipse cx="50" cy="92" rx="34" ry="7" fill="#000" opacity="0.25"/>`,
+        back: `<ellipse cx="50" cy="93" rx="33" ry="6" fill="#000" opacity="0.3"/>`,
         body:
-          `<path d="M18 44 q0 -22 22 -26 q-6 14 4 22 q6 -18 24 -18 q22 0 22 22 q0 10 -6 16 q8 6 4 16 q-4 10 -18 12 q-6 -8 -18 -8 q-12 0 -18 8 q-14 -2 -18 -12 q-4 -10 4 -16 q-6 -6 -6 -16 Z" fill="${grad}" stroke="#7f1d1d" stroke-width="2.4" stroke-linejoin="round"/>` +
-          `<path d="M24 46 q8 6 4 16 M76 46 q-8 6 -4 16" stroke="#fbbf24" stroke-width="2.4" fill="none" stroke-linecap="round"/>` +
-          `<path d="M30 34 q8 2 10 10 q-8 2 -10 -10 Z" fill="#fbbf24"/><path d="M70 34 q-8 2 -10 10 q8 2 10 -10 Z" fill="#fbbf24"/>` +
-          `<path d="M40 70 q10 6 20 0" stroke="#fbbf24" stroke-width="2.2" fill="none"/>` +
-          `<path d="M30 76 q6 8 4 14 M70 76 q-6 8 -4 14" stroke="#fbbf24" stroke-width="2" fill="none" opacity="0.85"/>`,
+          `<path d="M50 13c-9 0-19 2-26 10-6 7-9 18-9 31 0 14 5 24 14 30 8 5 14 7 21 7s13-2 21-7c9-6 14-16 14-30 0-13-3-24-9-31-7-8-17-10-26-10Z" fill="${grad}" stroke="#7f1d1d" stroke-width="2.4" stroke-linejoin="round"/>` +
+          `<path d="M18 54c0 16 4 27 12 34-6-9-8-21-8-34Z" fill="#ff9a5c" opacity="0.35"/>` +
+          `<path d="M82 54c0 16-4 27-12 34 6-9 8-21 8-34Z" fill="#8f1a10" opacity="0.4"/>`,
         front:
-          `<path d="M36 26 l-6 -12 l10 6 Z" fill="#fef3c7" stroke="#92400e" stroke-width="1.8"/>` +
-          `<path d="M64 26 l6 -12 l-10 6 Z" fill="#fef3c7" stroke="#92400e" stroke-width="1.8"/>` +
-          `<path d="M43 76 l2 7 l3 -7 Z" fill="#ffffff"/><path d="M52 76 l2 7 l3 -7 Z" fill="#ffffff" clip-rule="evenodd"/>`,
-        face: { cx: 50, cy: 52, gap: 14, r: 10, mouthY: 70 },
+          // horns
+          `<path d="M31 19c-1-7-6-12-12-14 0 8 4 14 10 18Z" fill="#ffe3a3" stroke="#a16207" stroke-width="2" stroke-linejoin="round"/>` +
+          `<path d="M69 19c1-7 6-12 12-14 0 8-4 14-10 18Z" fill="#ffe3a3" stroke="#a16207" stroke-width="2" stroke-linejoin="round"/>` +
+          // gold flame curls across the brow and down the cheeks
+          `<g fill="none" stroke="#f7c948" stroke-width="3.4" stroke-linecap="round">` +
+          `<path d="M50 20c4 5 4 10 0 15"/>` +
+          `<path d="M40 24c5 2 8 7 9 12"/>` +
+          `<path d="M60 24c-5 2-8 7-9 12"/>` +
+          `<path d="M27 37c5 4 7 10 6 17"/>` +
+          `<path d="M73 37c-5 4-7 10-6 17"/>` +
+          `<path d="M20 63c4 3 6 9 5 14"/>` +
+          `<path d="M80 63c-4 3-6 9-5 14"/>` +
+          `</g>` +
+          `<g fill="#f7c948"><circle cx="50" cy="17" r="2.6"/><path d="M23 52l3-5 3 5-3 5Z"/><path d="M77 52l-3-5-3 5 3 5Z"/></g>` +
+          // eyes
+          `<ellipse cx="34.5" cy="49" rx="13.5" ry="15" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
+          `<ellipse cx="65.5" cy="49" rx="13.5" ry="15" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
+          `<circle cx="36" cy="51" r="8.8" fill="#241318"/>` +
+          `<circle cx="64" cy="51" r="8.8" fill="#241318"/>` +
+          `<circle cx="33" cy="47" r="3.3" fill="#ffffff"/><circle cx="61" cy="47" r="3.3" fill="#ffffff"/>` +
+          `<circle cx="39.5" cy="55" r="1.6" fill="#ffffff" opacity="0.8"/><circle cx="67.5" cy="55" r="1.6" fill="#ffffff" opacity="0.8"/>` +
+          // muzzle, nostrils, grin
+          `<path d="M50 57c-9 0-17 3-21 9-4 6-1 13 6 16 5 2 10 3 15 3s10-1 15-3c7-3 10-10 6-16-4-6-12-9-21-9Z" fill="#ffc93c" stroke="#a9540b" stroke-width="2.2"/>` +
+          `<ellipse cx="46" cy="64" rx="2.2" ry="1.8" fill="#7f1d1d" opacity="0.7"/><ellipse cx="54" cy="64" rx="2.2" ry="1.8" fill="#7f1d1d" opacity="0.7"/>` +
+          `<path d="M34 71c4 7 10 10 16 10s12-3 16-10Z" fill="#5b120c"/>` +
+          `<path d="M42 76c2 3 5 4 8 4s6-1 8-4c-2 1-5 2-8 2s-6-1-8-2Z" fill="#e8552a"/>` +
+          `<path d="M35 77l3.4-7 3.4 7Z" fill="#fffaf0"/><path d="M57.2 77l3.4-7 3.4 7Z" fill="#fffaf0"/>` +
+          // gold jaw plates at the bottom corners
+          `<path d="M27 80c2 6 7 11 13 13l-3-10Z" fill="#f0b429" opacity="0.85"/><path d="M73 80c-2 6-7 11-13 13l3-10Z" fill="#f0b429" opacity="0.85"/>`,
+        face: null,
       };
 
-    // Vampire frog: green frog head, black bat wings, red cape, bow tie, full moon.
+    // Vampire frog, from the Halloween sheet: a full moon in a purple night, a
+    // red cape, a wide green frog head with two googly eyes on top, a grin with
+    // two fangs, and a black bat-wing bow tie with an orange knot.
     case "frogula":
       return {
         back:
-          `<circle cx="22" cy="24" r="13" fill="#fde68a" opacity="0.9"/><circle cx="27" cy="20" r="12" fill="#3b1d6e" opacity="0.85"/>` +
-          `<path d="M20 44 q-18 2 -17 20 q6 12 18 10 q-8 -16 -1 -30 Z" fill="#1b1030" stroke="#0b0618" stroke-width="1.6"/>` +
-          `<path d="M80 44 q18 2 17 20 q-6 12 -18 10 q8 -16 1 -30 Z" fill="#1b1030" stroke="#0b0618" stroke-width="1.6"/>` +
-          `<path d="M22 50 q28 -14 56 0 q8 26 -2 36 q-26 -8 -52 0 q-10 -10 -2 -36 Z" fill="#b91c1c" stroke="#7f1d1d" stroke-width="2"/>`,
+          `<circle cx="21" cy="19" r="15" fill="#ffe9a8" opacity="0.95"/>` +
+          `<circle cx="27" cy="14" r="4.5" fill="#f5d98a" opacity="0.8"/><circle cx="16" cy="24" r="3" fill="#f5d98a" opacity="0.7"/><circle cx="24" cy="26" r="2.2" fill="#f5d98a" opacity="0.6"/>` +
+          `<path d="M17 45c-9 2-14 12-13 24 1 12 9 19 21 19h50c12 0 20-7 21-19 1-12-4-22-13-24Z" fill="#c22030" stroke="#7f1d1d" stroke-width="2.2"/>` +
+          `<path d="M22 52c-6 4-9 12-8 21" stroke="#ef4444" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="round"/>`,
         body:
-          `<ellipse cx="33" cy="40" rx="13" ry="12" fill="${grad}" stroke="#14532d" stroke-width="2.2"/>` +
-          `<ellipse cx="67" cy="40" rx="13" ry="12" fill="${grad}" stroke="#14532d" stroke-width="2.2"/>` +
-          `<path d="M20 56 q0 -22 30 -22 q30 0 30 22 q0 24 -30 24 q-30 0 -30 -24 Z" fill="${grad}" stroke="#14532d" stroke-width="2.4"/>` +
-          `<path d="M30 40 q6 6 12 2" stroke="#14532d" stroke-width="2" fill="none" opacity="0.5"/>` +
-          `<ellipse cx="50" cy="76" rx="16" ry="7" fill="#dcfce7" opacity="0.55"/>`,
+          `<circle cx="32" cy="31" r="15" fill="${grad}" stroke="#14532d" stroke-width="2.2"/>` +
+          `<circle cx="68" cy="31" r="15" fill="${grad}" stroke="#14532d" stroke-width="2.2"/>` +
+          `<path d="M50 25c-13 0-24 3-30 10-4 5-6 12-6 20 0 13 5 21 13 25 7 4 15 5 23 5s16-1 23-5c8-4 13-12 13-25 0-8-2-15-6-20-6-7-17-10-30-10Z" fill="${grad}" stroke="#14532d" stroke-width="2.4" stroke-linejoin="round"/>` +
+          `<ellipse cx="50" cy="71" rx="22" ry="13" fill="#dcfce7" opacity="0.5"/>`,
         front:
-          `<path d="M35 66 l-13 -6 v12 Z" fill="#0b0618"/><path d="M65 66 l13 -6 v12 Z" fill="#0b0618"/>` +
-          `<circle cx="50" cy="66" r="4.6" fill="#f59e0b"/>` +
-          `<path d="M38 82 l2 8 l3 -8 Z" fill="#ffffff"/><path d="M50 82 l2 8 l3 -8 Z" fill="#ffffff"/>`,
-        face: { cx: 50, cy: 54, gap: 14, r: 9.5, mouthY: 76 },
+          `<circle cx="32" cy="29" r="11.5" fill="#ffffff" stroke="#14532d" stroke-width="2"/>` +
+          `<circle cx="68" cy="29" r="11.5" fill="#ffffff" stroke="#14532d" stroke-width="2"/>` +
+          `<circle cx="33" cy="30" r="5.6" fill="#101c10"/><circle cx="67" cy="30" r="5.6" fill="#101c10"/>` +
+          `<circle cx="31" cy="27.5" r="2.2" fill="#ffffff"/><circle cx="65" cy="27.5" r="2.2" fill="#ffffff"/>` +
+          `<circle cx="43" cy="49" r="1.8" fill="#14532d"/><circle cx="57" cy="49" r="1.8" fill="#14532d"/>` +
+          `<path d="M30 57c6 8 13 12 20 12s14-4 20-12" stroke="#14532d" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+          `<path d="M38 61l3 8 3-8Z" fill="#ffffff"/><path d="M56 61l3 8 3-8Z" fill="#ffffff"/>` +
+          `<path d="M48 76C39 69 25 64 14 69c-5 9 4 18 15 18 9 0 15-4 19-11Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
+          `<path d="M52 76c9-7 23-12 34-7 5 9-4 18-15 18-9 0-15-4-19-11Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
+          `<circle cx="50" cy="76" r="5.4" fill="#f59e0b" stroke="#7c2d12" stroke-width="1.4"/>` +
+          `<ellipse cx="34" cy="85" rx="9" ry="4.4" fill="#4ade80" stroke="#14532d" stroke-width="1.8"/>` +
+          `<ellipse cx="66" cy="85" rx="9" ry="4.4" fill="#4ade80" stroke="#14532d" stroke-width="1.8"/>`,
+        face: null,
       };
 
-    // The two "Kuben" birds: a yellow frame with a screen-like second face.
+    // The "Kuben" birds from the Halloween sheet: a chunky yellow cube with a
+    // face on the top half, a blue screen-face in a rounded frame underneath, and
+    // a red wattle hanging off the bottom edge. `chickCube` is the pale chick,
+    // `chickenCube` the deeper amber hen with a red comb instead of a pink one.
     case "chickCube":
     case "chickenCube": {
       const hen = kind === "chickenCube";
+      const shell = hen ? "#f7b23b" : "#ffd93d";
+      const shellEdge = hen ? "#c47a06" : "#c68a05";
+      const shellLight = hen ? "#ffd579" : "#fff0a1";
+      const comb = hen ? "#dc2626" : "#f472b6";
       return {
-        back: `<ellipse cx="50" cy="88" rx="30" ry="6" fill="#000" opacity="0.22"/>`,
+        back: `<ellipse cx="50" cy="89" rx="30" ry="5" fill="#000" opacity="0.22"/>`,
         body:
-          `<rect x="15" y="15" width="70" height="70" rx="24" fill="${hen ? "#f59e0b" : "#fde047"}" stroke="#b45309" stroke-width="2.6"/>` +
-          `<rect x="22" y="34" width="56" height="46" rx="17" fill="#7dd3fc" stroke="#0369a1" stroke-width="2.4"/>` +
-          `<ellipse cx="36" cy="24" rx="9" ry="10" fill="#ffffff" stroke="#b45309" stroke-width="1.4"/>` +
-          `<ellipse cx="64" cy="24" rx="9" ry="10" fill="#ffffff" stroke="#b45309" stroke-width="1.4"/>` +
-          `<circle cx="37" cy="26" r="4.6" fill="#111827"/><circle cx="63" cy="26" r="4.6" fill="#111827"/>` +
-          `<circle cx="35.5" cy="24" r="1.7" fill="#ffffff"/><circle cx="61.5" cy="24" r="1.7" fill="#ffffff"/>` +
-          `<path d="M46 15 q4 -11 12 -8 q-3 8 -12 8 Z" fill="${hen ? "#fbbf24" : "#fde047"}" stroke="#b45309" stroke-width="1.6"/>` +
-          `<path d="M31 44 q19 -6 38 0" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.55"/>`,
+          `<path d="M43 15c-3-8-1-13 5-16 1 7 3 11 7 15Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+          `<path d="M53 15c1-7 5-10 10-10-2 6-3 9-5 12Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+          `<path d="M36 16c-5-5-10-6-14-4 3 5 6 7 11 8Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+          `<rect x="13" y="13" width="74" height="73" rx="23" fill="${shell}" stroke="${shellEdge}" stroke-width="2.8"/>` +
+          `<path d="M23 20c6-5 14-6 22-5" stroke="#fffbe8" stroke-width="3.6" fill="none" stroke-linecap="round" opacity="0.6"/>`,
         front:
-          `<circle cx="50" cy="16" r="4.6" fill="${hen ? "#dc2626" : "#f472b6"}" stroke="#9d174d" stroke-width="1.2"/>` +
-          `<path d="M28 50 q4 10 0 16" stroke="#0369a1" stroke-width="2" fill="none" opacity="0.4"/>` +
-          `<path d="M72 50 q-4 10 0 16" stroke="#0369a1" stroke-width="2" fill="none" opacity="0.4"/>`,
-        face: { cx: 50, cy: 50, gap: 13, r: 8.5, mouthY: 68 },
+          // top face
+          `<ellipse cx="35" cy="36" rx="11" ry="12.5" fill="#ffffff" stroke="#a16207" stroke-width="1.6"/>` +
+          `<ellipse cx="65" cy="36" rx="11" ry="12.5" fill="#ffffff" stroke="#a16207" stroke-width="1.6"/>` +
+          `<circle cx="36" cy="38" r="6.6" fill="#181316"/><circle cx="64" cy="38" r="6.6" fill="#181316"/>` +
+          `<circle cx="33.5" cy="34.5" r="2.5" fill="#ffffff"/><circle cx="61.5" cy="34.5" r="2.5" fill="#ffffff"/>` +
+          `<circle cx="39" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/><circle cx="67" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/>` +
+          `<ellipse cx="21" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
+          `<ellipse cx="79" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
+          `<path d="M50 42l9 6-9 7-9-7Z" fill="#f97316" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>` +
+          // the screen face
+          `<rect x="20" y="55" width="60" height="26" rx="9" fill="#c7ecff" stroke="${shellEdge}" stroke-width="4"/>` +
+          `<path d="M26 62c4-3 9-4 14-3" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.8"/>` +
+          `<circle cx="39" cy="65" r="7.2" fill="#ffffff" stroke="#0369a1" stroke-width="1.2"/>` +
+          `<circle cx="61" cy="65" r="7.2" fill="#ffffff" stroke="#0369a1" stroke-width="1.2"/>` +
+          `<circle cx="39.6" cy="66" r="4.2" fill="#111827"/><circle cx="60.4" cy="66" r="4.2" fill="#111827"/>` +
+          `<circle cx="37.8" cy="64" r="1.5" fill="#ffffff"/><circle cx="58.6" cy="64" r="1.5" fill="#ffffff"/>` +
+          `<path d="M50 71l6 4-6 5-6-5Z" fill="#f97316" stroke="#c2410c" stroke-width="1.4" stroke-linejoin="round"/>` +
+          // wattle on the bottom edge
+          `<path d="M45 84c0 6 2 9 5 9s5-3 5-9Z" fill="${comb}" stroke="#9d174d" stroke-width="1.4"/>`,
+        face: null,
       };
     }
 
@@ -906,6 +1012,123 @@ function customArt(kind: Custom, id: string, c: Colors): { back: string; body: s
         face: { cx: 50, cy: 58, gap: 14, r: 10, mouthY: 80 },
       };
 
+    // ── Gamerpaketet ────────────────────────────────────────────────────────
+    // The alien is drawn on the 11×8 grid the arcade sprite actually uses, so it
+    // is chunky on purpose and identical at every size. Cell size is fixed, not
+    // scaled to fit, so the four pixels between the antennae stay four pixels.
+    case "invader":
+      return {
+        back: `<rect x="5" y="7" width="90" height="86" rx="23" fill="none" stroke="#7cf03a" stroke-width="1.6" opacity="0.3"/>`,
+        body: pixelRows(
+          [
+            "..X.....X..",
+            "...X...X...",
+            "..XXXXXXX..",
+            ".XX.XXX.XX.",
+            "XXXXXXXXXXX",
+            "X.XXXXXXX.X",
+            "X.X.....X.X",
+            "...XX.XX...",
+          ],
+          { X: "#7cf03a" },
+          { x: 17, y: 25, cell: 6 }
+        ),
+        front: "",
+        face: null,
+        ornament: true,
+      };
+
+    // The Crewmate is a clean vector bean, not a bitmap: the sheet draws it
+    // smooth, so it gets a curved body, a glossy visor and a little backpack.
+    case "crewmate":
+      return {
+        back: `<rect x="60" y="43" width="20" height="30" rx="8" fill="#8f1d24" stroke="#4a0a0f" stroke-width="2.4"/>`,
+        body:
+          `<path d="M50 12c-15 0-24 10-24 25v29c0 5 3 8 8 8h32c5 0 8-3 8-8V37c0-15-9-25-24-25Z" fill="${grad}" stroke="#4a0a0f" stroke-width="2.6"/>` +
+          `<rect x="34" y="64" width="14" height="23" rx="6" fill="${grad}" stroke="#4a0a0f" stroke-width="2.6"/>` +
+          `<rect x="52" y="64" width="14" height="23" rx="6" fill="${grad}" stroke="#4a0a0f" stroke-width="2.6"/>`,
+        front:
+          `<path d="M33 22c4-6 9-9 15-10" stroke="#ff9a9a" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>` +
+          `<rect x="36" y="30" width="34" height="24" rx="11" fill="#b8e6fb" stroke="#3d7f9e" stroke-width="2.2"/>` +
+          `<path d="M42 35c7-2 15-2 22 0" stroke="#ffffff" stroke-width="3.4" fill="none" stroke-linecap="round" opacity="0.85"/>` +
+          `<rect x="43" y="36" width="10" height="6" rx="3" fill="#ffffff" opacity="0.9"/>`,
+        face: null,
+      };
+
+    // Chubby Pig — the round green one from the sheet: ear flaps, heavy lids,
+    // a big light snout and a smirk.
+    case "chubbypig":
+      return {
+        back: "",
+        body:
+          `<path d="M50 15c-10 0-18 3-24 9-6 6-9 16-9 27v13c0 13 8 21 33 21s33-8 33-21V51c0-11-3-21-9-27-6-6-14-9-24-9Z" fill="${grad}" stroke="#2f6b18" stroke-width="2.6"/>` +
+          `<path d="M31 23c-2-8-6-12-12-13 1 8 4 13 9 16Z" fill="#6ecb3f" stroke="#2f6b18" stroke-width="2.2" stroke-linejoin="round"/>` +
+          `<path d="M69 23c2-8 6-12 12-13-1 8-4 13-9 16Z" fill="#6ecb3f" stroke="#2f6b18" stroke-width="2.2" stroke-linejoin="round"/>`,
+        front:
+          `<path d="M27 24c-1-4-3-7-6-8 1 4 2 7 5 9Z" fill="#8fd94f"/><path d="M73 24c1-4 3-7 6-8-1 4-2 7-5 9Z" fill="#8fd94f"/>` +
+          // heavy lids give the sheet's grumpy look
+          `<path d="M28 44c4-3 9-3 12 1" stroke="#2f6b18" stroke-width="2.6" fill="none" stroke-linecap="round"/>` +
+          `<path d="M60 45c3-4 8-4 12-1" stroke="#2f6b18" stroke-width="2.6" fill="none" stroke-linecap="round"/>` +
+          `<ellipse cx="36" cy="51" rx="7.4" ry="8.2" fill="#ffffff" stroke="#2f6b18" stroke-width="1.8"/>` +
+          `<ellipse cx="64" cy="51" rx="7.4" ry="8.2" fill="#ffffff" stroke="#2f6b18" stroke-width="1.8"/>` +
+          `<circle cx="37" cy="52" r="4.2" fill="#15230f"/><circle cx="63" cy="52" r="4.2" fill="#15230f"/>` +
+          `<circle cx="35.5" cy="50" r="1.4" fill="#ffffff"/><circle cx="61.5" cy="50" r="1.4" fill="#ffffff"/>` +
+          `<ellipse cx="50" cy="64" rx="17" ry="12" fill="#8fd94f" stroke="#2f6b18" stroke-width="2"/>` +
+          `<ellipse cx="44" cy="64" rx="2.6" ry="3.4" fill="#2f6b18"/><ellipse cx="56" cy="64" rx="2.6" ry="3.4" fill="#2f6b18"/>` +
+          `<path d="M31 76c6 6 12 9 19 9s13-3 19-9" stroke="#2f6b18" stroke-width="2.8" fill="none" stroke-linecap="round"/>`,
+        face: null,
+      };
+
+    // The Creeper is the only character that really is a block: an 8×8 face on
+    // a nine-pixel grid, mottled with two greens instead of noise.
+    case "creeper":
+      return {
+        back: "",
+        body: pixelRows(
+          [
+            "GHGHGGHG",
+            "GBBGGBBG",
+            "GBBGGBBG",
+            "HGGHGGHG",
+            "GGGBBGGG",
+            "GGBBBBGG",
+            "GGBBBBGG",
+            "HGGHBGGH",
+          ],
+          { G: "#57c33f", H: "#4ba834", B: "#0e2a0e" },
+          { x: 19, y: 19, cell: 7.75 }
+        ),
+        front: `<rect x="19" y="19" width="62" height="62" fill="none" stroke="#0e2a0e" stroke-width="1.4" opacity="0.5"/>`,
+        face: null,
+      };
+
+    // Pixel Thorne — the secret: a spiked shadow with a neon grin, on a black
+    // board with a pink neon frame and purple pixel spray.
+    case "pixelthorne": {
+      const spikes: string[] = [];
+      const radii = [34, 25, 33, 23, 35, 26, 32, 22, 34, 24, 35, 25, 33, 23, 34, 26, 32, 24, 35, 25];
+      radii.forEach((r, i) => {
+        const a = (i / radii.length) * Math.PI * 2 - Math.PI / 2;
+        const x = 50 + Math.cos(a) * r;
+        const y = 51 + Math.sin(a) * r;
+        spikes.push(`${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`);
+      });
+      return {
+        back:
+          `<g>${pixelNoise(20, 5, ["#a855f7", "#7e22ce", "#c084fc"])}</g>` +
+          `<rect x="8" y="8" width="84" height="84" rx="3" fill="none" stroke="#ff2fd0" stroke-width="2.6"/>` +
+          `<rect x="11" y="11" width="78" height="78" rx="2" fill="none" stroke="#ff2fd0" stroke-width="1" opacity="0.6"/>` +
+          `<rect x="8" y="8" width="84" height="84" rx="3" fill="none" stroke="#ff2fd0" stroke-width="6" opacity="0.18"/>`,
+        body:
+          `<path d="${spikes.join(" ")}Z" fill="#0f0a16" stroke="#3b1157" stroke-width="1.6" stroke-linejoin="round"/>`,
+        front:
+          `<path d="M36 38l9-4-2 8-7-1Z" fill="#5cf53c"/><path d="M64 38l-9-4 2 8 7-1Z" fill="#5cf53c"/>` +
+          `<path d="M33 55h34l-6 7-5-4-5 5-5-5-5 4Z" fill="#5cf53c"/>`,
+        face: null,
+        ornament: true,
+      };
+    }
+
     case "chroma":
       return { back: "", body: "", front: "" };
   }
@@ -913,13 +1136,42 @@ function customArt(kind: Custom, id: string, c: Colors): { back: string; body: s
 
 /* ── The renderer ────────────────────────────────────────────────────────── */
 
+/**
+ * The character alone: everything that is drawn on the plate, in back, body and
+ * front order.
+ *
+ * Split out of the card renderer so the minigame can draw the same character on
+ * a round runner token instead of a square card — one drawing, two frames, and
+ * no second copy of the art to keep in step.
+ */
+type Parts = { back: string; body: string; front: string; backIsPlate: boolean };
+
+function characterParts(recipe: Recipe, c: Colors, id: string): Parts {
+  const built = buildBody(recipe, id, c);
+  const extras = buildExtras(recipe.extras ?? [], c);
+  // Chroma Keens are drawn like everyone else — only the plate changes — so they
+  // fall through to the generic parts instead of a hand-drawn character.
+  const custom = recipe.custom && recipe.custom !== "chroma" ? customArt(recipe.custom, id, c) : null;
+  const face = { ...built.face, ...(custom?.face ?? {}), ...(recipe.face ?? {}) };
+  const faceMarkup =
+    custom?.face === null ? "" : regularFace(face, recipe.eyes ?? "big", recipe.mouth ?? "smile", c.line);
+
+  return {
+    back: (custom ? custom.back : "") + extras.back,
+    body: custom ? custom.body : built.body,
+    front: (custom ? custom.front : "") + extras.front + faceMarkup,
+    backIsPlate: Boolean(custom?.ornament),
+  };
+}
+
 export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: number } = {}): string {
   const id = `k${keen.id.replace(/[^a-z0-9]/gi, "")}`;
   const recipe = RECIPES[keen.id] ?? DEFAULT_RECIPE;
   const c = colorsFor(keen.hue, recipe.colors);
-  // Every plate is the same deep violet, with the Keen's own colour glowing
-  // behind it — one designed set instead of seventy unrelated backgrounds.
-  const tileHue = 262;
+  // The plate and the light behind the character are part of each Keen's art
+  // direction, not a shared violet tile that fights whatever is drawn on it.
+  const plate = recipe.plate ?? VIOLET_PLATE;
+  const glow = plate.glow ?? hsl(keen.hue, 95, 62);
   const label = escapeXml(keen.name);
   // Inline in React the drawing fills its box; as a data URI it needs real
   // pixel dimensions, because an `<img>` cannot resolve `100%` on its own.
@@ -941,17 +1193,7 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     );
   }
 
-  const built = buildBody(recipe, id, c);
-  const extras = buildExtras(recipe.extras ?? [], c);
-  // Chroma Keens are drawn like everyone else — only the plate changes — so they
-  // fall through to the generic parts instead of a hand-drawn character.
-  const custom = recipe.custom && recipe.custom !== "chroma" ? customArt(recipe.custom, id, c) : null;
-  const face = { ...built.face, ...(custom?.face ?? {}), ...(recipe.face ?? {}) };
-  const pixels = recipe.pixel ? pixelLayer(keen.id) : null;
-
-  const faceMarkup = pixels
-    ? ""
-    : regularFace(face, recipe.eyes ?? "big", recipe.mouth ?? "smile", c.line);
+  const parts = characterParts(recipe, c, id);
 
   const chroma = recipe.custom === "chroma"
     ? `<rect x="3" y="3" width="94" height="94" fill="url(#${id}-chroma)" opacity="0.92"/>`
@@ -961,8 +1203,8 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     `<svg ${NS} viewBox="0 0 100 100" ${dims} role="img" aria-label="${label}">` +
     `<defs>` +
     `<linearGradient id="${id}-tile" x1="0.15" y1="0" x2="0.75" y2="1">` +
-    `<stop offset="0" stop-color="${hsl(tileHue, 58, 38)}"/>` +
-    `<stop offset="1" stop-color="${hsl(tileHue, 72, 15)}"/>` +
+    `<stop offset="0" stop-color="${plate.from}"/>` +
+    `<stop offset="1" stop-color="${plate.to}"/>` +
     `</linearGradient>` +
     `<radialGradient id="${id}-tilegloss" cx="0.28" cy="0.12" r="0.62">` +
     `<stop offset="0" stop-color="#ffffff" stop-opacity="0.34"/>` +
@@ -970,9 +1212,9 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     `<stop offset="1" stop-color="#ffffff" stop-opacity="0"/>` +
     `</radialGradient>` +
     `<radialGradient id="${id}-glow" cx="0.5" cy="0.55" r="0.62">` +
-    `<stop offset="0" stop-color="${hsl(keen.hue, 95, 62)}" stop-opacity="0.55"/>` +
-    `<stop offset="0.7" stop-color="${hsl(keen.hue, 90, 50)}" stop-opacity="0.12"/>` +
-    `<stop offset="1" stop-color="${hsl(keen.hue, 90, 50)}" stop-opacity="0"/>` +
+    `<stop offset="0" stop-color="${glow}" stop-opacity="0.5"/>` +
+    `<stop offset="0.7" stop-color="${glow}" stop-opacity="0.12"/>` +
+    `<stop offset="1" stop-color="${glow}" stop-opacity="0"/>` +
     `</radialGradient>` +
     `<linearGradient id="${id}-body" x1="0.2" y1="0" x2="0.75" y2="1">` +
     `<stop offset="0" stop-color="${c.light}"/>` +
@@ -991,16 +1233,53 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     chroma +
     `<ellipse cx="50" cy="52" rx="47" ry="45" fill="url(#${id}-glow)"/>` +
     `<path d="M6 88 q22 -16 44 0 t44 -4 v14 H6 Z" fill="#000" opacity="0.18"/>` +
-    (custom ? custom.back : "") +
-    extras.back +
-    (custom ? custom.body : built.body) +
-    (pixels ? pixels : "") +
-    (custom ? custom.front : "") +
-    extras.front +
-    faceMarkup +
+    parts.back +
+    parts.body +
+    parts.front +
     (recipe.noGloss ? "" : `<rect x="3" y="3" width="94" height="94" fill="url(#${id}-tilegloss)"/>`) +
     `</g>` +
     `<rect x="3" y="3" width="94" height="94" rx="25" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.4"/>` +
+    `</svg>`
+  );
+}
+
+/**
+ * The minigame's runner token.
+ *
+ * The card is a stamp: a square plate with a character printed on it. At 60 px
+ * in a scrolling lobby that reads as a coloured blob, and the Admin dragon was
+ * the worst of them. So the runner drops the plate for a round token in the
+ * Keen's own colour, lifts the character to fill the frame and keeps a dark rim —
+ * the same trick a game avatar uses, and the character stays the same drawing.
+ */
+export function keenRunnerSvg(keen: ArtKeen, opts: { size?: number } = {}): string {
+  const id = `r${keen.id.replace(/[^a-z0-9]/gi, "")}`;
+  const recipe = RECIPES[keen.id] ?? DEFAULT_RECIPE;
+  const c = colorsFor(keen.hue, recipe.colors);
+  const parts = characterParts(recipe, c, id);
+  const dims = opts.size ? `width="${opts.size}" height="${opts.size}"` : 'width="100%" height="100%"';
+  const rim = recipe.plate?.glow ?? hsl(keen.hue, 90, 62);
+
+  return (
+    `<svg ${NS} viewBox="0 0 100 100" ${dims} role="img" aria-label="${escapeXml(keen.name)}">` +
+    `<defs>` +
+    `<linearGradient id="${id}-bg" x1="0.2" y1="0" x2="0.85" y2="1">` +
+    `<stop offset="0" stop-color="${hsl(keen.hue, 42, 30)}"/>` +
+    `<stop offset="1" stop-color="${hsl(keen.hue, 58, 10)}"/>` +
+    `</linearGradient>` +
+    `<clipPath id="${id}-clip"><circle cx="50" cy="50" r="46"/></clipPath>` +
+    `</defs>` +
+    `<circle cx="50" cy="50" r="46" fill="url(#${id}-bg)"/>` +
+    `<g clip-path="url(#${id}-clip)">` +
+    `<circle cx="50" cy="62" r="40" fill="${rim}" opacity="0.28"/>` +
+    `<g transform="translate(50 51) scale(1.2) translate(-50 -51)">` +
+    (parts.backIsPlate ? "" : parts.back) +
+    parts.body +
+    parts.front +
+    `</g>` +
+    `</g>` +
+    `<circle cx="50" cy="50" r="46" fill="none" stroke="#0b1120" stroke-width="3"/>` +
+    `<circle cx="50" cy="50" r="44" fill="none" stroke="#ffffff" stroke-opacity="0.24" stroke-width="1.6"/>` +
     `</svg>`
   );
 }
@@ -1031,6 +1310,11 @@ function regularFace(
  */
 export function keenArtDataUri(keen: ArtKeen, size = 256): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(keenArtSvg(keen, { size }))}`;
+}
+
+/** The round runner token, as a data URI — what the minigame rasterises. */
+export function keenRunnerDataUri(keen: ArtKeen, size = 128): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(keenRunnerSvg(keen, { size }))}`;
 }
 
 /** Ids with a hand-drawn recipe worth checking in the sprite test script. */
