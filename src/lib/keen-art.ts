@@ -1285,9 +1285,11 @@ export function keenRunnerSvg(keen: ArtKeen, opts: { size?: number } = {}): stri
   return (
     `<svg ${NS} viewBox="0 0 100 100" ${dims} role="img" aria-label="${escapeXml(keen.name)}">` +
     `<defs>` +
+    // The token is only lightly tinted by the Keen's hue: a strongly coloured
+    // backdrop swallowed the brighter characters (a lime alien on a lime disc).
     `<linearGradient id="${id}-bg" x1="0.2" y1="0" x2="0.85" y2="1">` +
-    `<stop offset="0" stop-color="${hsl(keen.hue, 42, 30)}"/>` +
-    `<stop offset="1" stop-color="${hsl(keen.hue, 58, 10)}"/>` +
+    `<stop offset="0" stop-color="${hsl(keen.hue, 24, 22)}"/>` +
+    `<stop offset="1" stop-color="${hsl(keen.hue, 34, 8)}"/>` +
     `</linearGradient>` +
     `<clipPath id="${id}-clip"><circle cx="50" cy="50" r="46"/></clipPath>` +
     // The character paints itself with this gradient, so the runner has to
@@ -1300,7 +1302,7 @@ export function keenRunnerSvg(keen: ArtKeen, opts: { size?: number } = {}): stri
     `</defs>` +
     `<circle cx="50" cy="50" r="46" fill="url(#${id}-bg)"/>` +
     `<g clip-path="url(#${id}-clip)">` +
-    `<circle cx="50" cy="62" r="40" fill="${rim}" opacity="0.28"/>` +
+    `<circle cx="50" cy="62" r="40" fill="${rim}" opacity="0.2"/>` +
     `<g transform="translate(50 49) scale(1.12) translate(-50 -49)">` +
     (parts.backIsPlate ? "" : parts.back) +
     parts.body +
