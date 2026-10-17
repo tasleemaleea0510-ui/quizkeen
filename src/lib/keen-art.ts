@@ -217,8 +217,12 @@ const VIOLET_PLATE: Plate = { from: hsl(262, 58, 38), to: hsl(262, 72, 15) };
 const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#122008" };
 /** A mossy green corner for the Creeper, so the face reads as a block in grass. */
 const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#16240f" };
-/** Pixel Thorne: black board, neon frame drawn by the character itself. */
-const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#2a0620" };
+/**
+ * Pixel Thorne: the sheet puts a black, spiky creature on a lit purple board
+ * inside a pink neon frame. The board has to be bright — a near-black plate hid
+ * the black character completely.
+ */
+const VOID_PLATE: Plate = { from: "#6d28d9", to: "#3b0764", glow: "#a21caf" };
 /** The Admin Keen's purple, taken from the design sheet. */
 const ROYAL_PLATE: Plate = { from: "#8b3ae0", to: "#4c1594", glow: "#c084fc" };
 
@@ -838,7 +842,7 @@ function pixelNoise(size: number, cell: number, colors: string[]): string {
     for (let x = 0; x < size; x++) {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       if (seed % 100 < 46) continue;
-      out += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}" fill="${colors[seed % colors.length]}" opacity="${0.1 + ((seed >> 8) % 30) / 100}"/>`;
+      out += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}" fill="${colors[seed % colors.length]}" opacity="${0.18 + ((seed >> 8) % 40) / 100}"/>`;
     }
   }
   return out;
