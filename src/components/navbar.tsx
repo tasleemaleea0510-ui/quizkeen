@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
+import WornKeen from "@/components/keens/worn-keen";
 import { getNavUser } from "@/app/system/actions";
 import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,9 @@ export default function Navbar() {
                     theme.glow ?? ""
                   )}
                 >
+                  {/* The Keen you are wearing, the way a profile picture works —
+                      your character rides along on every page in the app. */}
+                  <WornKeen size={24} className="-ml-1" />
                   <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-slate-400">
                     {theme.badge}
                   </span>

@@ -6,6 +6,7 @@ import CoinCounter from "@/components/keens/coin-counter";
 import KeensTabs from "@/components/keens/keens-tabs";
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { KEEN_BY_ID, RARITY_META, TOTAL_KEENS, collectorRank, type Keen } from "@/lib/keens";
+import { getWornKeen } from "@/lib/worn-server";
 
 /**
  * The Keens shell: who you are as a collector, on every Keens page.
@@ -25,6 +26,7 @@ export default async function KeensLayout({ children }: { children: React.ReactN
   const distinct = state?.distinct ?? 0;
   const percent = state ? Math.round((distinct / TOTAL_KEENS) * 100) : 0;
   const rank = collectorRank(state?.owned ?? {});
+  const worn = await getWornKeen();
   const circumference = 2 * Math.PI * 22;
 
   const trophies: Keen[] = Object.entries(state?.owned ?? {})
@@ -148,6 +150,12 @@ export default async function KeensLayout({ children }: { children: React.ReactN
             Dubbletter
             <span data-no-translate className="text-slate-500">{state?.dupes ?? 0}</span>
           </span>
+          {worn && (
+            <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 py-1 pl-1 pr-2.5 text-[11px] font-bold text-emerald-200">
+              <KeenAvatar keen={worn} size={20} className="shrink-0" />
+              Bär <span className="text-emerald-100">{worn.name}</span>
+            </span>
+          )}
           <Link
             href="/keens/packs"
             className="flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-200 transition-colors hover:bg-emerald-500/20"
