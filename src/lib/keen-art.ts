@@ -355,17 +355,38 @@ const RECIPES: Record<string, Recipe> = {
   pixelthorne: { shape: "blob", custom: "pixelthorne", noGloss: true, plate: VOID_PLATE },
 
   // ── Halloweenpaketet ───────────────────────────────────────────────────────
-  pumpkin: { shape: "pumpkin", custom: "halloweenPumpkin", noGloss: true, plate: NIGHT_PLATE },
+  // A pumpkin is orange whatever its catalogue hue is, so the lanterns pin their
+  // own colours instead of inheriting the hue — the Pumpkin King's hue is the
+  // purple of its crypt, and a purple pumpkin is nobody's idea of a lantern.
+  pumpkin: {
+    shape: "pumpkin",
+    custom: "halloweenPumpkin",
+    noGloss: true,
+    plate: NIGHT_PLATE,
+    colors: { light: "#ffb066", base: "#f97316", dark: "#c2410c", line: "#7c2d12" },
+  },
   // The two chicken cubes are the same animal frozen and thawed: the blue one is
   // the ice cube, the yellow one the bird out of it. Each has a plate that
   // matches where it lives.
   chickenchick: { shape: "cube", custom: "chickCube", noGloss: true, plate: FROST_PLATE },
   chickchicken: { shape: "cube", custom: "chickenCube", noGloss: true, plate: HONEY_PLATE },
   frogula: { shape: "wide", custom: "frogula", noGloss: true, plate: MOON_PLATE },
-  cookiepumpkin: { shape: "pumpkin", custom: "cookiePumpkin", noGloss: true, plate: NIGHT_PLATE },
+  cookiepumpkin: {
+    shape: "pumpkin",
+    custom: "cookiePumpkin",
+    noGloss: true,
+    plate: NIGHT_PLATE,
+    colors: { light: "#ffb066", base: "#f97316", dark: "#c2410c", line: "#7c2d12" },
+  },
   cookiemummy: { shape: "blob", custom: "cookieMummy", noGloss: true, plate: NIGHT_PLATE },
   cookieghost: { shape: "ghost", custom: "cookieGhost", noGloss: true, plate: MOON_PLATE },
-  pumpkinking: { shape: "pumpkin", custom: "pumpkinKing", noGloss: true, plate: CRYPT_PLATE },
+  pumpkinking: {
+    shape: "pumpkin",
+    custom: "pumpkinKing",
+    noGloss: true,
+    plate: CRYPT_PLATE,
+    colors: { light: "#ffb066", base: "#f97316", dark: "#c2410c", line: "#7c2d12" },
+  },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   omeisaurus: {
