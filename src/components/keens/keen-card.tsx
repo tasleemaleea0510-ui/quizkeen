@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Lock } from "lucide-react";
-import { RARITY_META, type Keen } from "@/lib/keens";
+import { PACK_BY_ID, RARITY_META, keenBio, type Keen } from "@/lib/keens";
 import { cn } from "@/lib/utils";
 import KeenAvatar from "./keen-avatar";
 
@@ -32,6 +32,8 @@ export default function KeenCard({
 }) {
   const meta = RARITY_META[keen.rarity];
   const locked = owned <= 0;
+  const bio = keenBio(keen);
+  const pack = PACK_BY_ID[keen.pack];
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 });
 
   function move(e: React.MouseEvent<HTMLDivElement>) {
@@ -102,6 +104,25 @@ export default function KeenCard({
           {meta.label}
         </p>
       </div>
+
+      {/* The character, in one line — a collection that is only a grid of names
+          and rarities is a checklist, not a shelf of characters. */}
+      {bio && (
+        <p
+          className={cn(
+            "hidden text-[10px] leading-snug sm:line-clamp-2 sm:block",
+            locked ? "text-slate-600" : "text-slate-400"
+          )}
+        >
+          {locked ? "Hitta den för att läsa historien." : bio}
+        </p>
+      )}
+
+      {pack && !locked && (
+        <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+          {pack.emoji} {pack.name}
+        </p>
+      )}
 
       {footer}
     </div>

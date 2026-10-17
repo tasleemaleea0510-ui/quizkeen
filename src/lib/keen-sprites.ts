@@ -13,10 +13,10 @@
  * character per pixel, `.` meaning transparent and any other letter indexing
  * `palette` — so a sprite is editable by eye, in the file, without a tool.
  *
- * Every sprite here is 16×16 and painted the way a pixel artist would: one dark
- * letter for the outline, one or two for the body, a light letter for the side
- * the light comes from (top-left), and the accents on top of that. That is why
- * characters read as creatures at 26 px and as posters at 168 px.
+ * Sizes differ on purpose: the Gamer pack is drawn the way the design sheet draws
+ * it — flat, chunky, a handful of colours, read at a glance — while the themed
+ * plates get a little more room. `PixelSprite` fits whatever it is given into a
+ * square, so a 11×8 alien and a 16×16 pumpkin sit on the shelf the same size.
  *
  * `npm run check:sprites` (scripts/check-sprites.mjs) fails on a row that is the
  * wrong width or a letter that is missing from its palette, which is the one
@@ -42,53 +42,41 @@ export type Sprite = {
 export const KEEN_SPRITES: Record<string, Sprite> = {
   // ── Gamerpaketet ──────────────────────────────────────────────────────────
 
-  /** 57,3 % — the classic eight-bit alien: lit crown, shaded jaw. */
+  /** 57,3 % — the classic eight-bit alien, bright green on near-black. */
   invader: {
     board: "dark",
-    alt: "Grön pixel-rymdvarelse med antenner och tänder på en svart bricka",
-    palette: { K: "#0a2405", G: "#7cf03a", L: "#c6ff8a", D: "#3f8f1f" },
+    alt: "Grön pixel-rymdvarelse med antenner på en svart bricka",
+    palette: { X: "#7cf03a" },
     rows: [
-      ".......K.K......",
-      "......KGKGK.....",
-      "......KGGGK.....",
-      "......KGKGK.....",
-      "....KGGGGGGK....",
-      "..KGGLLGGGGGK...",
-      ".KGGLLGGGGGGGK..",
-      ".KGGDGKGGGKDGK..",
-      ".KGGDGKGGGKDGK..",
-      ".KGGGGGGGGGGGK..",
-      "..KGGGGGGGGGK...",
-      ".KGGDDGGDDGGGK..",
-      ".KGGGGGGGGGGGK..",
-      "..KGGGGGGGGGK...",
-      "..KGGGKKKKGGK...",
-      ".KGGGGKKKKGGGGK.",
+      "..X.....X..",
+      "...X...X...",
+      "..XXXXXXX..",
+      ".XX.XXX.XX.",
+      "XXXXXXXXXXX",
+      "X.XXXXXXX.X",
+      "X.X.....X.X",
+      "...XX.XX...",
     ],
   },
 
   /** 37 % — a visored space suit with its little backpack, in red. */
   crewmate: {
     board: "tile",
-    alt: "Röd pixel-rymddräkt med ljusblått visir och ryggsäck",
-    palette: { K: "#5c1414", R: "#e04b3f", L: "#f5877a", B: "#a8dcf7", W: "#ffffff", b: "#6fb6d8" },
+    alt: "Röd pixel-rymddräkt med ljusblått visir",
+    palette: { R: "#d63b3b", B: "#9c2626", W: "#a8dcf7" },
     rows: [
-      "................",
-      "....KRRRRRK.....",
-      "...KRRRRRRRK....",
-      "..KRLLLLRRRRK...",
-      "..KRRLBBBBBBK...",
-      "..KRRLBWWBBBK...",
-      "..KRRLBBBBBBK...",
-      "..KRRRRRRRRRK...",
-      "..KRRRRRRRRRK...",
-      "..KRRRRRRRRbK...",
-      "..KRRRRRRRRbK...",
-      "..KRRRRRRRRbK...",
-      "..KRRRRRRRRbK...",
-      "..KRRKKKKRRbK...",
-      "..KRKK..KKRbK...",
-      "..KKKK..KKKK....",
+      "..RRRRRR..",
+      ".RRRRRRRR.",
+      ".RRWWWWWRR",
+      ".RRWWWWWRR",
+      ".RRRRRRRRR",
+      "RRRRRRRRRR",
+      "RRBRRRRRRR",
+      "RRBRRRRRRR",
+      "RRBRRRRRRR",
+      ".RRRRRRRR.",
+      ".RR....RR.",
+      ".RR....RR.",
     ],
   },
 
@@ -96,49 +84,37 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
   chubbypig: {
     board: "tile",
     alt: "Rund grön pixel-gris med tryne, öron och lysande ögon",
-    palette: { K: "#12300e", G: "#63c132", L: "#8fd94f", D: "#3d9a20", W: "#ffffff", P: "#101c10" },
+    palette: { G: "#63c132", D: "#3d9a20", W: "#ffffff", B: "#101c10", S: "#8fd94f" },
     rows: [
-      "................",
-      ".....K....K.....",
-      "....KGK..KGK....",
-      "....KGGKKGGK....",
-      "...KGLLLLLLGK...",
-      "..KGLLLLLLLLGK..",
-      "..KGWWGGGGWWGK..",
-      "..KGWPGGGGWPGK..",
-      "..KGLLLLLLLLGK..",
-      "..KGGLLDDLLGGK..",
-      "..KGGLLDDLLGGK..",
-      "..KGGGLLLLGGGK..",
-      "..KGGGGGGGGGGK..",
-      "...KGGGGGGGGK...",
-      "....KDDDDDDK....",
-      ".....KKKKKK.....",
+      "....G..G....",
+      "..GGGGGGGG..",
+      ".GGGGGGGGGG.",
+      ".GGDDGGDDGG.",
+      ".GWWGGGGWWG.",
+      ".GBWGGGGWBG.",
+      ".GGGGGGGGGG.",
+      "..GGSSSSGG..",
+      "..GSBSSBSG..",
+      "..GGSSSSGG..",
+      ".GGGGGGGGGG.",
+      "..GGGGGGGG..",
     ],
   },
 
   /** 0,67 % — the mottled green block with two hollow eyes and a wide frown. */
   creeper: {
     board: "tile",
-    alt: "Grön spräcklig pixel-kub med svarta ögon och mörk mun",
-    palette: { K: "#0d260d", G: "#57c33f", L: "#7ee06a", D: "#37992a", d: "#1f5a17" },
+    alt: "Grön pixel-kub med svarta ögon och mun",
+    palette: { G: "#57c33f", B: "#0e2a0e" },
     rows: [
-      "LGGGGGDGGGGGGGLG",
-      "GGGGGGGGGDGGGGGG",
-      "GGGGKKGGGGKKGGGG",
-      "GGGGKKGGGGKKGGGG",
-      "GGGGGGKKKKGGGGGG",
-      "GGGGGKKKKKKGGGGG",
-      "GGGGGKKKKKKGGGGG",
-      "GGDGGGGGGGGGGGDG",
-      "GGGGGGGGGGGGDGGG",
-      "GGGLGGGGDGGGGGGG",
-      "GGLGGGGGGGGGGGGG",
-      "GGGGGGDGGGGLGGGG",
-      "GGGGGGGGGGGGGGGG",
-      "GGDGGGGGGGGGDGGG",
-      "GGGGGGGGGGGGGGGG",
-      ".dddddddddddddd.",
+      "GGGGGGGG",
+      "GBBGGBBG",
+      "GBBGGBBG",
+      "GGGGGGGG",
+      "GGGBBGGG",
+      "GGBBBBGG",
+      "GGBBBBGG",
+      "GGGBBGGG",
     ],
   },
 
@@ -146,24 +122,21 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
   pixelthorne: {
     board: "neon",
     alt: "Svart taggig pixelvarelse med grönt leende på en lila neonplatta",
-    palette: { K: "#0f0a16", E: "#5cf53c", M: "#5cf53c", L: "#2a1d3a" },
+    palette: { K: "#0f0a16", E: "#5cf53c", M: "#5cf53c" },
     rows: [
-      ".......L.L......",
-      "......LKKKL.....",
-      "....LLKKKKKLL...",
-      "...KKKKKKKKKKK..",
-      "..KKKKKKKKKKKKK.",
-      ".KKKKEEKKKEEKKK.",
-      ".KKKKEEKKKEEKKK.",
-      ".KKKKKKKKKKKKKK.",
-      ".KKMMMMMMMMMMKK.",
-      ".KKMKMKMKMKMKKK.",
-      ".KKMMMMMMMMMMKK.",
-      "..KKKKKKKKKKKK..",
-      "..KKKKKKKKKKKK..",
-      "...KKKKKKKKKK...",
-      "....KKKKKKKK....",
-      ".....KKKKKK.....",
+      "......K......",
+      "..K...K...K..",
+      "..KK..K..KK..",
+      ".KKKKKKKKKKK.",
+      ".KKEEKKKEEKK.",
+      ".KKEEKKKEEKK.",
+      ".KKKKKKKKKKK.",
+      ".KKMMMMMMMKK.",
+      ".KKMKMKMKMKK.",
+      "..KKKKKKKKK..",
+      "..KKKKKKKKK..",
+      "...KKKKKKK...",
+      "....KKKKK....",
     ],
   },
 
@@ -431,10 +404,8 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
   // ── Admin-Keenen ──────────────────────────────────────────────────────────
 
   /**
-   * The Admin Keen. The design doc draws it as a painted, swirling dragon; this
-   * is the pixel stand-in in the same colours (deep red, orange, gold, cream)
-   * on the doc's purple plate. Swap in the painted artwork when it exists —
-   * `KeenAvatar` prefers a sprite only when one is listed here.
+   * Retired: the Admin Keen is drawn from the painted design sheet by
+   * `illustrated-avatar.tsx`, which `KeenAvatar` prefers over this bitmap.
    */
   omeisaurus: {
     board: "purple",

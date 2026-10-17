@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Coins, Search, Sparkles, Store, Tag } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Clock, Coins, Crown, Flame, Package, Search, Sparkles, Store, Tag, Trophy } from "lucide-react";
 import {
   ADMIN_PACK,
   KEEN_BY_ID,
@@ -9,12 +10,21 @@ import {
   PACK_BY_ID,
   RARITY_META,
   RARITY_ORDER,
+  RANKS,
+  SHELF_PACKS,
   TOTAL_KEENS,
+  collectorRank,
+  dayKey,
+  dailyDeals,
+  keenBio,
+  keenOfTheDay,
   isGiftKeen,
   isObtainable,
   isTradeable,
   marketPrice,
+  packProgress,
   rarityChance,
+  rarityOdds,
   retiredKeens,
   sellPrice,
   type Keen,
@@ -24,12 +34,27 @@ import { buyKeenAction, sellDuplicatesAction, sellKeenAction } from "@/app/keens
 import type { KeenState } from "@/lib/keens-store";
 import KeenAvatar from "./keen-avatar";
 import KeenCard from "./keen-card";
+import { NextSteps, PackRail } from "./keen-home";
 import { Toasts, useToasts } from "./toast";
 import { playCoin, playError, playSell } from "./sounds";
 import { cn } from "@/lib/utils";
 
 type View = "alla" | "agda" | "saknade";
 type Sort = "sallhet" | "namn" | "antal";
+
+/** Milliseconds until the spotlight and the deals roll over — midnight UTC. */
+function msToMidnightUtc(now: number = Date.now()): number {
+  const d = new Date(now);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now;
+}
+
+function hhmmss(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 export default function CollectionClient({ state }: { state: KeenState }) {
   const { toasts, push, dismiss } = useToasts();
@@ -44,6 +69,31 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
   const owned = state.owned;
   const distinct = state.distinct;
+
+  // ── the daily spotlight ────────────────────────────────────────────────────
+  // The same Keen for everyone until midnight UTC, with a clock so you can watch
+  // the next one arrive. It is a pure function of the date, so the server and the
+  // browser already agree on who it is — only the countdown is client-side.
+  // Started from `null` and filled in on mount: reading the clock during render
+  // would make the server's second and the browser's second disagree, and React
+  // reacts to that by throwing the server HTML away.
+  const [rollIn, setRollIn] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    setRollIn(msToMidnightUtc());
+    const t = setInterval(() => setRollIn(msToMidnightUtc()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const today = dayKey();
+  const spotlight = React.useMemo(() => keenOfTheDay(today), [today]);
+  const spotlightDeal = React.useMemo(() => dailyDeals(today).find((d) => d.keen.id === spotlight?.id) ?? null, [today, spotlight]);
+
+  // ── rank and the pack you are closest to finishing ─────────────────────────
+  const rank = React.useMemo(() => collectorRank(owned), [owned]);
+  const nearest = React.useMemo(() => {
+    return SHELF_PACKS.map((p) => ({ pack: p, ...packProgress(owned, p.id) }))
+      .filter((row) => row.total > 0 && row.have < row.total)
+      .sort((a, b) => b.percent - a.percent || b.have - a.have)[0] ?? null;
+  }, [owned]);
 
   /**
    * What this page shows: every Keen a player can still get, plus the ones they
@@ -90,6 +140,17 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   const selectedTradeable = selected ? isTradeable(selected) : false;
   // ``Owned but no longer obtainable`` — its pack left the shelf.
   const selectedRetired = selected ? !isObtainable(selected) : false;
+  const selectedOwned = selected ? owned[selected.id] ?? 0 : 0;
+  const selectedBio = selected ? keenBio(selected) : "";
+  // Everything else on the same shelf, so the detail card is a place to browse
+  // from rather than a dead end you have to close to keep looking.
+  const selectedSiblings = React.useMemo(() => {
+    if (!selected || selectedGift) return [];
+    return OBTAINABLE_KEENS.filter((k) => k.pack === selected.pack && k.id !== selected.id).sort(
+      (a, b) => RARITY_META[a.rarity].order - RARITY_META[b.rarity].order || a.name.localeCompare(b.name, "sv")
+    );
+  }, [selected, selectedGift]);
+  const selectedOdds = selectedPack ? rarityOdds(selectedPack.id) : [];
 
   async function sellAll() {
     setBusy(true);
@@ -133,6 +194,28 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
   return (
     <div className="space-y-6">
+      {/* ── dagens Keen ──────────────────────────────────────────────────── */}
+      {spotlight && (
+        <Spotlight
+          keen={spotlight}
+          owned={owned[spotlight.id] ?? 0}
+          dealPrice={spotlightDeal?.price ?? null}
+          rollIn={rollIn}
+          busy={busy}
+          onBuy={() => buy(spotlight)}
+          onOpen={() => setSelected(spotlight)}
+        />
+      )}
+
+      {/* ── three things worth doing next ────────────────────────────────── */}
+      <NextSteps state={state} />
+
+      {/* ── the shelf, as a rail of foil bags ────────────────────────────── */}
+      <PackRail owned={owned} />
+
+      {/* ── collector rank ───────────────────────────────────────────────── */}
+      <RankTrack rank={rank} />
+
       {/* ── progress ─────────────────────────────────────────────────────── */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl sm:col-span-2">
@@ -157,6 +240,26 @@ export default function CollectionClient({ state }: { state: KeenState }) {
             {TOTAL_KEENS - distinct > 0 ? `${TOTAL_KEENS - distinct} Keens kvar att hitta` : "Du har samlat alla! 🎉"}
             {state.dupes > 0 && ` · ${state.dupes} dubbletter att sälja`}
           </p>
+
+          {/* The pack you are closest to finishing: the shortest path to a
+              complete set, said out loud instead of left as homework. */}
+          {nearest && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-950/40 px-3 py-2">
+              <span className="flex items-center gap-2 text-[11px] font-bold text-slate-300">
+                <Package className="h-3.5 w-3.5 text-indigo-300" />
+                Närmast komplett: {nearest.pack.emoji} {nearest.pack.name}
+                <span data-no-translate className="text-slate-500">
+                  {nearest.have}/{nearest.total}
+                </span>
+              </span>
+              <Link
+                href="/keens/packs"
+                className="flex items-center gap-1 text-[11px] font-extrabold text-indigo-300 hover:text-indigo-200"
+              >
+                Öppna paket <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl">
@@ -339,7 +442,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-raise animate-keen-pop"
+            className="keen-scroll max-h-[88vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-raise animate-keen-pop"
           >
             <div className="flex justify-center">
               <KeenAvatar
@@ -366,7 +469,20 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               {RARITY_META[selected.rarity].label}
             </span>
 
-            <dl className="mt-4 space-y-1.5 rounded-2xl border border-white/5 bg-slate-950/50 p-3 text-left text-xs">
+            {/* The character's one line. Owned reads it; a locked one stays a
+                mystery, because that is half of what you are collecting. */}
+            {selectedBio && (
+              <p
+                className={cn(
+                  "mt-3 rounded-2xl border border-white/5 bg-slate-950/40 px-3 py-2 text-xs leading-snug",
+                  selectedOwned > 0 ? "italic text-slate-300" : "text-slate-500"
+                )}
+              >
+                {selectedOwned > 0 ? `“${selectedBio}”` : "Historien låses upp när du hittar den."}
+              </p>
+            )}
+
+            <dl className="mt-3 space-y-1.5 rounded-2xl border border-white/5 bg-slate-950/50 p-3 text-left text-xs">
               <div className="flex justify-between">
                 <dt className="text-slate-400">Paket</dt>
                 <dd className="font-semibold text-slate-200">
@@ -419,6 +535,68 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </p>
             )}
 
+            {/* What the pack actually rolls, with this Keen's own tier marked. */}
+            {!selectedGift && selectedOdds.length > 0 && (
+              <div className="mt-3 text-left">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {selectedPack?.emoji} {selectedPack?.name} — vad paketet kan ge
+                </p>
+                <ul className="space-y-1">
+                  {selectedOdds.map(({ rarity, chance }) => {
+                    const isMine = rarity === selected.rarity;
+                    return (
+                      <li key={rarity} className="flex items-center gap-2">
+                        <span
+                          className="h-1.5 rounded-full"
+                          style={{ width: `${Math.max(2, chance)}%`, background: RARITY_META[rarity].from }}
+                        />
+                        <span
+                          className={cn(
+                            "flex-1 text-[10px] font-bold",
+                            isMine ? RARITY_META[rarity].text : "text-slate-500"
+                          )}
+                        >
+                          {RARITY_META[rarity].label}
+                        </span>
+                        <span data-no-translate className={cn("text-[10px] font-extrabold", isMine ? "text-white" : "text-slate-500")}>
+                          {String(chance).replace(".", ",")} %
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {/* The rest of the same shelf — tap one to keep browsing. */}
+            {selectedSiblings.length > 0 && (
+              <div className="mt-4 text-left">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Fler från samma paket
+                </p>
+                <div className="keen-scroll flex gap-1.5 overflow-x-auto pb-1">
+                  {selectedSiblings.map((k) => {
+                    const have = (owned[k.id] ?? 0) > 0;
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() => setSelected(k)}
+                        title={have ? k.name : "Inte hittad än"}
+                        className={cn(
+                          "shrink-0 rounded-xl border p-1 transition-colors",
+                          have ? RARITY_META[k.rarity].ring : "border-white/5",
+                          "hover:border-white/40"
+                        )}
+                      >
+                        <KeenAvatar keen={k} size={38} locked={!have} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 flex flex-col gap-2">
               {selectedTradeable && (
                 <button
@@ -456,5 +634,195 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
       <Toasts toasts={toasts} dismiss={dismiss} />
     </div>
+  );
+}
+
+/**
+ * Today's Keen.
+ *
+ * One character, chosen by the date, with a clock until the next one — a reason
+ * to open the app tomorrow, and a reason to read about a Keen you would never
+ * otherwise look twice at. It shows the character even when you do not own it:
+ * a spotlight you cannot see is not a spotlight.
+ */
+function Spotlight({
+  keen,
+  owned,
+  dealPrice,
+  rollIn,
+  busy,
+  onBuy,
+  onOpen,
+}: {
+  keen: Keen;
+  owned: number;
+  dealPrice: number | null;
+  rollIn: number | null;
+  busy: boolean;
+  onBuy: () => void;
+  onOpen: () => void;
+}) {
+  const meta = RARITY_META[keen.rarity];
+  const pack = PACK_BY_ID[keen.pack];
+  const chance = pack ? rarityChance(pack.id, keen.rarity) : 0;
+  const price = dealPrice ?? marketPrice(keen);
+  const have = owned > 0;
+  const tradeable = isTradeable(keen);
+  const bio = keenBio(keen);
+
+  return (
+    <section
+      className={cn("relative isolate overflow-hidden rounded-3xl border p-5 backdrop-blur-xl", meta.ring)}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{ background: `radial-gradient(120% 110% at 88% 0%, ${meta.from}33, transparent 60%)` }}
+      />
+
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 items-center gap-4">
+          <KeenAvatar keen={keen} size={128} className={cn(have && meta.glow)} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-300">
+              <Sparkles className="h-3.5 w-3.5" /> Dagens Keen
+            </span>
+            <span
+              data-no-translate
+              className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/60 px-2 py-0.5 text-[10px] font-bold text-slate-400"
+              title="Dagens Keen byts vid midnatt UTC"
+            >
+              <Clock className="h-3 w-3 text-fuchsia-300" />
+              byts om {rollIn === null ? "--:--:--" : hhmmss(rollIn)}
+            </span>
+            {dealPrice !== null && (
+              <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-200">
+                <Flame className="h-3 w-3 animate-keen-pulse" /> Dagens deal
+              </span>
+            )}
+          </div>
+
+          <h2
+            className={cn(
+              "mt-1.5 font-display text-2xl font-extrabold tracking-tight",
+              keen.rarity === "KROMA" ? "keen-chroma-text animate-keen-pan" : "text-white"
+            )}
+          >
+            {keen.name}
+          </h2>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className={cn("rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider", meta.chip)}>
+              {meta.label}
+            </span>
+            {pack && (
+              <span className="text-[11px] font-bold text-slate-400">
+                {pack.emoji} {pack.name}
+                {chance > 0 && <span data-no-translate> · {String(chance).replace(".", ",")} % chans</span>}
+              </span>
+            )}
+          </div>
+
+          {bio && (
+            <p className={cn("mt-2 text-sm leading-snug", have ? "italic text-slate-300" : "text-slate-400")}>
+              “{bio}”
+            </p>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {have ? (
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3 py-1 text-[11px] font-extrabold text-emerald-300">
+                ✓ I din samling{owned > 1 && ` · ${owned} st`}
+              </span>
+            ) : (
+              <span className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1 text-[11px] font-extrabold text-slate-300">
+                Du har den inte än
+              </span>
+            )}
+
+            {tradeable && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onBuy}
+                className="flex items-center gap-1.5 rounded-full bg-gradient-to-b from-indigo-500 to-indigo-600 px-3.5 py-1.5 text-[11px] font-extrabold text-white shadow-glow-sm transition-all hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50"
+              >
+                <Store className="h-3.5 w-3.5" />
+                Köp för {price} mynt
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onOpen}
+              className="rounded-full border border-slate-700 px-3.5 py-1.5 text-[11px] font-bold text-slate-300 transition-colors hover:border-slate-500"
+            >
+              Visa detaljer
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The collector ladder.
+ *
+ * A collection is a number, but a rank is a goal: the rows ahead of you are
+ * visible, so "Mästare" is something to reach for rather than a label you
+ * discover. Points are derived from what you own — nothing here is stored.
+ */
+function RankTrack({ rank }: { rank: ReturnType<typeof collectorRank> }) {
+  return (
+    <section className="rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <Trophy className="h-3.5 w-3.5 text-amber-400" /> Samlarnivå
+          </p>
+          <p className="font-display text-xl font-extrabold text-white">{rank.rank.label}</p>
+        </div>
+        <p data-no-translate className="text-xs font-bold text-slate-400">
+          {rank.points} poäng
+          {rank.next && <span className="text-slate-500"> · {rank.toNext} till {rank.next.label}</span>}
+        </p>
+      </div>
+
+      <ol className="mt-3 flex flex-wrap gap-1.5">
+        {RANKS.map((row, i) => {
+          const done = i <= rank.index;
+          const current = i === rank.index;
+          return (
+            <li
+              key={row.label}
+              data-no-translate
+              title={`${row.points} poäng`}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-extrabold transition-colors",
+                current && "border-amber-400/60 bg-amber-500/15 text-amber-200 shadow-glow-sm",
+                !current && done && "border-indigo-400/30 bg-indigo-500/10 text-indigo-200",
+                !done && "border-white/5 text-slate-600"
+              )}
+            >
+              {done ? <Crown className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+              {row.label}
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-400 to-indigo-400 transition-[width] duration-700 ease-out"
+          style={{ width: `${Math.round(rank.progress * 100)}%` }}
+        />
+      </div>
+      <p className="mt-2 text-[11px] text-slate-500">
+        Varje Keen ger poäng efter sällsynthet — en Vanlig 1, en Mystisk 8. Det är de sällsynta som lyfter nivån.
+      </p>
+    </section>
   );
 }

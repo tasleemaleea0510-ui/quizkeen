@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Clock, Coins, Flame, Search, Sparkles, Store, Tag, TrendingDown, Trophy } from "lucide-react";
 import {
   DEAL_OFF,
+  KEEN_BY_ID,
   MARKET_KEENS,
   MARKET_RARITIES,
   RARITY_META,
   TOTAL_KEENS,
   dayKey,
   dailyDeals,
+  isTradeable,
   marketPrice,
   retiredKeens,
   sellPrice,
@@ -54,12 +56,16 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
   const [rarity, setRarity] = React.useState<Rarity | "ALLA">("ALLA");
   const [filter, setFilter] = React.useState<Filter>("alla");
   const [sort, setSort] = React.useState<Sort>("sallhet");
-  const [resetIn, setResetIn] = React.useState(() => nextDealReset());
+  // Counted from `null`, never from a clock read during render: the server and the
+  // browser would each compute their own seconds and React would throw the whole
+  // page away to client-render it. The timer fills the number in on mount.
+  const [resetIn, setResetIn] = React.useState<number | null>(null);
 
   React.useEffect(() => setLive(state), [state]);
 
   // The deals expire at midnight UTC; the clock makes that visible.
   React.useEffect(() => {
+    setResetIn(nextDealReset());
     const t = setInterval(() => setResetIn(nextDealReset()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -169,6 +175,29 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
 
   const affordable = list.filter((k) => !retiredIds.has(k.id) && (owned[k.id] ?? 0) === 0 && live.coins >= priceOf(k)).length;
 
+  // What the spare copies in the collection are worth if you cash them in now —
+  // the sell button says how many, this says how much.
+  const dupesWorth = React.useMemo(
+    () =>
+      Object.entries(owned).reduce((sum, [id, count]) => {
+        const keen = KEEN_BY_ID[id];
+        if (!keen || count <= 0 || !isTradeable(keen)) return sum;
+        return sum + sellPrice(keen) * Math.max(0, count - 1);
+      }, 0),
+    [owned]
+  );
+
+  // The cheapest Keen you are still missing: "what do I buy next" answered.
+  // Read from the whole shelf rather than the filtered list — a suggestion that
+  // vanishes because of a rarity chip is not a suggestion.
+  const cheapestMissing = React.useMemo(
+    () =>
+      shelf
+        .filter((k) => !retiredIds.has(k.id) && (owned[k.id] ?? 0) === 0)
+        .reduce<Keen | null>((acc, k) => (!acc || priceOf(k) < priceOf(acc) ? k : acc), null),
+    [shelf, retiredIds, owned, priceOf]
+  );
+
   return (
     <div className="space-y-6">
       {/* ── wallet + duplicate cash-out ───────────────────────────────────── */}
@@ -187,6 +216,14 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
               {affordable} {affordable === 1 ? "Keen" : "Keens"}
             </p>
           </div>
+          {live.dupes > 0 && (
+            <div className="ml-2 hidden border-l border-white/10 pl-4 sm:block">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dubbletter värda</p>
+              <p data-no-translate className="text-sm font-extrabold text-amber-300">
+                {dupesWorth.toLocaleString("sv-SE")} mynt
+              </p>
+            </div>
+          )}
         </div>
 
         <button
@@ -205,6 +242,37 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
         </button>
       </div>
 
+      {/* One suggestion, so an empty wallet never means an empty page. */}
+      {cheapestMissing && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-indigo-400/20 bg-indigo-500/5 px-4 py-3">
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-300">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+            Nästa köp: <span className="text-white">{cheapestMissing.name}</span>
+            <span data-no-translate className="text-slate-500">
+              · {priceOf(cheapestMissing)} mynt
+            </span>
+            {live.coins < priceOf(cheapestMissing) && (
+              <span data-no-translate className="text-slate-500">
+                · {priceOf(cheapestMissing) - live.coins} kvar att spara
+              </span>
+            )}
+          </span>
+          <button
+            type="button"
+            disabled={live.coins < priceOf(cheapestMissing) || live.coinsFrozen || busy !== null}
+            onClick={() => buy(cheapestMissing)}
+            className={cn(
+              "rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all",
+              live.coins >= priceOf(cheapestMissing) && !live.coinsFrozen && !busy
+                ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white hover:from-indigo-400 hover:to-indigo-500"
+                : "cursor-not-allowed bg-slate-800 text-slate-500"
+            )}
+          >
+            {busy === `buy-${cheapestMissing.id}` ? "Köper…" : "Köp"}
+          </button>
+        </div>
+      )}
+
       {/* ── today's deals ─────────────────────────────────────────────────── */}
       <section className="rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-slate-900/50 to-slate-900/40 p-4 backdrop-blur-xl">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -216,7 +284,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
             </span>
           </h2>
           <span data-no-translate className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-            <Clock className="h-3.5 w-3.5 text-amber-400" /> nya deals om {clock(resetIn)}
+            <Clock className="h-3.5 w-3.5 text-amber-400" /> nya deals om {resetIn === null ? "--:--:--" : clock(resetIn)}
           </span>
         </div>
 

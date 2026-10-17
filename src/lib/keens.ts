@@ -220,6 +220,14 @@ export type Pack = {
   sizes: number[];
   free?: boolean;
   /**
+   * When the pack landed on the shelf (YYYY-MM-DD).
+   *
+   * Only used to put a "NEW" ribbon on the most recently added pack, so a fresh
+   * theme is visibly the fresh theme without anyone having to remember to move a
+   * badge by hand. Leave it off for the packs that have always been there.
+   */
+  added?: string;
+  /**
    * Off the shelf: the pack still exists — its Keens stay in the collection, and
    * the market still sells them — but the shop does not show it and the server
    * refuses to open it. Delete the line to put the pack back on sale.
@@ -312,6 +320,7 @@ export const PACKS: Pack[] = [
     nameEn: "Gamer pack",
     tagline: "Pixlar, neon och något som rör sig i mörkret.",
     taglineEn: "Pixels, neon and something moving in the dark.",
+    added: "2026-09-12",
     price: 180,
     emoji: "🎮",
     hue: 285,
@@ -324,6 +333,7 @@ export const PACKS: Pack[] = [
     nameEn: "Halloween pack",
     tagline: "Pumpor, spöken och en kung i mörkret.",
     taglineEn: "Pumpkins, ghosts and a king in the dark.",
+    added: "2026-10-01",
     price: 250,
     emoji: "🎃",
     hue: 24,
@@ -355,6 +365,32 @@ export const PACKS: Pack[] = [
  */
 export const SHELF_PACKS: Pack[] = PACKS.filter((p) => !p.free && !p.hidden);
 export const HIDDEN_PACKS: Pack[] = PACKS.filter((p) => !p.free && p.hidden);
+
+/**
+ * The freshest pack on the shelf, or null when nothing carries an `added` date.
+ *
+ * Derived from the catalogue instead of hard-coded, so deleting one line from the
+ * newest pack moves the "NEW" ribbon to the next one down rather than leaving a
+ * badge pointing at something that is no longer new.
+ */
+export const NEWEST_PACK: Pack | null =
+  SHELF_PACKS.filter((p) => p.added).sort((a, b) => (a.added! < b.added! ? 1 : -1))[0] ?? null;
+
+/**
+ * A pack's chase card: the rarest Keen in it that you have not found yet.
+ *
+ * What a pack is really worth to a given collection is not its odds but the one
+ * character at the top of it you are still missing, which is why the shelf shows
+ * this rather than another list of percentages. Falls back to the rarest Keen in
+ * the pack (you have them all) and then to nothing for an empty pack.
+ */
+export function chaseKeen(pack: ShelfId, owned: OwnedMap = {}): Keen | null {
+  const list = keensInPack(pack);
+  if (!list.length) return null;
+  const missing = list.filter((k) => (owned[k.id] ?? 0) === 0);
+  const pool = missing.length ? missing : list;
+  return pool.reduce((best, k) => (RARITY_META[k.rarity].order > RARITY_META[best.rarity].order ? k : best), pool[0]);
+}
 
 const P = (
   // `Keen["pack"]`, not `PackId`: the Admin Keen lives on its own shelf.

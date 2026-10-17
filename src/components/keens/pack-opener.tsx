@@ -3,11 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { RotateCcw, Sparkles, Volume2, VolumeX, X } from "lucide-react";
-import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, RARITY_ORDER, rarityChance, type Rarity } from "@/lib/keens";
-import { PACK_EMBLEMS, SPRITE_BOARDS } from "@/lib/keen-sprites";
+import { KEEN_BY_ID, PACK_BY_ID, RARITY_META, RARITY_ORDER, keenBio, marketPrice, rarityChance, type Rarity } from "@/lib/keens";
 import { cn } from "@/lib/utils";
 import KeenAvatar from "./keen-avatar";
-import PixelSprite from "./pixel-sprite";
+import PackArt from "./pack-art";
 import CoinCounter from "./coin-counter";
 import Confetti from "./confetti";
 import { isMuted, playClick, playCoin, playReveal, playWindUp, setMuted as persistMuted } from "./sounds";
@@ -54,7 +53,6 @@ export default function PackOpener({
   onAgain: (count: number) => void;
 }) {
   const pack = PACK_BY_ID[packId];
-  const emblem = PACK_EMBLEMS[packId];
   const [index, setIndex] = React.useState(0);
   const [stage, setStage] = React.useState<"windup" | "reveal" | "summary">("windup");
   const [fire, setFire] = React.useState(0);
@@ -73,24 +71,32 @@ export default function PackOpener({
   // drop would otherwise read as a promise it never keeps.
   const chance = pull ? rarityChance(packId, rarity) : 0;
 
-  // Wind up, then land the Keen.
+  /**
+   * Land the current Keen: the flash, the chord, the confetti — everything the
+   * reveal is made of. Called by the wind-up timer, or immediately when the pack
+   * is tapped, and it refuses to run twice for the same pull so a tap landing on
+   * the exact frame of the timer cannot double the sound and the burst.
+   */
+  const landedFor = React.useRef(-1);
+  const land = React.useCallback(() => {
+    if (!pull || landedFor.current === index) return;
+    landedFor.current = index;
+    setStage("reveal");
+    playReveal(rarity);
+    if (pull.refund > 0) setTimeout(() => playCoin(), 320);
+    if (power >= 3) {
+      setColors(power >= 5 ? RAINBOW : [HEX[rarity], "#ffffff", HEX[rarity]]);
+      setFire((f) => f + 1);
+    }
+  }, [index, pull, power, rarity]);
+
+  // Wind up, then land the Keen. Tapping the pack skips the wait.
   React.useEffect(() => {
     if (stage !== "windup" || !pull) return;
-    // The timer goes first: the reveal is what the person is waiting for, so
-    // nothing decorative is allowed to stand between them and it.
-    const t = setTimeout(() => {
-      setStage("reveal");
-      playReveal(rarity);
-      if (pull.refund > 0) setTimeout(() => playCoin(), 320);
-      if (power >= 3) {
-        setColors(power >= 5 ? RAINBOW : [HEX[rarity], "#ffffff", HEX[rarity]]);
-        setFire((f) => f + 1);
-      }
-    }, WINDUP_MS);
+    const t = setTimeout(land, WINDUP_MS);
     playWindUp();
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, index, pull?.keenId]);
+  }, [stage, index, pull, land]);
 
   const next = React.useCallback(() => {
     if (index + 1 < pulls.length) {
@@ -112,11 +118,34 @@ export default function PackOpener({
   const againPrice = pricePerPack * pulls.length;
   const canAgain = coins >= againPrice;
 
+  // ── what the whole opening was worth ───────────────────────────────────────
+  // The reveal shows one Keen at a time, which is exciting and useless at
+  // remembering: the summary adds it up, including the collector points the new
+  // ones just earned (the same maths the rank ladder uses).
+  const newCount = pulls.filter((p) => p.isNew).length;
+  const dupeCount = pulls.length - newCount;
+  const points = pulls.reduce(
+    (sum, p) => (p.isNew ? sum + (RARITY_META[p.rarity as Rarity]?.order ?? 0) + 1 : sum),
+    0
+  );
+  const worth = pulls.reduce((sum, p) => {
+    const k = KEEN_BY_ID[p.keenId];
+    return k ? sum + marketPrice(k) : sum;
+  }, 0);
+  const best = pulls.reduce<OpenedPull | null>(
+    (acc, p) =>
+      !acc || (RARITY_META[p.rarity as Rarity]?.order ?? 0) > (RARITY_META[acc.rarity as Rarity]?.order ?? 0) ? p : acc,
+    null
+  );
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-slate-950/85 backdrop-blur-md animate-keen-fade"
       onClick={() => {
-        if (stage === "reveal") next();
+        // Tap does whatever is next: the shaking pack gives up its Keen, the
+        // revealed one makes way for the next pull.
+        if (stage === "windup") land();
+        else if (stage === "reveal") next();
       }}
     >
       <Confetti fire={fire} colors={colors} count={power >= 5 ? 190 : 130} spread={power >= 4 ? 1.25 : 1} />
@@ -160,42 +189,54 @@ export default function PackOpener({
           </button>
         </div>
 
-        <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
           {pack?.emoji} {pack?.name}
           {pulls.length > 1 && ` · ${index + 1}/${pulls.length}`}
         </p>
 
+        {/* One dot per pull: how many are left, and how good they were. */}
+        {pulls.length > 1 && stage !== "summary" && (
+          <div className="mb-4 flex items-center gap-1.5">
+            {pulls.map((p, i) => {
+              const r = RARITY_META[p.rarity as Rarity] ?? RARITY_META.VANLIG;
+              return (
+                <span
+                  key={`${p.keenId}-${i}`}
+                  title={r.label}
+                  className={cn(
+                    "h-2 rounded-full transition-all duration-300",
+                    i === index ? "w-6 animate-keen-pulse" : "w-2",
+                    i < index ? "opacity-100" : i === index ? "opacity-100" : "opacity-25"
+                  )}
+                  style={{ background: r.from }}
+                />
+              );
+            })}
+          </div>
+        )}
+
         {/* ── the pack itself ───────────────────────────────────────────── */}
         {stage === "windup" && (
           <div className="flex flex-col items-center gap-6">
-            <div className="relative grid h-44 w-36 place-items-center">
+            <div className="relative grid h-44 w-36 place-items-center" title="Tryck för att öppna direkt">
               <span
                 className="absolute inset-0 rounded-3xl blur-2xl animate-keen-pulse"
                 style={{ background: `radial-gradient(circle, hsl(${pack?.hue ?? 260} 80% 60% / 0.55), transparent 70%)` }}
               />
-              <span
-                className={cn(
-                  "relative grid h-44 w-36 place-items-center rounded-3xl border animate-keen-shake",
-                  emblem ? "border-fuchsia-400/70" : "border-white/15"
-                )}
-                style={
-                  emblem
-                    ? { background: SPRITE_BOARDS.neon.background, boxShadow: "0 24px 60px -24px rgba(255,47,208,0.95)" }
-                    : {
-                        background: `linear-gradient(160deg, hsl(${pack?.hue ?? 260} 70% 42%), hsl(${pack?.hue ?? 260} 70% 20%))`,
-                        boxShadow: `0 24px 60px -24px hsl(${pack?.hue ?? 260} 80% 50% / 0.9)`,
-                      }
-                }
-              >
-                {emblem ? (
-                  <PixelSprite sprite={emblem} size={104} />
-                ) : (
-                  <span className="text-6xl">{pack?.emoji}</span>
-                )}
-                <span className="absolute inset-x-3 bottom-3 h-2 rounded-full bg-black/30" />
-              </span>
+              {pack ? (
+                <PackArt
+                  pack={pack}
+                  variant="hero"
+                  className="relative h-44 w-36 animate-keen-shake rounded-3xl"
+                />
+              ) : (
+                <span className="relative grid h-44 w-36 place-items-center rounded-3xl border border-white/15 bg-slate-800 text-6xl">
+                  🎁
+                </span>
+              )}
             </div>
             <p className="text-sm font-semibold text-slate-300 animate-keen-pulse">Öppnar…</p>
+            <span className="-mt-3 text-[11px] font-semibold text-slate-500">Tryck var som helst för att skynda på</span>
           </div>
         )}
 
@@ -271,6 +312,11 @@ export default function PackOpener({
                 {chance > 0 ? `Chans: ${String(chance).replace(".", ",")} %` : ""}
                 {pull.owned > 1 ? ` · Du äger ${pull.owned} st` : ""}
               </p>
+              {keenBio(keen) && (
+                <p className="mt-1 max-w-sm text-center text-xs italic leading-snug text-slate-300">
+                  “{keenBio(keen)}”
+                </p>
+              )}
               {pulls.length > 1 && (
                 <span className="mt-2 text-[11px] text-slate-500">Tryck för nästa · {index + 1} av {pulls.length}</span>
               )}
@@ -281,12 +327,31 @@ export default function PackOpener({
         {/* ── summary ───────────────────────────────────────────────────── */}
         {stage === "summary" && (
           <div className="w-full animate-keen-rise rounded-3xl border border-white/10 bg-slate-900/80 p-5 backdrop-blur-xl">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-lg font-extrabold text-white">
                 {pulls.length > 1 ? `Du fick ${pulls.length} Keens!` : "Resultat"}
               </h2>
               <CoinCounter value={coins} className="text-amber-300" />
             </div>
+
+            {/* The numbers behind the reveal, in one glance. */}
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Stat label="Nya" value={String(newCount)} tone={newCount > 0 ? "text-emerald-300" : "text-slate-300"} />
+              <Stat label="Dubbletter" value={String(dupeCount)} tone={dupeCount > 0 ? "text-amber-300" : "text-slate-300"} />
+              <Stat label="Poäng" value={`+${points}`} tone="text-indigo-300" />
+              <Stat label="Värde" value={String(worth)} tone="text-sky-300" suffix=" mynt" />
+            </div>
+
+            {best && (
+              <p className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-400">
+                Bästa drag:
+                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider", RARITY_META[best.rarity as Rarity].chip)}>
+                  {RARITY_META[best.rarity as Rarity].label}
+                </span>
+                <span className="text-slate-300">{KEEN_BY_ID[best.keenId]?.name}</span>
+                {points > 0 && <span className="text-slate-500">· {points} poäng närmare nästa nivå</span>}
+              </p>
+            )}
 
             <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
               {pulls.map((p, i) => {
@@ -355,16 +420,18 @@ export default function PackOpener({
                 </button>
               </div>
             </div>
-            <Link
-              href="/keens"
-              className="mt-3 block text-center text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-            >
-              Se hela samlingen →
-            </Link>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs font-semibold">
+              <Link href="/keens" className="text-indigo-300 hover:text-indigo-200">
+                Se hela samlingen →
+              </Link>
+              <Link href="/keens/market" className="text-amber-300 hover:text-amber-200">
+                Saknar du en? Köp den i marknaden →
+              </Link>
+            </div>
           </div>
         )}
 
-        {stage !== "summary" && pulls.length > 1 && (
+        {stage !== "summary" && (
           <button
             type="button"
             onClick={(e) => {
@@ -373,10 +440,23 @@ export default function PackOpener({
             }}
             className="mt-6 text-xs font-semibold text-slate-400 underline decoration-dotted hover:text-slate-200"
           >
-            Hoppa över animationen
+            {pulls.length > 1 ? "Hoppa över till sammanfattningen" : "Visa resultatet direkt"}
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** One number in the summary's little stat row. */
+function Stat({ label, value, tone, suffix }: { label: string; value: string; tone: string; suffix?: string }) {
+  return (
+    <div className="rounded-xl border border-white/5 bg-slate-950/50 px-2.5 py-2 text-center">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p data-no-translate className={cn("font-display text-sm font-extrabold", tone)}>
+        {value}
+        {suffix && <span className="text-[10px] font-bold text-slate-500">{suffix}</span>}
+      </p>
     </div>
   );
 }

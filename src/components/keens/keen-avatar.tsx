@@ -2,7 +2,10 @@ import * as React from "react";
 import { RARITY_META, type Keen } from "@/lib/keens";
 import { KEEN_SPRITES, SPRITE_BOARDS, type SpriteBoard } from "@/lib/keen-sprites";
 import { cn } from "@/lib/utils";
+import IllustratedAvatar, { ILLUSTRATED_KEENS } from "./illustrated-avatar";
 import PixelSprite from "./pixel-sprite";
+
+const ILLUSTRATED = new Set(ILLUSTRATED_KEENS);
 
 /**
  * A Keen, drawn.
@@ -33,6 +36,21 @@ export default function KeenAvatar({
   const meta = RARITY_META[keen.rarity];
   const chroma = keen.rarity === "KROMA";
   const hue = keen.hue;
+
+  // The painted characters (Halloween, the Admin Keen) bring their own tile.
+  // A locked one stays a silhouette, so the set still teases rather than spoils.
+  const painted = !locked && ILLUSTRATED.has(keen.id);
+  if (painted) {
+    return (
+      <IllustratedAvatar
+        id={keen.id}
+        size={size}
+        label={keen.name}
+        className={className}
+        style={style}
+      />
+    );
+  }
 
   // A locked Keen is a mystery in both directions: no sprite, no emoji, just "?".
   const sprite = locked ? undefined : KEEN_SPRITES[keen.id];

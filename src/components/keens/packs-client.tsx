@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import { Gift, Info, Lock, Sparkles, Timer } from "lucide-react";
 import {
   HIDDEN_PACKS,
+  NEWEST_PACK,
   PACK_BY_ID,
   RARITY_META,
   SHELF_PACKS,
+  chaseKeen,
   formatWait,
   keensInPack,
+  rarityChance,
   rarityOdds,
   type AnyPackId,
   type Pack,
 } from "@/lib/keens";
-import { PACK_EMBLEMS, SPRITE_BOARDS } from "@/lib/keen-sprites";
 import { getKeenStateAction, openPackAction } from "@/app/keens/actions";
 import type { KeenState } from "@/lib/keens-store";
 import { cn } from "@/lib/utils";
 import CoinCounter from "./coin-counter";
 import KeenAvatar from "./keen-avatar";
-import PixelSprite from "./pixel-sprite";
+import PackArt from "./pack-art";
 import PackOpener, { type OpenedPull } from "./pack-opener";
 import { Toasts, useToasts } from "./toast";
 import { playClick, playError, playWindUp } from "./sounds";
@@ -238,10 +240,14 @@ function PackTile({
 }) {
   const inPack = keensInPack(pack.id as AnyPackId);
   const odds = rarityOdds(pack.id);
-  const emblem = PACK_EMBLEMS[pack.id];
   const have = inPack.filter((k) => (owned[k.id] ?? 0) > 0).length;
   const percent = inPack.length ? Math.round((have / inPack.length) * 100) : 0;
   const complete = have === inPack.length;
+  // The freshest theme on the shelf, and the one card in this pack worth chasing.
+  const newest = NEWEST_PACK?.id === pack.id;
+  const chase = chaseKeen(pack.id as AnyPackId, owned);
+  const chaseOwned = chase ? (owned[chase.id] ?? 0) > 0 : false;
+  const missing = inPack.filter((k) => (owned[k.id] ?? 0) === 0);
 
   return (
     <div
@@ -254,35 +260,25 @@ function PackTile({
       />
 
       <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            "relative grid h-16 w-16 shrink-0 place-items-center rounded-2xl border text-3xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105",
-            emblem ? "border-fuchsia-400/70" : "border-white/15"
-          )}
-          style={
-            emblem
-              ? { background: SPRITE_BOARDS.neon.background, boxShadow: "0 16px 34px -14px rgba(255,47,208,0.85)" }
-              : {
-                  background: `linear-gradient(160deg, hsl(${pack.hue} 70% 40%), hsl(${pack.hue} 70% 18%))`,
-                  boxShadow: `0 16px 34px -18px hsl(${pack.hue} 80% 50% / 0.95)`,
-                }
-          }
-        >
-          {emblem ? (
-            <PixelSprite sprite={emblem} size={58} />
-          ) : (
-            <span className="animate-keen-bob">{pack.emoji}</span>
-          )}
+        <div className="relative shrink-0 transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-1 group-hover:scale-105">
+          <PackArt pack={pack} className="h-[5.5rem] w-[5.5rem] rounded-2xl animate-keen-bob" />
           {complete && (
             <span className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border border-emerald-400/50 bg-emerald-500 text-[11px] font-extrabold text-emerald-950">
               ✓
             </span>
           )}
-        </span>
+        </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="truncate font-display text-base font-extrabold text-white">{pack.name}</p>
+            <p className="flex min-w-0 items-center gap-1.5 font-display text-base font-extrabold text-white">
+              <span className="truncate">{pack.name}</span>
+              {newest && (
+                <span className="shrink-0 rounded-full border border-fuchsia-400/50 bg-fuchsia-500/20 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-fuchsia-200 animate-keen-pulse">
+                  Ny
+                </span>
+              )}
+            </p>
             <span data-no-translate className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-extrabold text-amber-200">
               {pack.price} mynt
             </span>
@@ -331,20 +327,48 @@ function PackTile({
         </div>
       </div>
 
+      {/* the chase card: the rarest Keen here you have not found yet */}
+      {chase && (
+        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/5 bg-slate-950/50 p-2">
+          <KeenAvatar
+            keen={chase}
+            size={40}
+            locked={!chaseOwned}
+            className={cn("shrink-0 transition-transform duration-300", chaseOwned && RARITY_META[chase.rarity].glow)}
+          />
+          <div className="min-w-0">
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+              {chaseOwned ? "Toppen av paketet" : "Jaga"}
+            </p>
+            <p className={cn("truncate text-xs font-bold", chaseOwned ? "text-white" : "text-slate-300")}>
+              {chaseOwned ? chase.name : "???"}
+            </p>
+            <p
+              data-no-translate
+              className={cn("text-[9px] font-bold uppercase tracking-wider", RARITY_META[chase.rarity].text)}
+            >
+              {RARITY_META[chase.rarity].label}{!chaseOwned && ` · ${String(rarityChance(pack.id, chase.rarity)).replace(".", ",")} %`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* the last few Keens you are missing from this pack */}
-      <div className="mt-3 flex items-center gap-1.5">
-        {inPack
-          .filter((k) => (owned[k.id] ?? 0) === 0)
-          .slice(0, 6)
-          .map((k) => (
-            <KeenAvatar key={k.id} keen={k} size={26} locked className="opacity-60" />
-          ))}
-        {inPack.filter((k) => (owned[k.id] ?? 0) === 0).length > 6 && (
+      <div className="mt-2 flex items-center gap-1.5">
+        {missing.slice(0, 6).map((k) => (
+          <KeenAvatar key={k.id} keen={k} size={26} locked className="opacity-60" />
+        ))}
+        {missing.length > 6 && (
           <span data-no-translate className="text-[10px] font-bold text-slate-500">
-            +{inPack.filter((k) => (owned[k.id] ?? 0) === 0).length - 6}
+            +{missing.length - 6}
           </span>
         )}
         {complete && <span className="text-[11px] font-bold text-emerald-300">Alla hittade! 🎉</span>}
+        {!complete && missing.length > 0 && (
+          <span data-no-translate className="ml-auto text-[10px] font-bold text-slate-500">
+            {missing.length} kvar
+          </span>
+        )}
       </div>
 
       <div className="mt-4 flex gap-2">
