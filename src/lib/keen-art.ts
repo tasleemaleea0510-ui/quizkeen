@@ -1207,34 +1207,33 @@ function customArt(
         face: null,
       };
 
-    // The Creeper is the only character that really is a block: an 8×8 face on
-    // a nine-pixel grid, mottled with two greens instead of noise.
+    // The Creeper, the way the sheet draws it: a rounded green block lit from the
+    // top-left, with two deep angular eyes and a wide frown cut into it. The old
+    // version was an 8x8 sprite, which read as noise rather than a face.
     case "creeper":
       return {
-        back: "",
-        body: pixelRows(
-          [
-            "GHGHGGHG",
-            "GBBGGBBG",
-            "GBBGGBBG",
-            "HGGHGGHG",
-            "GGGBBGGG",
-            "GGBBBBGG",
-            "GGBBBBGG",
-            "HGGHBGGH",
-          ],
-          { G: "#57c33f", H: "#4ba834", B: "#0e2a0e" },
-          { x: 19, y: 19, cell: 7.75 }
-        ),
-        front: `<rect x="19" y="19" width="62" height="62" fill="none" stroke="#0e2a0e" stroke-width="1.4" opacity="0.5"/>`,
+        back: `<ellipse cx="50" cy="90" rx="28" ry="5" fill="#000" opacity="0.22"/>`,
+        body:
+          `<rect x="12" y="14" width="76" height="72" rx="20" fill="${grad}" stroke="#17610f" stroke-width="2.6"/>` +
+          `<path d="M22 26c6-7 15-10 26-10" stroke="#b6f59b" stroke-width="5" fill="none" opacity="0.4" stroke-linecap="round"/>` +
+          `<path d="M20 70c3 7 7 11 13 13" stroke="#17610f" stroke-width="4" fill="none" opacity="0.22" stroke-linecap="round"/>`,
+        front:
+          `<path d="M23 31h21q4 0 4 4v10q0 4-4 4H23q-4 0-4-4V35q0-4 4-4Z" fill="#12300f"/>` +
+          `<path d="M24 32h19q3 0 3 3v4H21v-4q0-3 3-3Z" fill="#2f7a1f" opacity="0.5"/>` +
+          `<path d="M77 31H56q-4 0-4 4v10q0 4 4 4h21q4 0 4-4V35q0-4-4-4Z" fill="#12300f"/>` +
+          `<path d="M76 32H57q-3 0-3 3v4h28v-4q0-3-3-3Z" fill="#2f7a1f" opacity="0.5"/>` +
+          `<path d="M36 54h28q5 0 4 5l-2 12q-1 5-6 5H40q-5 0-6-5l-2-12q-1-5 4-5Z" fill="#12300f"/>` +
+          `<path d="M44 66h4v7h-4Z" fill="#57c33f"/><path d="M52 66h4v7h-4Z" fill="#57c33f"/>`,
         face: null,
       };
 
-    // Pixel Thorne — the secret: a spiked shadow with a neon grin, on a black
-    // board with a pink neon frame and purple pixel spray.
+    // Pixel Thorne — the secret. The sheet is specific about it: a black, badly
+    // spiked shadow with narrow neon eyes and a saw-tooth grin, on a purple pixel
+    // board inside a hot-pink neon frame. The board is brighter than the creature,
+    // which is the whole reason the creature reads.
     case "pixelthorne": {
       const spikes: string[] = [];
-      const radii = [34, 25, 33, 23, 35, 26, 32, 22, 34, 24, 35, 25, 33, 23, 34, 26, 32, 24, 35, 25];
+      const radii = [34, 21, 33, 20, 35, 22, 32, 19, 34, 21, 35, 23, 33, 20, 34, 21, 32, 19, 35, 22, 33, 20, 34, 21, 33, 23];
       radii.forEach((r, i) => {
         const a = (i / radii.length) * Math.PI * 2 - Math.PI / 2;
         const x = 50 + Math.cos(a) * r;
@@ -1243,15 +1242,19 @@ function customArt(
       });
       return {
         back:
-          `<g>${pixelNoise(20, 5, ["#a855f7", "#7e22ce", "#c084fc"])}</g>` +
-          `<rect x="8" y="8" width="84" height="84" rx="3" fill="none" stroke="#ff2fd0" stroke-width="2.6"/>` +
-          `<rect x="11" y="11" width="78" height="78" rx="2" fill="none" stroke="#ff2fd0" stroke-width="1" opacity="0.6"/>` +
-          `<rect x="8" y="8" width="84" height="84" rx="3" fill="none" stroke="#ff2fd0" stroke-width="6" opacity="0.18"/>`,
+          `<rect x="0" y="0" width="100" height="100" fill="#3b0a5c"/>` +
+          `<g>${pixelNoise(20, 5, ["#a855f7", "#c084fc", "#7e22ce", "#9333ea"])}</g>` +
+          `<rect x="7" y="7" width="86" height="86" rx="3" fill="none" stroke="#ff2fd0" stroke-width="8" opacity="0.16"/>` +
+          `<rect x="7" y="7" width="86" height="86" rx="3" fill="none" stroke="#ff2fd0" stroke-width="3"/>` +
+          `<rect x="11" y="11" width="78" height="78" rx="2" fill="none" stroke="#ffb3f0" stroke-width="1" opacity="0.7"/>`,
         body:
-          `<path d="${spikes.join(" ")}Z" fill="#0f0a16" stroke="#3b1157" stroke-width="1.6" stroke-linejoin="round"/>`,
+          `<path d="${spikes.join(" ")}Z" fill="#0b0612" stroke="#a855f7" stroke-width="2" stroke-linejoin="round"/>`,
         front:
-          `<path d="M36 38l9-4-2 8-7-1Z" fill="#5cf53c"/><path d="M64 38l-9-4 2 8 7-1Z" fill="#5cf53c"/>` +
-          `<path d="M33 55h34l-6 7-5-4-5 5-5-5-5 4Z" fill="#5cf53c"/>`,
+          // narrow angled eyes, then the saw-tooth grin
+          `<path d="M33 35l15-5-4 11-9 1Z" fill="#5cf53c"/>` +
+          `<path d="M67 35l-15-5 4 11 9 1Z" fill="#5cf53c"/>` +
+          `<path d="M25 52c9 5 41 5 50 0l-9 12-7-8-8 10-8-10-7 8Z" fill="#5cf53c"/>` +
+          `<path d="M35 56l4 6 3-5Z" fill="#0b0612"/><path d="M50 57l5 7 3-6Z" fill="#0b0612"/>`,
         face: null,
         ornament: true,
       };
