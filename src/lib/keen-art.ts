@@ -884,12 +884,12 @@ function customArt(
           `</g>` +
           `<g fill="#f7c948"><circle cx="50" cy="17" r="2.6"/><path d="M23 52l3-5 3 5-3 5Z"/><path d="M77 52l-3-5-3 5 3 5Z"/></g>` +
           // eyes
-          `<ellipse cx="34.5" cy="49" rx="13.5" ry="15" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
-          `<ellipse cx="65.5" cy="49" rx="13.5" ry="15" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
-          `<circle cx="36" cy="51" r="8.8" fill="#241318"/>` +
-          `<circle cx="64" cy="51" r="8.8" fill="#241318"/>` +
-          `<circle cx="33" cy="47" r="3.3" fill="#ffffff"/><circle cx="61" cy="47" r="3.3" fill="#ffffff"/>` +
-          `<circle cx="39.5" cy="55" r="1.6" fill="#ffffff" opacity="0.8"/><circle cx="67.5" cy="55" r="1.6" fill="#ffffff" opacity="0.8"/>` +
+          `<ellipse cx="34.5" cy="44" rx="13.5" ry="14" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
+          `<ellipse cx="65.5" cy="44" rx="13.5" ry="14" fill="#fff8ef" stroke="#6b1a10" stroke-width="2"/>` +
+          `<circle cx="36" cy="46" r="8.4" fill="#241318"/>` +
+          `<circle cx="64" cy="46" r="8.4" fill="#241318"/>` +
+          `<circle cx="33" cy="42" r="3.2" fill="#ffffff"/><circle cx="61" cy="42" r="3.2" fill="#ffffff"/>` +
+          `<circle cx="39.5" cy="50" r="1.6" fill="#ffffff" opacity="0.8"/><circle cx="67.5" cy="50" r="1.6" fill="#ffffff" opacity="0.8"/>` +
           // muzzle, nostrils, grin
           `<path d="M50 57c-9 0-17 3-21 9-4 6-1 13 6 16 5 2 10 3 15 3s10-1 15-3c7-3 10-10 6-16-4-6-12-9-21-9Z" fill="#ffc93c" stroke="#a9540b" stroke-width="2.2"/>` +
           `<ellipse cx="46" cy="64" rx="2.2" ry="1.8" fill="#7f1d1d" opacity="0.7"/><ellipse cx="54" cy="64" rx="2.2" ry="1.8" fill="#7f1d1d" opacity="0.7"/>` +
@@ -1053,7 +1053,7 @@ function customArt(
             "...XX.XX...",
           ],
           { X: "#7cf03a" },
-          { x: 17, y: 25, cell: 6 }
+          { x: 11.5, y: 22, cell: 7 }
         ),
         front: "",
         face: null,
