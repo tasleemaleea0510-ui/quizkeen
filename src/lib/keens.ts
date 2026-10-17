@@ -476,7 +476,7 @@ export const KEENS: Keen[] = [
   // ── Halloweenpaketet ───────────────────────────────────────────────────────
   // The partner's design sheet, top to bottom: a grinning pumpkin, the two
   // chicken cubes, a vampire frog, two legendary cookies, a ghost cookie and the
-  // Pumpkin King on the mythic rung. Art: hand-pixelled in keen-sprites.ts.
+  // Pumpkin King on the mythic rung. Art: painted in illustrated-avatar.tsx.
   P("halloween", "VANLIG", 24, "pumpkin", "Pumpan Grin", "Grin the Pumpkin", "🎃"),
   P("halloween", "SALLSYNT", 200, "chickenchick", "Kuben Chick", "Chicken Chick", "🐤"),
   P("halloween", "SALLSYNT", 48, "chickchicken", "Kuben Chicken", "Chick Chicken", "🐔"),
