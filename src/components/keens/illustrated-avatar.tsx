@@ -350,6 +350,83 @@ function Omeisaurus({ id }: ArtProps) {
   );
 }
 
+/** 0,3 % — the secret: an iced ghost cookie, happy about it. */
+function CookieGhost({ id }: ArtProps) {
+  return (
+    <>
+      <defs>
+        <linearGradient id={g(id, "frost")} x1="0.2" y1="0" x2="0.8" y2="1">
+          <stop offset="0%" stopColor="#f4fbff" />
+          <stop offset="55%" stopColor="#dff2fb" />
+          <stop offset="100%" stopColor="#a9dcf2" />
+        </linearGradient>
+      </defs>
+
+      <Frame id={id} fill={`url(#${g(id, "frost")})`}>
+        {/* the icing sheet, then the scalloped hem that makes it a ghost */}
+        <rect x="9" y="9" width="82" height="70" rx="18" fill={`url(#${g(id, "frost")})`} stroke="#8ec9e0" strokeWidth="2" />
+        <circle cx="24" cy="78" r="11" fill="#dff2fb" stroke="#8ec9e0" strokeWidth="2" />
+        <circle cx="50" cy="81" r="12" fill="#dff2fb" stroke="#8ec9e0" strokeWidth="2" />
+        <circle cx="76" cy="78" r="11" fill="#dff2fb" stroke="#8ec9e0" strokeWidth="2" />
+        {/* happy eyes and a grin */}
+        <ellipse cx="36" cy="40" rx="6" ry="8" fill="#141c26" />
+        <ellipse cx="64" cy="40" rx="6" ry="8" fill="#141c26" />
+        <path d="M34 56q16 16 32 0-16 22-32 0z" fill="#141c26" />
+        <circle cx="38" cy="36" r="2" fill="#fff" />
+        <circle cx="66" cy="36" r="2" fill="#fff" />
+        {/* the same chocolate base as the rest of the Halloween cookies */}
+        <path d="M6 84h88v6q0 6-7 6H13q-7 0-7-6z" fill="#8b5a2b" />
+        <circle cx="28" cy="91" r="2.2" fill="#33200f" />
+        <circle cx="60" cy="92" r="2.2" fill="#33200f" />
+        <Gloss id={id} />
+      </Frame>
+    </>
+  );
+}
+
+/** 0,1 % — the secret: the Pumpkin King, crowned and winged on his slime box. */
+function PumpkinKing({ id }: ArtProps) {
+  return (
+    <>
+      <defs>
+        <linearGradient id={g(id, "body")} x1="0.2" y1="0" x2="0.8" y2="1">
+          <stop offset="0%" stopColor="#ffb257" />
+          <stop offset="55%" stopColor="#fb8c1a" />
+          <stop offset="100%" stopColor="#b93d0c" />
+        </linearGradient>
+        <linearGradient id={g(id, "box")} x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stopColor="#8b3fd6" />
+          <stop offset="100%" stopColor="#43107a" />
+        </linearGradient>
+        <linearGradient id={g(id, "crown")} x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor="#ffe08a" />
+          <stop offset="60%" stopColor="#f7c731" />
+          <stop offset="100%" stopColor="#c98f0a" />
+        </linearGradient>
+      </defs>
+
+      <Frame id={id} fill={`url(#${g(id, "box")})`}>
+        {/* bat wings */}
+        <path d="M16 46 2 28l4 24-4 18 16-12z" fill="#14090a" />
+        <path d="M84 46 98 28l-4 24 4 18-16-12z" fill="#14090a" />
+        {/* crown */}
+        <path d="M32 30 30 8l10 8 10-12 10 12 10-8-2 22z" fill={`url(#${g(id, "crown")})`} />
+        <path d="M32 30h36v5H32z" fill="#c98f0a" />
+        {/* head */}
+        <rect x="26" y="30" width="48" height="48" rx="16" fill={`url(#${g(id, "body")})`} stroke="#5b2408" strokeWidth="2" />
+        <path d="M38 53q6-9 12 0-6 6-12 0z" fill="#3a1c0c" />
+        <path d="M50 53q6-9 12 0-6 6-12 0z" fill="#3a1c0c" />
+        <path d="M36 65q14 15 28 0-7 14-14 14t-14-14z" fill="#3a1c0c" />
+        {/* the treasure box, dripping slime */}
+        <rect x="10" y="76" width="80" height="20" rx="5" fill={`url(#${g(id, "box")})`} stroke="#2c0a52" strokeWidth="2" />
+        <rect x="10" y="83" width="80" height="4" fill="#f7c731" opacity="0.85" />
+        <path d="M10 92q10-7 20 0t20 0 20 0 20 0v6H10z" fill="#5cf53c" opacity="0.85" />
+        <Gloss id={id} />
+      </Frame>
+    </>
+  );
+}
+
 const ART: Record<string, (p: ArtProps) => React.ReactElement> = {
   pumpkin: Pumpkin,
   chickenchick: (p) => <IceChick {...p} />,
@@ -357,6 +434,8 @@ const ART: Record<string, (p: ArtProps) => React.ReactElement> = {
   frogula: Frogula,
   cookiepumpkin: CookiePumpkin,
   cookiemummy: CookieMummy,
+  cookieghost: CookieGhost,
+  pumpkinking: PumpkinKing,
   omeisaurus: Omeisaurus,
 };
 

@@ -25,6 +25,13 @@
  * `board` picks the plate behind the pixels. `tile` keeps the rarity-hued tile
  * every other Keen uses (a red Crewmate on a red tile), while `dark`, `neon`,
  * `purple` and `halloween` are the themed plates the pack designs ask for.
+ *
+ * This file is the *fallback* art. The design sheet's painted characters — the
+ * Halloween pack and Omeisaurus — are drawn as SVG in
+ * `components/keens/illustrated-avatar.tsx`, and `KeenAvatar` prefers that. A
+ * painted Keen that was removed from that file falls back to its bitmap here
+ * instead of disappearing, which is why both drawings of the same character are
+ * kept side by side.
  */
 
 export type SpriteBoard = "tile" | "dark" | "neon" | "purple" | "halloween";
@@ -430,51 +437,6 @@ export const KEEN_SPRITES: Record<string, Sprite> = {
       "......WWWW......",
     ],
   },
-};
-
-/**
- * The Halloween pack's own artwork — a design of its own, not a Keen.
- *
- * The partner's sheet has the creatures but no packet, so this is the stand-in:
- * a lantern-lit jack-o'-lantern with a bat overhead, on the dark plate. Painted
- * artwork drops straight in here when it exists, like the Keen sprites above.
- */
-export const HALLOWEEN_EMBLEM: Sprite = {
-  board: "halloween",
-  alt: "Lysande pumpa med fladdermus på en mörklila platta",
-  palette: {
-    K: "#0b0616",
-    S: "#7a4a1d",
-    G: "#4ade80",
-    L: "#fdba74",
-    O: "#fb8c1a",
-    o: "#c2410c",
-    Y: "#ffe08a",
-    W: "#fff8dc",
-  },
-  rows: [
-    "................",
-    "..K...K.........",
-    ".KKK.KKK........",
-    "...KKK..........",
-    "................",
-    "......SS........",
-    "......SSGG......",
-    "....LLOOOOoo....",
-    "..LLOOOOOOOOoo..",
-    "..OYYOOOOOOYYO..",
-    ".LOYWYOOOOYWWOO.",
-    ".LOOOOOOOOOOOoo.",
-    ".OOOYYYYYYYYOOO.",
-    ".OOYWYWWYWYWWOO.",
-    ".OOOOOOOOOOOOoo.",
-    "..oooooooooooo..",
-  ],
-};
-
-export const PACK_EMBLEMS: Record<string, Sprite> = {
-  gamer: KEEN_SPRITES.pixelthorne,
-  halloween: HALLOWEEN_EMBLEM,
 };
 
 /** The plate behind a sprite, as inline styles (Tailwind can't ship these). */

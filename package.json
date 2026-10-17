@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
+    "check:sprites": "node scripts/check-sprites.mjs",
     "autocommit": "node scripts/auto-git.mjs"
   },
   "dependencies": {
