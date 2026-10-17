@@ -156,6 +156,7 @@ type Extra =
   | "spots"
   | "calc"
   | "straps"
+  | "pips"
   | "horn";
 
 type Shape =
@@ -184,7 +185,11 @@ type Shape =
   | "cake"
   | "comet"
   | "disc"
-  | "arrow";
+  | "telescope"
+  | "donut"
+  | "chocolate"
+  | "rainbow"
+  | "butterfly";
 
 type Recipe = {
   shape: Shape;
@@ -226,7 +231,7 @@ const RECIPES: Record<string, Recipe> = {
   svamp: { shape: "mushroom", extras: ["spots"], mouth: "smile" },
   sten: { shape: "blob", eyes: "sleepy", mouth: "flat", colors: { light: "#d6dbe3", base: "#9aa4b2", dark: "#5b6472", line: "#333b47" } },
   popp: { shape: "blob", extras: ["string"], mouth: "grin", colors: { light: "#ffb3c7", base: "#f43f5e", dark: "#a10f31", line: "#5c0620" } },
-  tia: { shape: "dice", eyes: "happy", mouth: "smile" },
+  tia: { shape: "dice", eyes: "big", mouth: "smile", extras: ["pips"] },
 
   // ── Djurpaketet ────────────────────────────────────────────────────────────
   kisse: { shape: "blob", extras: ["catEars", "whiskers"], mouth: "grin" },
@@ -242,7 +247,7 @@ const RECIPES: Record<string, Recipe> = {
   penny: { shape: "pencil", eyes: "big", mouth: "smile", colors: { light: "#ffe08a", base: "#fbbf24", dark: "#b45309", line: "#5b2d05" } },
   gummi: { shape: "cube", mouth: "smile", colors: { light: "#fbcfe8", base: "#f472b6", dark: "#9d174d", line: "#4c0519" } },
   bag: { shape: "cube", extras: ["straps"], mouth: "smile", colors: { light: "#93c5fd", base: "#3b82f6", dark: "#1e3a8a", line: "#0f1e46" } },
-  kalkyl: { shape: "cube", extras: ["calc"], mouth: "smile", colors: { light: "#d1fae5", base: "#34d399", dark: "#047857", line: "#053b2c" } },
+  kalkyl: { shape: "cube", extras: ["calc"], mouth: "smile", face: { cy: 46, mouthY: 60 }, colors: { light: "#d1fae5", base: "#34d399", dark: "#047857", line: "#053b2c" } },
   prov: { shape: "paper", eyes: "happy", mouth: "smile", colors: { light: "#ffffff", base: "#f1f5f9", dark: "#cbd5e1", line: "#475569" } },
   larsson: { shape: "blob", extras: ["glasses", "bowtie"], mouth: "smile", colors: { light: "#fde3c8", base: "#f2c39b", dark: "#c08a5c", line: "#5c3a1c" } },
   nobel: { shape: "medal", mouth: "grin" },
@@ -253,30 +258,30 @@ const RECIPES: Record<string, Recipe> = {
   stella: { shape: "star", eyes: "happy", mouth: "grin", colors: { light: "#fff3b0", base: "#fbbf24", dark: "#b45309", line: "#5b2d05" } },
   luna: { shape: "moon", eyes: "sleepy", mouth: "smile", colors: { light: "#f8fafc", base: "#e2e8f0", dark: "#a8b3c4", line: "#475569" } },
   kalle: { shape: "comet", eyes: "big", mouth: "open" },
-  tella: { shape: "arrow", eyes: "big", mouth: "smile", colors: { light: "#a5f3fc", base: "#22d3ee", dark: "#0e7490", line: "#083344" } },
+  tella: { shape: "telescope", eyes: "big", mouth: "smile", colors: { light: "#a5f3fc", base: "#22d3ee", dark: "#0e7490", line: "#083344" } },
   astro: { shape: "blob", extras: ["helmet"], mouth: "smile", colors: { light: "#e2e8f0", base: "#b8c4d4", dark: "#7b8798", line: "#334155" } },
   saturnus: { shape: "planet", extras: ["ring"], eyes: "big", mouth: "smile", colors: { light: "#fde68a", base: "#f59e0b", dark: "#b45309", line: "#5b2d05" } },
   zorg: { shape: "wide", eyes: "alien", mouth: "grin", extras: ["antennae"], colors: { light: "#c7f9a8", base: "#84cc16", dark: "#3f6212", line: "#1a2e05" } },
 
   // ── Djungelpaketet ─────────────────────────────────────────────────────────
   polly: { shape: "blob", extras: ["crest"], mouth: "beak", colors: { light: "#a7f3d0", base: "#34d399", dark: "#047857", line: "#053b2c" } },
-  ving: { shape: "disc", extras: ["wings"], eyes: "big", mouth: "smile", colors: { light: "#e9d5ff", base: "#c084fc", dark: "#7e22ce", line: "#3b0764" } },
+  ving: { shape: "butterfly", eyes: "big", mouth: "smile", colors: { light: "#e9d5ff", base: "#c084fc", dark: "#7e22ce", line: "#3b0764" } },
   abbe: { shape: "blob", extras: ["bearEars"], mouth: "grin", colors: { light: "#d9b48f", base: "#b07a45", dark: "#74451f", line: "#3a1f0c" } },
   slir: { shape: "drop", eyes: "big", mouth: "tongue", colors: { light: "#bbf7d0", base: "#22c55e", dark: "#15803d", line: "#052e16" } },
   groda: { shape: "wide", eyes: "big", mouth: "grin", extras: ["spots"], colors: { light: "#bbf7d0", base: "#4ade80", dark: "#15803d", line: "#052e16" } },
   leo: { shape: "blob", extras: ["pointEars", "spots"], mouth: "grin" },
-  elsa: { shape: "wide", extras: ["dogEars", "trunk", "tusks"], mouth: "smile", colors: { light: "#e2e8f0", base: "#a8b3c4", dark: "#64748b", line: "#243144" } },
+  elsa: { shape: "wide", extras: ["dogEars", "tusks"], face: { cy: 50 }, mouth: "smile", colors: { light: "#e2e8f0", base: "#a8b3c4", dark: "#64748b", line: "#243144" } },
   leon: { shape: "wide", extras: ["mane"], mouth: "grin" },
 
   // ── Godispaketet ───────────────────────────────────────────────────────────
   klubba: { shape: "lolli", eyes: "happy", mouth: "grin" },
   kex: { shape: "cookie", eyes: "big", mouth: "grin", colors: { light: "#f3d3a2", base: "#d9a05b", dark: "#9c6b2f", line: "#4a2c0c" } },
-  munk: { shape: "disc", eyes: "happy", mouth: "grin", colors: { light: "#fde3c8", base: "#e8b183", dark: "#b07a4a", line: "#4a2a0f" } },
-  choklad: { shape: "cube", eyes: "big", mouth: "smile", colors: { light: "#a8763f", base: "#7b4a1f", dark: "#4a2a0f", line: "#241204" } },
+  munk: { shape: "donut", eyes: "happy", mouth: "grin", colors: { light: "#fde3c8", base: "#e8b183", dark: "#b07a4a", line: "#4a2a0f" } },
+  choklad: { shape: "chocolate", eyes: "big", mouth: "smile", colors: { light: "#a8763f", base: "#7b4a1f", dark: "#4a2a0f", line: "#241204" } },
   glass: { shape: "sundae", eyes: "happy", mouth: "grin" },
   tarta: { shape: "cake", eyes: "happy", mouth: "grin" },
   cupcake: { shape: "cupcake", eyes: "happy", mouth: "grin" },
-  rainbow: { shape: "cloud", extras: ["petals"], eyes: "happy", mouth: "grin" },
+  rainbow: { shape: "rainbow", eyes: "happy", mouth: "grin" },
 
   // ── Mytiskapaketet ─────────────────────────────────────────────────────────
   uno: { shape: "wide", extras: ["horn", "mane"], eyes: "sparkle", mouth: "smile", colors: { light: "#ffffff", base: "#f3e8ff", dark: "#c4b5fd", line: "#6d28d9" } },
@@ -380,9 +385,54 @@ function buildBody(recipe: Recipe, id: string, c: Colors): Built {
       };
     case "cookie":
       return {
-        body: `<circle cx="50" cy="52" r="27" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`,
-        back: `<circle cx="32" cy="38" r="4" fill="#4a2c0c"/><circle cx="66" cy="34" r="3.4" fill="#4a2c0c"/><circle cx="72" cy="60" r="4" fill="#4a2c0c"/><circle cx="26" cy="62" r="3.4" fill="#4a2c0c"/><circle cx="46" cy="26" r="2.8" fill="#4a2c0c"/>`,
-        face: { cx: 50, cy: 52, gap: 11, r: 8, mouthY: 66 },
+        body: `<circle cx="50" cy="53" r="27" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
+          `<circle cx="50" cy="53" r="27" fill="none" stroke="#fde68a" stroke-width="1.4" opacity="0.5" transform="translate(0,1)"/>`,
+        front: `<circle cx="31" cy="37" r="3.6" fill="#4a2c0c"/><circle cx="67" cy="33" r="3" fill="#4a2c0c"/><circle cx="74" cy="61" r="3.6" fill="#4a2c0c"/><circle cx="25" cy="61" r="3" fill="#4a2c0c"/><circle cx="55" cy="24" r="2.6" fill="#4a2c0c"/>`,
+        face: { cx: 50, cy: 54, gap: 11, r: 8.5, mouthY: 70 },
+      };
+    case "donut":
+      return {
+        body:
+          `<circle cx="50" cy="52" r="29" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
+          `<path d="M50 23 a29 29 0 0 1 0 58 a29 29 0 0 0 0 -58" fill="#f9a8d4" opacity="0.85"/>` +
+          `<circle cx="50" cy="52" r="29" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.25"/>`,
+        front:
+          `<circle cx="50" cy="52" r="10" fill="#1a0f33"/>` +
+          `<circle cx="50" cy="52" r="10" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.18"/>` +
+          `<g fill="#fde68a"><rect x="31" y="30" width="7" height="2.6" rx="1.3" transform="rotate(-20 34 31)"/><rect x="62" y="28" width="7" height="2.6" rx="1.3" transform="rotate(30 65 29)"/><rect x="68" y="50" width="7" height="2.6" rx="1.3" transform="rotate(-40 71 51)"/><rect x="27" y="49" width="7" height="2.6" rx="1.3" transform="rotate(25 30 50)"/></g>`,
+        face: { cx: 50, cy: 46, gap: 11, r: 7.6, mouthY: 60 },
+      };
+    case "chocolate":
+      return {
+        body:
+          `<rect x="24" y="20" width="52" height="64" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
+          `<g stroke="${c.dark}" stroke-width="2.4" opacity="0.7">` +
+          `<path d="M24 40 h52 M24 60 h52 M42 20 v64 M60 20 v64"/>` +
+          `</g>` +
+          `<path d="M26 22 q16 10 48 2" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.35"/>`,
+        face: { cx: 50, cy: 50, gap: 9, r: 6.4, mouthY: 64 },
+      };
+    case "rainbow":
+      return {
+        body:
+          `<path d="M18 78 a32 32 0 0 1 64 0 h-12 a20 20 0 0 0 -40 0 Z" fill="#ef4444" stroke="${stroke}" stroke-width="1.6"/>` +
+          `<path d="M30 78 a20 20 0 0 1 40 0 h-8 a12 12 0 0 0 -24 0 Z" fill="#22c55e"/>` +
+          `<path d="M38 78 a12 12 0 0 1 24 0 h-6 a6 6 0 0 0 -12 0 Z" fill="#38bdf8"/>` +
+          `<circle cx="17" cy="80" r="9" fill="#f8fafc" stroke="${stroke}" stroke-width="1.6"/>` +
+          `<circle cx="83" cy="80" r="9" fill="#f8fafc" stroke="${stroke}" stroke-width="1.6"/>`,
+        face: { cx: 50, cy: 62, gap: 9, r: 6.6, mouthY: 76 },
+      };
+    case "butterfly":
+      return {
+        back:
+          `<ellipse cx="28" cy="44" rx="19" ry="22" fill="${fill}" stroke="${stroke}" stroke-width="2" transform="rotate(-18 28 44)"/>` +
+          `<ellipse cx="72" cy="44" rx="19" ry="22" fill="${fill}" stroke="${stroke}" stroke-width="2" transform="rotate(18 72 44)"/>` +
+          `<ellipse cx="31" cy="70" rx="13" ry="14" fill="${c.light}" stroke="${stroke}" stroke-width="2" transform="rotate(-14 31 70)"/>` +
+          `<ellipse cx="69" cy="70" rx="13" ry="14" fill="${c.light}" stroke="${stroke}" stroke-width="2" transform="rotate(14 69 70)"/>` +
+          `<circle cx="30" cy="42" r="4.6" fill="#fde68a" opacity="0.85"/><circle cx="70" cy="42" r="4.6" fill="#fde68a" opacity="0.85"/>`,
+        body: `<ellipse cx="50" cy="56" rx="13" ry="30" fill="${c.dark}" stroke="${stroke}" stroke-width="2"/>` +
+          `<path d="M44 26 q-1 -10 -6 -12 M56 26 q1 -10 6 -12" stroke="${stroke}" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+        face: { cx: 50, cy: 48, gap: 6.5, r: 5.4, mouthY: 62 },
       };
     case "cupcake":
       return {
@@ -431,12 +481,18 @@ function buildBody(recipe: Recipe, id: string, c: Colors): Built {
       };
     case "rocket":
       return {
+        back:
+          `<path d="M30 62 l-13 18 h13 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.6"/>` +
+          `<path d="M70 62 l13 18 h-13 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.6"/>`,
         body:
-          `<path d="M50 10 q19 18 19 44 v26 h-38 V54 q0 -26 19 -44 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
-          `<circle cx="50" cy="42" r="9" fill="#bae6fd" stroke="${stroke}" stroke-width="2"/>`,
-        back: `<path d="M31 66 l-12 16 h12 Z" fill="#ef4444"/><path d="M69 66 l12 16 h-12 Z" fill="#ef4444"/>`,
-        front: `<path d="M43 84 q7 12 14 0 Z" fill="#fbbf24"/>`,
-        face: { cx: 50, cy: 42, gap: 0, r: 0, mouthY: 0 },
+          `<path d="M50 8 q20 20 20 46 v28 h-40 V54 q0 -26 20 -46 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
+          `<circle cx="50" cy="40" r="12" fill="#dbeafe" stroke="${stroke}" stroke-width="2.2"/>` +
+          `<path d="M50 20 q10 4 12 18" stroke="#ffffff" stroke-width="2.4" fill="none" opacity="0.4"/>`,
+        front:
+          `<path d="M40 82 q10 16 20 0 Z" fill="#fbbf24" stroke="#f97316" stroke-width="1.4"/>` +
+          `<path d="M46 84 q4 8 8 0" fill="#fef08a"/>` +
+          `<circle cx="50" cy="40" r="12" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.45"/>`,
+        face: { cx: 50, cy: 40, gap: 5.5, r: 4.2, mouthY: 47 },
       };
     case "dice":
       return {
@@ -467,19 +523,32 @@ function buildBody(recipe: Recipe, id: string, c: Colors): Built {
       };
     case "sundae":
       return {
-        back: `<path d="M32 52 h36 l-6 30 a4 4 0 0 1 -4 3 h-16 a4 4 0 0 1 -4 -3 Z" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="2"/>` +
-          `<path d="M50 84 l10 6 h-20 Z" fill="#bae6fd"/>`,
-        body: `<circle cx="40" cy="44" r="13" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="60" cy="44" r="13" fill="${c.light}" stroke="${stroke}" stroke-width="2"/><circle cx="50" cy="32" r="13" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`,
-        front: `<path d="M50 20 q4 -8 10 -6 q-4 6 -10 6 Z" fill="#ef4444"/>`,
-        face: { cx: 50, cy: 40, gap: 9, r: 6.5, mouthY: 52 },
+        back:
+          `<path d="M30 54 h40 l-7 28 a5 5 0 0 1 -5 4 h-16 a5 5 0 0 1 -5 -4 Z" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="2.4"/>` +
+          `<path d="M50 86 l9 7 h-18 Z" fill="#bae6fd" stroke="#7dd3fc" stroke-width="1.6"/>`,
+        body:
+          `<circle cx="36" cy="46" r="14" fill="${c.light}" stroke="${stroke}" stroke-width="2"/>` +
+          `<circle cx="64" cy="46" r="14" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+          `<circle cx="50" cy="34" r="15" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+          `<path d="M30 54 q8 6 20 4 q12 2 20 -4" stroke="#7dd3fc" stroke-width="2.4" fill="none"/>`,
+        front:
+          `<path d="M50 18 q5 -9 12 -6 q-5 7 -12 6 Z" fill="#ef4444"/>` +
+          `<path d="M58 74 l14 -4" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/><ellipse cx="74" cy="69" rx="5" ry="4" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1.4"/>` +
+          `<g fill="#f472b6"><rect x="38" y="30" width="6" height="2.4" rx="1.2" transform="rotate(-25 41 31)"/><rect x="58" y="26" width="6" height="2.4" rx="1.2" transform="rotate(20 61 27)"/><rect x="61" y="42" width="6" height="2.4" rx="1.2" transform="rotate(-20 64 43)"/></g>`,
+        face: { cx: 50, cy: 40, gap: 9, r: 6.8, mouthY: 52 },
       };
     case "cake":
       return {
         body:
-          `<path d="M22 66 h56 v18 h-56 Z" fill="#fcd9b6" stroke="${stroke}" stroke-width="2.2"/>` +
-          `<path d="M22 52 q7 8 14 0 q7 8 14 0 q7 8 14 0 q7 8 14 0 v14 h-56 Z" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>`,
-        front: `<circle cx="50" cy="24" r="6" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.6"/><path d="M50 18 q4 -7 9 -5" stroke="#166534" stroke-width="2.4" fill="none"/>`,
-        face: { cx: 50, cy: 66, gap: 9, r: 6, mouthY: 78 },
+          `<path d="M18 62 h64 v24 h-64 Z" fill="#fcd9b6" stroke="${stroke}" stroke-width="2.2"/>` +
+          `<path d="M18 54 q8 10 16 0 q8 10 16 0 q8 10 16 0 q8 10 16 0 v10 h-64 Z" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>` +
+          `<path d="M18 62 h64" stroke="#fef3c7" stroke-width="4" opacity="0.7"/>` +
+          `<path d="M24 86 h52" stroke="${c.dark}" stroke-width="2" opacity="0.35"/>`,
+        front:
+          `<circle cx="30" cy="46" r="5.2" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.4"/>` +
+          `<circle cx="58" cy="44" r="5.2" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.4"/>` +
+          `<path d="M30 40 q3 -6 8 -4" stroke="#166534" stroke-width="2.2" fill="none"/>`,
+        face: { cx: 50, cy: 72, gap: 9, r: 6.4, mouthY: 82 },
       };
     case "comet":
       return {
@@ -492,11 +561,16 @@ function buildBody(recipe: Recipe, id: string, c: Colors): Built {
         body: `<circle cx="50" cy="54" r="27" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`,
         face: { cx: 50, cy: 52, gap: 11, r: 8.5, mouthY: 68 },
       };
-    case "arrow":
+    case "telescope":
       return {
+        back: `<path d="M50 52 l-16 34 M50 52 l16 34 M50 52 v30" stroke="#64748b" stroke-width="3.4" stroke-linecap="round"/>`,
         body:
-          `<path d="M24 66 l28 -22 l0 -10 l24 18 l-24 18 l0 -10 l-28 22 Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`,
-        face: { cx: 42, cy: 56, gap: 8, r: 6.5, mouthY: 66 },
+          `<g transform="rotate(-22 50 48)">` +
+          `<rect x="18" y="38" width="52" height="20" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="2.2"/>` +
+          `<rect x="66" y="34" width="14" height="28" rx="6" fill="${c.dark}" stroke="${stroke}" stroke-width="2.2"/>` +
+          `<rect x="24" y="36" width="8" height="24" rx="4" fill="${c.light}" stroke="${stroke}" stroke-width="1.6"/>` +
+          `</g>`,
+        face: { cx: 50, cy: 48, gap: 8.5, r: 6.6, mouthY: 60 },
       };
     default:
       return {
@@ -658,10 +732,14 @@ function buildExtras(list: Extra[], c: Colors): { back: string; front: string } 
           `<circle cx="60" cy="80" r="3.4" fill="${c.dark}" opacity="0.45"/>`;
         break;
       case "calc":
-        front += `<rect x="34" y="58" width="32" height="10" rx="2" fill="#0f172a" opacity="0.55"/>` +
-          `<g fill="#0f172a" opacity="0.45">` +
-          [0, 1, 2].map((r) => [0, 1, 2].map((col) => `<rect x="${34 + col * 11}" y="${72 + r * 0}" width="8" height="4" rx="1"/>`).join("")).join("") +
+        // Screen and keys live in the bottom third so they never cross the face.
+        front += `<rect x="34" y="66" width="32" height="8" rx="2" fill="#0f172a" opacity="0.5"/>` +
+          `<g fill="#0f172a" opacity="0.4">` +
+          [0, 1].map((row) => [0, 1, 2].map((col) => `<rect x="${35 + col * 10}" y="${76 + row * 5}" width="7" height="3.4" rx="1"/>`).join("")).join("") +
           `</g>`;
+        break;
+      case "pips":
+        front += `<g fill="#ffffff" opacity="0.92"><circle cx="29" cy="31" r="3.4"/><circle cx="71" cy="31" r="3.4"/><circle cx="29" cy="76" r="3.4"/><circle cx="71" cy="76" r="3.4"/></g>`;
         break;
       case "straps":
         front += `<path d="M34 30 q-6 14 -2 28" stroke="${c.dark}" stroke-width="4" fill="none"/><path d="M66 30 q6 14 2 28" stroke="${c.dark}" stroke-width="4" fill="none"/>`;
@@ -756,13 +834,19 @@ function customArt(kind: Custom, id: string, c: Colors): { back: string; body: s
       return {
         back: `<ellipse cx="50" cy="88" rx="30" ry="6" fill="#000" opacity="0.22"/>`,
         body:
-          `<rect x="16" y="16" width="68" height="68" rx="22" fill="${hen ? "#f59e0b" : "#fde047"}" stroke="#b45309" stroke-width="2.6"/>` +
-          `<rect x="24" y="24" width="52" height="52" rx="16" fill="#7dd3fc" stroke="#0369a1" stroke-width="2"/>` +
-          `<path d="M32 16 q4 -10 12 -8 q-2 8 -12 8 Z" fill="${hen ? "#fbbf24" : "#fde047"}" stroke="#b45309" stroke-width="1.6"/>`,
+          `<rect x="15" y="15" width="70" height="70" rx="24" fill="${hen ? "#f59e0b" : "#fde047"}" stroke="#b45309" stroke-width="2.6"/>` +
+          `<rect x="22" y="34" width="56" height="46" rx="17" fill="#7dd3fc" stroke="#0369a1" stroke-width="2.4"/>` +
+          `<ellipse cx="36" cy="24" rx="9" ry="10" fill="#ffffff" stroke="#b45309" stroke-width="1.4"/>` +
+          `<ellipse cx="64" cy="24" rx="9" ry="10" fill="#ffffff" stroke="#b45309" stroke-width="1.4"/>` +
+          `<circle cx="37" cy="26" r="4.6" fill="#111827"/><circle cx="63" cy="26" r="4.6" fill="#111827"/>` +
+          `<circle cx="35.5" cy="24" r="1.7" fill="#ffffff"/><circle cx="61.5" cy="24" r="1.7" fill="#ffffff"/>` +
+          `<path d="M46 15 q4 -11 12 -8 q-3 8 -12 8 Z" fill="${hen ? "#fbbf24" : "#fde047"}" stroke="#b45309" stroke-width="1.6"/>` +
+          `<path d="M31 44 q19 -6 38 0" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.55"/>`,
         front:
-          `<circle cx="50" cy="18" r="4.4" fill="${hen ? "#dc2626" : "#f472b6"}"/>` +
-          `<path d="M34 52 q16 12 32 0" stroke="#0369a1" stroke-width="2" fill="none" opacity="0.5"/>`,
-        face: { cx: 50, cy: 44, gap: 13, r: 10, mouthY: 66 },
+          `<circle cx="50" cy="16" r="4.6" fill="${hen ? "#dc2626" : "#f472b6"}" stroke="#9d174d" stroke-width="1.2"/>` +
+          `<path d="M28 50 q4 10 0 16" stroke="#0369a1" stroke-width="2" fill="none" opacity="0.4"/>` +
+          `<path d="M72 50 q-4 10 0 16" stroke="#0369a1" stroke-width="2" fill="none" opacity="0.4"/>`,
+        face: { cx: 50, cy: 50, gap: 13, r: 8.5, mouthY: 68 },
       };
     }
 
@@ -833,7 +917,9 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
   const id = `k${keen.id.replace(/[^a-z0-9]/gi, "")}`;
   const recipe = RECIPES[keen.id] ?? DEFAULT_RECIPE;
   const c = colorsFor(keen.hue, recipe.colors);
-  const tileHue = (keen.hue + 148) % 360;
+  // Every plate is the same deep violet, with the Keen's own colour glowing
+  // behind it — one designed set instead of seventy unrelated backgrounds.
+  const tileHue = 262;
   const label = escapeXml(keen.name);
   // Inline in React the drawing fills its box; as a data URI it needs real
   // pixel dimensions, because an `<img>` cannot resolve `100%` on its own.
@@ -883,6 +969,11 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     `<stop offset="0.65" stop-color="#ffffff" stop-opacity="0.05"/>` +
     `<stop offset="1" stop-color="#ffffff" stop-opacity="0"/>` +
     `</radialGradient>` +
+    `<radialGradient id="${id}-glow" cx="0.5" cy="0.55" r="0.62">` +
+    `<stop offset="0" stop-color="${hsl(keen.hue, 95, 62)}" stop-opacity="0.55"/>` +
+    `<stop offset="0.7" stop-color="${hsl(keen.hue, 90, 50)}" stop-opacity="0.12"/>` +
+    `<stop offset="1" stop-color="${hsl(keen.hue, 90, 50)}" stop-opacity="0"/>` +
+    `</radialGradient>` +
     `<linearGradient id="${id}-body" x1="0.2" y1="0" x2="0.75" y2="1">` +
     `<stop offset="0" stop-color="${c.light}"/>` +
     `<stop offset="0.45" stop-color="${c.base}"/>` +
@@ -898,6 +989,7 @@ export function keenArtSvg(keen: ArtKeen, opts: { locked?: boolean; size?: numbe
     `<rect x="3" y="3" width="94" height="94" rx="25" fill="url(#${id}-tile)"/>` +
     `<g clip-path="url(#${id}-clip)">` +
     chroma +
+    `<ellipse cx="50" cy="52" rx="47" ry="45" fill="url(#${id}-glow)"/>` +
     `<path d="M6 88 q22 -16 44 0 t44 -4 v14 H6 Z" fill="#000" opacity="0.18"/>` +
     (custom ? custom.back : "") +
     extras.back +
