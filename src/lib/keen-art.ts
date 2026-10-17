@@ -1286,6 +1286,13 @@ export function keenRunnerSvg(keen: ArtKeen, opts: { size?: number } = {}): stri
     `<stop offset="1" stop-color="${hsl(keen.hue, 58, 10)}"/>` +
     `</linearGradient>` +
     `<clipPath id="${id}-clip"><circle cx="50" cy="50" r="46"/></clipPath>` +
+    // The character paints itself with this gradient, so the runner has to
+    // define it too — without it every runner rendered with no body at all.
+    `<linearGradient id="${id}-body" x1="0.2" y1="0" x2="0.75" y2="1">` +
+    `<stop offset="0" stop-color="${c.light}"/>` +
+    `<stop offset="0.45" stop-color="${c.base}"/>` +
+    `<stop offset="1" stop-color="${c.dark}"/>` +
+    `</linearGradient>` +
     `</defs>` +
     `<circle cx="50" cy="50" r="46" fill="url(#${id}-bg)"/>` +
     `<g clip-path="url(#${id}-clip)">` +
