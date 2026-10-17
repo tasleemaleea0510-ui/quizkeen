@@ -214,11 +214,11 @@ const VIOLET_PLATE: Plate = { from: hsl(262, 58, 38), to: hsl(262, 72, 15) };
  * whole plate green and the alien vanished into it. Bright characters need a
  * muted halo.
  */
-const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#3f7a1c" };
+const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#122008" };
 /** A mossy green corner for the Creeper, so the face reads as a block in grass. */
-const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#2f5f22" };
+const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#16240f" };
 /** Pixel Thorne: black board, neon frame drawn by the character itself. */
-const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#7a1050" };
+const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#2a0620" };
 /** The Admin Keen's purple, taken from the design sheet. */
 const ROYAL_PLATE: Plate = { from: "#8b3ae0", to: "#4c1594", glow: "#c084fc" };
 
