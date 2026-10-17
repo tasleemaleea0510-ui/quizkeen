@@ -948,45 +948,62 @@ function customArt(
         face: null,
       };
 
-    // The "Kuben" birds from the Halloween sheet: a chunky yellow cube with a
-    // face on the top half, a blue screen-face in a rounded frame underneath, and
-    // a red wattle hanging off the bottom edge. `chickCube` is the pale chick,
-    // `chickenCube` the deeper amber hen with a red comb instead of a pink one.
+    // The "Kuben" pair from the Halloween sheet, and they are one animal in two
+    // states: `chickCube` is the blue ice cube with the red comb and a yellow
+    // screen-face, `chickenCube` is the yellow bird out of the ice with a blue
+    // screen-face. Same drawing, swapped palettes — the sheet does exactly that.
     case "chickCube":
     case "chickenCube": {
-      const hen = kind === "chickenCube";
-      const shell = hen ? "#f7b23b" : "#ffd93d";
-      const shellEdge = hen ? "#c47a06" : "#c68a05";
-      const shellLight = hen ? "#ffd579" : "#fff0a1";
-      const comb = hen ? "#dc2626" : "#f472b6";
+      const frozen = kind === "chickCube";
+      const shell = frozen ? "#a9dcf7" : "#ffd93d";
+      const shellEdge = frozen ? "#4f9fc9" : "#c68a05";
+      const shellLight = frozen ? "#e9f8ff" : "#fff0a1";
+      const panel = frozen ? "#ffd15c" : "#bde9ff";
+      const panelEdge = frozen ? "#d99a1c" : "#4f9fc9";
+      const panelInk = frozen ? "#c2410c" : "#0369a1";
+      const comb = "#e0392b";
       return {
-        back: `<ellipse cx="50" cy="89" rx="30" ry="5" fill="#000" opacity="0.22"/>`,
+        back: `<ellipse cx="50" cy="90" rx="30" ry="5" fill="#000" opacity="0.22"/>`,
         body:
-          `<path d="M43 15c-3-8-1-13 5-16 1 7 3 11 7 15Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
-          `<path d="M53 15c1-7 5-10 10-10-2 6-3 9-5 12Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
-          `<path d="M36 16c-5-5-10-6-14-4 3 5 6 7 11 8Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+          // the comb: a floppy red crest on the frozen one, little tufts on the bird
+          (frozen
+            ? `<path d="M36 15c-5-5-3-12 3-13 4-1 7 2 8 5 3-4 9-4 11 1 2 4 1 8-2 11 4 0 6 4 4 8-2 3-6 3-9 1Z" fill="${comb}" stroke="#9d174d" stroke-width="2" stroke-linejoin="round"/>`
+            : `<path d="M43 16c-3-8-1-13 5-16 1 7 3 11 7 15Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+              `<path d="M53 16c1-7 5-10 10-10-2 6-3 9-5 12Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>` +
+              `<path d="M36 17c-5-5-10-6-14-4 3 5 6 7 11 8Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.8" stroke-linejoin="round"/>`) +
           `<rect x="13" y="13" width="74" height="73" rx="23" fill="${shell}" stroke="${shellEdge}" stroke-width="2.8"/>` +
-          `<path d="M23 20c6-5 14-6 22-5" stroke="#fffbe8" stroke-width="3.6" fill="none" stroke-linecap="round" opacity="0.6"/>`,
+          `<path d="M23 21c6-5 14-6 22-5" stroke="#ffffff" stroke-width="3.6" fill="none" stroke-linecap="round" opacity="0.65"/>` +
+          (frozen
+            ? // frozen frost spikes at the corners
+              `<path d="M16 30l-5-3 4 6-6 1 6 3-3 5Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.4" stroke-linejoin="round"/>` +
+              `<path d="M84 62l5 3-4 4 5 3-5 4Z" fill="${shellLight}" stroke="${shellEdge}" stroke-width="1.4" stroke-linejoin="round"/>`
+            : ""),
         front:
           // top face
-          `<ellipse cx="35" cy="36" rx="11" ry="12.5" fill="#ffffff" stroke="#a16207" stroke-width="1.6"/>` +
-          `<ellipse cx="65" cy="36" rx="11" ry="12.5" fill="#ffffff" stroke="#a16207" stroke-width="1.6"/>` +
-          `<circle cx="36" cy="38" r="6.6" fill="#181316"/><circle cx="64" cy="38" r="6.6" fill="#181316"/>` +
-          `<circle cx="33.5" cy="34.5" r="2.5" fill="#ffffff"/><circle cx="61.5" cy="34.5" r="2.5" fill="#ffffff"/>` +
-          `<circle cx="39" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/><circle cx="67" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/>` +
-          `<ellipse cx="21" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
-          `<ellipse cx="79" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
-          `<path d="M50 40l11 7-11 9-11-9Z" fill="#f97316" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>` +
-          // the screen face
-          `<rect x="20" y="55" width="60" height="26" rx="9" fill="#c7ecff" stroke="${shellEdge}" stroke-width="4"/>` +
-          `<path d="M26 62c4-3 9-4 14-3" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.8"/>` +
-          `<circle cx="39" cy="65" r="7.2" fill="#ffffff" stroke="#0369a1" stroke-width="1.2"/>` +
-          `<circle cx="61" cy="65" r="7.2" fill="#ffffff" stroke="#0369a1" stroke-width="1.2"/>` +
-          `<circle cx="39.6" cy="66" r="4.2" fill="#111827"/><circle cx="60.4" cy="66" r="4.2" fill="#111827"/>` +
-          `<circle cx="37.8" cy="64" r="1.5" fill="#ffffff"/><circle cx="58.6" cy="64" r="1.5" fill="#ffffff"/>` +
-          `<path d="M50 69l8 5-8 6-8-6Z" fill="#f97316" stroke="#c2410c" stroke-width="1.4" stroke-linejoin="round"/>` +
-          // wattle on the bottom edge
-          `<path d="M45 84c0 6 2 9 5 9s5-3 5-9Z" fill="${comb}" stroke="#9d174d" stroke-width="1.4"/>`,
+          `<ellipse cx="35" cy="35" rx="11" ry="12.5" fill="#ffffff" stroke="#3f3a3a" stroke-width="1.4"/>` +
+          `<ellipse cx="65" cy="35" rx="11" ry="12.5" fill="#ffffff" stroke="#3f3a3a" stroke-width="1.4"/>` +
+          `<circle cx="36" cy="37" r="6.8" fill="#17141a"/><circle cx="64" cy="37" r="6.8" fill="#17141a"/>` +
+          `<circle cx="33.5" cy="33.5" r="2.6" fill="#ffffff"/><circle cx="61.5" cy="33.5" r="2.6" fill="#ffffff"/>` +
+          `<circle cx="39" cy="41" r="1.4" fill="#ffffff" opacity="0.85"/><circle cx="67" cy="41" r="1.4" fill="#ffffff" opacity="0.85"/>` +
+          // lashes, the detail that makes the sheet's eyes read as a bird's
+          `<g stroke="#3f3a3a" stroke-width="1.6" stroke-linecap="round">` +
+          `<path d="M25 24l-3-3M30 21l-2-4M70 21l2-4M75 24l3-3"/>` +
+          `</g>` +
+          `<ellipse cx="21" cy="48" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.55"/>` +
+          `<ellipse cx="79" cy="48" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.55"/>` +
+          `<path d="M50 39l11 7-11 9-11-9Z" fill="#f97316" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>` +
+          // the screen face, in the opposite colour to the shell
+          `<rect x="18" y="56" width="64" height="26" rx="10" fill="${panel}" stroke="${panelEdge}" stroke-width="3.5"/>` +
+          `<path d="M25 62c4-3 9-4 14-3" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.8"/>` +
+          `<circle cx="38" cy="67" r="7.6" fill="#ffffff" stroke="${panelInk}" stroke-width="1.2"/>` +
+          `<circle cx="62" cy="67" r="7.6" fill="#ffffff" stroke="${panelInk}" stroke-width="1.2"/>` +
+          `<circle cx="38.6" cy="68" r="4.4" fill="#111827"/><circle cx="61.4" cy="68" r="4.4" fill="#111827"/>` +
+          `<circle cx="36.8" cy="66" r="1.6" fill="#ffffff"/><circle cx="59.6" cy="66" r="1.6" fill="#ffffff"/>` +
+          `<path d="M50 73l7 5-7 6-7-6Z" fill="#f97316" stroke="#c2410c" stroke-width="1.4" stroke-linejoin="round"/>` +
+          // the wattle sits between the beak and the screen, as on the sheet
+          `<path d="M45 52c0 6 2 9 5 9s5-3 5-9Z" fill="${comb}" stroke="#9d174d" stroke-width="1.4"/>` +
+          // and the little button on the bottom rim
+          `<circle cx="50" cy="85" r="3.6" fill="${shellEdge}"/><circle cx="50" cy="85" r="1.6" fill="#4a2a10" opacity="0.7"/>`,
         face: null,
       };
     }
