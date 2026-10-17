@@ -203,7 +203,7 @@ type Recipe = {
   /** Gamer pack: the bitmap in `lib/keen-sprites.ts` is the artwork. */
   pixel?: boolean;
   /** Override the face position for tall or wide silhouettes. */
-  face?: { cx?: number; cy?: number; gap?: number; r?: number; mouth?: number };
+  face?: { cx?: number; cy?: number; gap?: number; r?: number; mouthY?: number };
   /** Skip the plate gloss (busy drawings read better without it). */
   noGloss?: boolean;
 };
