@@ -991,60 +991,136 @@ function customArt(
       };
     }
 
+    // The common one: a fat glossy jack-o'-lantern with a brown stalk, three
+    // lobes, and a face carved clean through so the candle shows.
     case "halloweenPumpkin":
       return {
-        back: "",
+        back: `<ellipse cx="50" cy="92" rx="30" ry="5" fill="#000" opacity="0.25"/>`,
         body:
-          `<ellipse cx="50" cy="58" rx="32" ry="27" fill="${grad}" stroke="#7c2d12" stroke-width="2.6"/>` +
-          `<ellipse cx="32" cy="58" rx="13" ry="25" fill="#9a3412" opacity="0.35"/>` +
-          `<ellipse cx="68" cy="58" rx="13" ry="25" fill="#9a3412" opacity="0.35"/>` +
-          `<path d="M50 31 q5 -12 -2 -17" stroke="#166534" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+          `<path d="M44 16c-1-6 0-11 3-13 3-1 7-1 10 1 3 2 4 7 3 12Z" fill="#7c3f21" stroke="#4a2410" stroke-width="2" stroke-linejoin="round"/>` +
+          `<path d="M46 14c1-4 2-7 4-8 2 0 4 1 5 3" stroke="#a16207" stroke-width="2" fill="none" opacity="0.7"/>` +
+          `<rect x="11" y="15" width="78" height="73" rx="30" fill="${grad}" stroke="#9a3412" stroke-width="2.6"/>` +
+          `<path d="M32 22c-6 10-8 24-8 33 0 14 3 24 8 30" stroke="#c2410c" stroke-width="3" fill="none" opacity="0.4"/>` +
+          `<path d="M68 22c6 10 8 24 8 33 0 14-3 24-8 30" stroke="#c2410c" stroke-width="3" fill="none" opacity="0.4"/>` +
+          `<path d="M22 26c9-6 19-8 28-8" stroke="#ffedd5" stroke-width="5" fill="none" opacity="0.35" stroke-linecap="round"/>`,
         front:
-          `<path d="M50 66 q-14 16 -6 20 q8 3 12 -12 q4 15 12 12 q8 -4 -6 -20 Z" fill="#fde68a" opacity="0.9"/>`,
-        face: { cx: 50, cy: 58, gap: 14, r: 10, mouthY: 78 },
+          `<path d="M22 38h18L30 55Z" fill="#ffe08a" stroke="#7c2d12" stroke-width="2.4" stroke-linejoin="round"/>` +
+          `<path d="M78 38H60L70 55Z" fill="#ffe08a" stroke="#7c2d12" stroke-width="2.4" stroke-linejoin="round"/>` +
+          `<path d="M50 54l6 9H44Z" fill="#ffe08a" stroke="#7c2d12" stroke-width="2.2" stroke-linejoin="round"/>` +
+          `<path d="M22 64c4 15 14 21 28 21s24-6 28-21c-8 4-14 9-28 9s-20-5-28-9Z" fill="#ffe08a" stroke="#7c2d12" stroke-width="2.4" stroke-linejoin="round"/>` +
+          `<path d="M33 68l4 7 4-7Z" fill="#7c2d12"/><path d="M46 70l4 7 4-7Z" fill="#7c2d12"/><path d="M59 68l4 7 4-7Z" fill="#7c2d12"/>`,
+        face: null,
       };
 
+    // The ghost cookie: a golden cookie shell with pale icing inside, a bite out
+    // of the top corner, and closed happy eyes.
     case "cookieGhost":
       return {
-        back: "",
-        body: `<path d="M24 46 a26 26 0 0 1 52 0 V86 q-7 -7 -13 0 t-13 0 t-13 0 t-13 0 Z" fill="${grad}" stroke="#78350f" stroke-width="2.4" stroke-linejoin="round"/>`,
-        front: `<circle cx="32" cy="38" r="4" fill="#78350f" opacity="0.45"/><circle cx="64" cy="36" r="3.4" fill="#78350f" opacity="0.45"/><circle cx="70" cy="62" r="4" fill="#78350f" opacity="0.45"/><circle cx="26" cy="64" r="3" fill="#78350f" opacity="0.45"/>`,
-        face: { cx: 50, cy: 52, gap: 12, r: 9, mouthY: 68 },
+        back: `<ellipse cx="50" cy="88" rx="28" ry="5" fill="#000" opacity="0.22"/>`,
+        body:
+          `<path d="M14 30c0-9 7-16 16-16h40c9 0 16 7 16 16v34c0 4-2 7-5 8-3 1-6 4-9 4s-5-3-8-3-5 3-8 3-5-2-8-2-5 2-8 2-6-3-8-3c-3 0-5-3-5-7Z" fill="#d9a05b" stroke="#a9540b" stroke-width="2.6" stroke-linejoin="round"/>` +
+          `<path d="M20 31c0-6 5-11 11-11h38c6 0 11 5 11 11v28c0 3-2 5-4 5-3 1-6 4-9 4s-5-3-8-3-5 3-8 3-5-2-8-2-5 2-8 2-6-3-8-3c-3 0-4-2-4-5Z" fill="#c9ecfb" stroke="#87c8e8" stroke-width="1.8" stroke-linejoin="round"/>` +
+          // the bite, showing the cookie underneath, plus crumbs
+          `<path d="M20 30c0-5 4-10 9-11 3 1 5 4 5 7 0 4-3 8-7 9-3 1-5 0-6 2-1 1-1 1-1-7Z" fill="#d9a05b" stroke="#a9540b" stroke-width="2" stroke-linejoin="round"/>` +
+          `<circle cx="40" cy="11" r="3" fill="#d9a05b"/><circle cx="50" cy="7" r="2" fill="#c98b46"/>` +
+          `<path d="M26 44c5-4 12-4 16 1" stroke="#1e3a5f" stroke-width="5" fill="none" stroke-linecap="round"/>` +
+          `<path d="M58 45c4-5 11-5 16-1" stroke="#1e3a5f" stroke-width="5" fill="none" stroke-linecap="round"/>` +
+          `<path d="M42 56q8 8 16 0" stroke="#1e3a5f" stroke-width="4.5" fill="none" stroke-linecap="round"/>`,
+        front:
+          `<ellipse cx="28" cy="54" rx="6" ry="3.6" fill="#7dd3fc" opacity="0.55"/>` +
+          `<ellipse cx="72" cy="54" rx="6" ry="3.6" fill="#7dd3fc" opacity="0.55"/>` +
+          `<path d="M32 24c8-3 18-3 26 0" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="round"/>`,
+        face: null,
       };
 
+    // The cookie mummy: bandage wraps over a tan cookie, with a black band across
+    // the eyes and two angry whites peering out of it.
     case "cookieMummy":
       return {
-        back: "",
+        back: `<ellipse cx="50" cy="90" rx="28" ry="5" fill="#000" opacity="0.22"/>`,
         body:
-          `<rect x="18" y="26" width="64" height="60" rx="26" fill="${grad}" stroke="#78350f" stroke-width="2.4"/>` +
-          `<path d="M18 44 q16 6 32 0 t32 4 M18 58 q16 6 32 0 t32 4 M18 72 q16 6 32 0 t32 4" stroke="#fef3c7" stroke-width="4" fill="none" opacity="0.65"/>`,
-        front: "",
-        face: { cx: 50, cy: 50, gap: 12, r: 9, mouthY: 68 },
+          `<rect x="10" y="16" width="80" height="70" rx="20" fill="#e8c9a3" stroke="#a9540b" stroke-width="2.6"/>` +
+          `<rect x="14" y="20" width="72" height="62" rx="17" fill="none" stroke="#d9a05b" stroke-width="4" opacity="0.9"/>` +
+          `<g fill="none" stroke-linecap="round">` +
+          `<path d="M12 30c14 6 30 6 44 2s26-6 32-2" stroke="#f7ecd9" stroke-width="10"/>` +
+          `<path d="M12 44c14 6 30 6 44 2s26-6 32-2" stroke="#e3cca9" stroke-width="10"/>` +
+          `<path d="M12 62c14 6 30 6 44 2s26-6 32-2" stroke="#f7ecd9" stroke-width="10"/>` +
+          `<path d="M12 76c14 6 30 6 44 2s26-6 32-2" stroke="#e3cca9" stroke-width="10"/>` +
+          `</g>` +
+          `<path d="M16 43h68v10c-14 5-54 5-68 0Z" fill="#14110d"/>`,
+        front:
+          `<path d="M27 45c5-3 11-1 13 4-4 4-10 4-13 0Z" fill="#ffffff"/>` +
+          `<path d="M73 45c-5-3-11-1-13 4 4 4 10 4 13 0Z" fill="#ffffff"/>` +
+          // two loose wraps lying over the band, so it reads as wrapped not painted
+          `<path d="M12 40c14 6 30 6 44 2s26-6 32-2" stroke="#f7ecd9" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.85"/>` +
+          `<path d="M12 57c14 6 30 6 44 2s26-6 32-2" stroke="#e3cca9" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.85"/>`,
+        face: null,
       };
 
+    // The cookie pumpkin: a jack-o'-lantern baked into a cookie, crust and all,
+    // with a bite out of the bottom corner and the crumbs it left behind.
     case "cookiePumpkin":
       return {
-        back: "",
+        back: `<ellipse cx="50" cy="90" rx="27" ry="5" fill="#000" opacity="0.25"/>`,
         body:
-          `<ellipse cx="50" cy="56" rx="31" ry="27" fill="${grad}" stroke="#78350f" stroke-width="2.6"/>` +
-          `<circle cx="30" cy="44" r="4" fill="#78350f" opacity="0.5"/><circle cx="70" cy="42" r="3.4" fill="#78350f" opacity="0.5"/><circle cx="66" cy="66" r="3.6" fill="#78350f" opacity="0.5"/>` +
-          `<path d="M50 29 q5 -10 -1 -15" stroke="#166534" stroke-width="5" fill="none" stroke-linecap="round"/>`,
-        front: "",
-        face: { cx: 50, cy: 56, gap: 13, r: 9, mouthY: 72 },
+          `<defs><mask id="${id}-bite"><rect x="0" y="0" width="100" height="100" fill="#ffffff"/><circle cx="94" cy="88" r="17" fill="#000000"/></mask></defs>` +
+          `<circle cx="88" cy="80" r="3.2" fill="#d9a05b"/><circle cx="93" cy="70" r="2.2" fill="#c98b46"/><circle cx="82" cy="90" r="2.4" fill="#d9a05b"/>` +
+          `<g mask="url(#${id}-bite)">` +
+          `<rect x="10" y="12" width="80" height="76" rx="22" fill="${grad}" stroke="#b45309" stroke-width="2.6"/>` +
+          `<rect x="15" y="17" width="70" height="66" rx="18" fill="none" stroke="#e0a860" stroke-width="6"/>` +
+          `<rect x="15" y="17" width="70" height="66" rx="18" fill="none" stroke="#b45309" stroke-width="1.4" opacity="0.5"/>` +
+          `<path d="M20 36c4-7 13-7 17 0-1 7-5 11-8.5 11S21 43 20 36Z" fill="#180f06"/>` +
+          `<path d="M80 36c-4-7-13-7-17 0 1 7 5 11 8.5 11S79 43 80 36Z" fill="#180f06"/>` +
+          `<path d="M50 44l5 8H45Z" fill="#180f06"/>` +
+          `<path d="M22 58c4 13 13 19 28 19s24-6 28-19c-8 4-14 9-28 9s-20-5-28-9Z" fill="#180f06"/>` +
+          `<path d="M33 63l4 7 4-7Z" fill="#e6a94f"/><path d="M46 65l4 7 4-7Z" fill="#e6a94f"/><path d="M59 63l4 7 4-7Z" fill="#e6a94f"/>` +
+          `</g>`,
+        front:
+          `<path d="M50 12c-1-6 1-9 4-10 1 4 1 7-1 10Z" fill="#22c55e" stroke="#15803d" stroke-width="1.4" stroke-linejoin="round"/>` +
+          `<path d="M49 12c-5-4-10-3-13 1 5 2 9 2 13-1Z" fill="#22c55e" stroke="#15803d" stroke-width="1.4" stroke-linejoin="round"/>` +
+          `<path d="M53 12c5-4 10-3 13 1-5 2-9 2-13-1Z" fill="#22c55e" stroke="#15803d" stroke-width="1.4" stroke-linejoin="round"/>`,
+        face: null,
       };
 
+    // The Pumpkin King: a crowned jack-o'-lantern sitting in an open treasure
+    // chest, bat wings behind it, green slime boiling over the rim and two claws
+    // holding the lid.
     case "pumpkinKing":
       return {
-        back: `<path d="M20 44 q28 -12 60 0 q10 28 -4 40 q-26 -8 -52 0 q-14 -12 -4 -40 Z" fill="#4c1d95" stroke="#2e1065" stroke-width="2"/>`,
+        back:
+          `<path d="M30 30C18 18 6 17 2 25c-3 8 6 16 14 17 4 1 8 2 12 1Z" fill="#17131d" stroke="#000000" stroke-width="1.6"/>` +
+          `<path d="M70 30c12-12 24-13 28-5 3 8-6 16-14 17-4 1-8 2-12 1Z" fill="#17131d" stroke="#000000" stroke-width="1.6"/>` +
+          `<rect x="13" y="48" width="74" height="26" rx="9" fill="#3b3b78" stroke="#1d1b3a" stroke-width="2.4"/>`,
         body:
-          `<ellipse cx="50" cy="58" rx="30" ry="26" fill="${grad}" stroke="#7c2d12" stroke-width="2.6"/>` +
-          `<ellipse cx="33" cy="58" rx="12" ry="24" fill="#7c2d12" opacity="0.32"/>` +
-          `<ellipse cx="67" cy="58" rx="12" ry="24" fill="#7c2d12" opacity="0.32"/>`,
+          `<rect x="28" y="25" width="44" height="37" rx="11" fill="${grad}" stroke="#9a3412" stroke-width="2.4"/>` +
+          `<path d="M39 27c-3 9-3 23 0 33" stroke="#c2410c" stroke-width="2" fill="none" opacity="0.5"/>` +
+          `<path d="M61 27c3 9 3 23 0 33" stroke="#c2410c" stroke-width="2" fill="none" opacity="0.5"/>`,
         front:
-          `<path d="M34 34 L36 18 L45 26 L50 13 L55 26 L64 18 L66 34 Z" fill="#fbbf24" stroke="#b45309" stroke-width="2" stroke-linejoin="round"/>` +
-          `<circle cx="50" cy="29" r="3" fill="#ef4444"/>` +
-          `<path d="M50 70 q-12 12 -5 16 q7 3 10 -10 q3 13 10 10 q7 -4 -5 -16 Z" fill="#fde68a" opacity="0.9"/>`,
-        face: { cx: 50, cy: 58, gap: 14, r: 10, mouthY: 80 },
+          // crown
+          `<path d="M34 22 L36 7 L43 14 L50 3 L57 14 L64 7 L66 22Z" fill="#fbbf24" stroke="#b45309" stroke-width="2" stroke-linejoin="round"/>` +
+          `<circle cx="50" cy="15" r="2.4" fill="#ef4444"/>` +
+          // carved face
+          `<path d="M33 33l10-1 2 8-9 3Z" fill="#1a0f06"/>` +
+          `<path d="M67 33l-10-1-2 8 9 3Z" fill="#1a0f06"/>` +
+          `<path d="M42 45c4 5 12 5 16 0-2 7-4 9-8 9s-6-2-8-9Z" fill="#1a0f06"/>` +
+          // slime over the chest rim
+          `<path d="M24 55c4-4 10-4 13 0 3-4 9-4 13 0 4-4 10-4 13 0 3 3 2 7-2 8H26c-4-1-5-5-2-8Z" fill="#34d399" stroke="#059669" stroke-width="1.8" stroke-linejoin="round"/>` +
+          // chest
+          `<rect x="12" y="60" width="76" height="28" rx="8" fill="#2b2b55" stroke="#151430" stroke-width="2.4"/>` +
+          `<rect x="12" y="60" width="76" height="9" rx="4" fill="#41417f"/>` +
+          `<rect x="43" y="66" width="14" height="13" rx="3" fill="#fbbf24" stroke="#b45309" stroke-width="1.6"/>` +
+          `<path d="M50 79v7" stroke="#b45309" stroke-width="2.4"/>` +
+          `<circle cx="22" cy="80" r="3" fill="#232348" opacity="0.8"/><circle cx="78" cy="78" r="2.4" fill="#232348" opacity="0.8"/>` +
+          // claws gripping the rim
+          `<g fill="#0d0b14">` +
+          `<path d="M24 58c-3 3-4 7-2 10 2-3 4-5 8-5-3-2-5-3-6-5Z"/>` +
+          `<path d="M31 57c-3 3-4 7-2 11 2-3 4-6 8-6-3-2-5-3-6-5Z"/>` +
+          `<path d="M38 57c-2 3-3 7-1 10 2-3 4-5 7-6Z"/>` +
+          `<path d="M76 58c3 3 4 7 2 10-2-3-4-5-8-5 3-2 5-3 6-5Z"/>` +
+          `<path d="M69 57c3 3 4 7 2 11-2-3-4-6-8-6 3-2 5-3 6-5Z"/>` +
+          `<path d="M62 57c2 3 3 7 1 10-2-3-4-5-7-6Z"/>` +
+          `</g>`,
+        face: null,
       };
 
     // ── Gamerpaketet ────────────────────────────────────────────────────────
