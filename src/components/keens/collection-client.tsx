@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, Coins, Crown, Flame, Package, Search, Sparkles, Store, Tag, Trophy } from "lucide-react";
+import { ArrowRight, Clock, Coins, Crown, Flame, Package, Search, Shirt, Sparkles, Store, Tag, Trophy } from "lucide-react";
 import {
   ADMIN_PACK,
   KEEN_BY_ID,
@@ -20,6 +20,7 @@ import {
   keenOfTheDay,
   isGiftKeen,
   isObtainable,
+  isStarterKeen,
   isTradeable,
   marketPrice,
   packProgress,
@@ -35,6 +36,7 @@ import type { KeenState } from "@/lib/keens-store";
 import KeenAvatar from "./keen-avatar";
 import KeenCard from "./keen-card";
 import { NextSteps, PackRail } from "./keen-home";
+import { useWorn } from "./worn-keen";
 import { Toasts, useToasts } from "./toast";
 import { playCoin, playError, playSell } from "./sounds";
 import { cn } from "@/lib/utils";
@@ -66,6 +68,10 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   const [selected, setSelected] = React.useState<Keen | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
+  // The Keen on your back: shown in the grid, set from the detail card, and read
+  // by every other screen in the app.
+  const { keen: worn, wear } = useWorn();
+  const [wearing, setWearing] = React.useState(false);
 
   const owned = state.owned;
   const distinct = state.distinct;
@@ -178,6 +184,20 @@ export default function CollectionClient({ state }: { state: KeenState }) {
     push(`${keen.name} tillagd i samlingen!`, "ok");
   }
 
+  async function toggleWear(keen: Keen) {
+    if (wearing) return;
+    setWearing(true);
+    const res = await wear(worn?.id === keen.id ? null : keen.id);
+    setWearing(false);
+    if (!res.ok) {
+      playError();
+      push(res.message, "err");
+      return;
+    }
+    if (res.keenId) push(`${keen.name} är på dig nu — syns i quiz och gloskort!`, "ok");
+    else push("Du tog av dig Keen.", "ok");
+  }
+
   async function sellOne(keen: Keen) {
     setBusy(true);
     const res = await sellKeenAction(keen.id, 1);
@@ -194,6 +214,25 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
   return (
     <div className="space-y-6">
+      {/* ── vem du är just nu ──────────────────────────────────────────────── */}
+      {worn && (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+          <KeenAvatar keen={worn} size={44} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">Keenen du bär</p>
+            <p className="truncate text-sm font-bold text-white">{worn.name}</p>
+          </div>
+          <button
+            type="button"
+            disabled={wearing}
+            onClick={() => toggleWear(worn)}
+            className="shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-slate-500 disabled:opacity-50"
+          >
+            Ta av
+          </button>
+        </div>
+      )}
+
       {/* ── dagens Keen ──────────────────────────────────────────────────── */}
       {spotlight && (
         <Spotlight
@@ -392,6 +431,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                   </span>
                 )
               }
+              worn={worn?.id === k.id}
               onSelect={() => setSelected(k)}
             />
           ))}
@@ -535,6 +575,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </p>
             )}
 
+            {selected && isStarterKeen(selected) && (
+              <p className="mt-3 text-[11px] text-slate-400">
+                Den här får alla från dag ett. Den kan inte köpas, säljas eller tappas — men den kan bäras, och då syns
+                den i quizen, lobbyn och på gloskorten.
+              </p>
+            )}
+
             {/* What the pack actually rolls, with this Keen's own tier marked. */}
             {!selectedGift && selectedOdds.length > 0 && (
               <div className="mt-3 text-left">
@@ -598,6 +645,28 @@ export default function CollectionClient({ state }: { state: KeenState }) {
             )}
 
             <div className="mt-5 flex flex-col gap-2">
+              {selectedOwned > 0 &&
+                (worn?.id === selected.id ? (
+                  <button
+                    type="button"
+                    disabled={wearing}
+                    onClick={() => toggleWear(selected)}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-4 py-2.5 text-sm font-bold text-emerald-200 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
+                  >
+                    <Shirt className="h-4 w-4" />
+                    Du bär den här — ta av
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={wearing}
+                    onClick={() => toggleWear(selected)}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/15 px-4 py-2.5 text-sm font-bold text-fuchsia-200 transition-colors hover:bg-fuchsia-500/25 disabled:opacity-50"
+                  >
+                    <Shirt className="h-4 w-4" />
+                    Bär den här Keen
+                  </button>
+                ))}
               {selectedTradeable && (
                 <button
                   type="button"

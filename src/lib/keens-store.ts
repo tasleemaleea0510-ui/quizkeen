@@ -35,6 +35,7 @@ import {
   marketPrice,
   rollKeen,
   sellPrice,
+  starterOwned,
   TOTAL_KEENS,
   type AnyPackId,
   type Rarity,
@@ -400,16 +401,25 @@ export async function loadKeenState(profileId: string): Promise<KeenState> {
     }),
   ]);
 
-  const owned: Record<string, number> = {};
-  let distinct = 0;
+  // Every collection starts with the starter set. Seeding it here, rather than
+  // writing rows at signup, means accounts made before the starter set existed
+  // have it too — and nothing has to be kept in sync with the database.
+  const owned: Record<string, number> = starterOwned();
+  const counted = new Set<string>(Object.keys(owned));
+  let distinct = counted.size;
   let dupes = 0;
   for (const r of rows) {
     const keen = KEEN_BY_ID[r.keenId];
     if (r.count > 0 && keen) {
-      owned[r.keenId] = r.count;
+      owned[r.keenId] = (owned[r.keenId] ?? 0) + r.count;
       // A Keen from a pack that is no longer on sale still sits in the showcase,
-      // but it is not part of the collection the app counts towards.
-      if (isObtainableId(r.keenId)) distinct += 1;
+      // but it is not part of the collection the app counts towards. Counted by
+      // id, so a row for a Keen that is also in the starter set cannot count it
+      // twice.
+      if (isObtainableId(r.keenId) && !counted.has(r.keenId)) {
+        counted.add(r.keenId);
+        distinct += 1;
+      }
       // Spares that are worth coins — the same filter the cash-out uses, so the
       // number on the button is the number the market pays for.
       if (isTradeable(keen)) dupes += Math.max(0, r.count - 1);

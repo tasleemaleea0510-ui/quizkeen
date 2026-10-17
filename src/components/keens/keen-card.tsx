@@ -20,6 +20,7 @@ export default function KeenCard({
   index = 0,
   busy = false,
   dim = false,
+  worn = false,
 }: {
   keen: Keen;
   owned?: number;
@@ -29,6 +30,8 @@ export default function KeenCard({
   index?: number;
   busy?: boolean;
   dim?: boolean;
+  /** True when this is the Keen the player is wearing right now. */
+  worn?: boolean;
 }) {
   const meta = RARITY_META[keen.rarity];
   const locked = owned <= 0;
@@ -91,6 +94,15 @@ export default function KeenCard({
         {locked && (
           <span className="absolute -right-1 -bottom-1 grid h-5 w-5 place-items-center rounded-full border border-white/10 bg-slate-950/90">
             <Lock className="h-3 w-3 text-slate-400" />
+          </span>
+        )}
+        {worn && (
+          <span
+            data-no-translate
+            className="absolute -left-2 -top-2 rounded-full border border-emerald-400/50 bg-emerald-500/20 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-emerald-200"
+            title="Du bär den här Keen"
+          >
+            På dig
           </span>
         )}
         {badge}

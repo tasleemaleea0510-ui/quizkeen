@@ -19,7 +19,18 @@ export type PackId = (typeof PACK_IDS)[number];
 
 /** The free pack's own id — it is not a theme, it draws from every cheap Keen. */
 export const FREE_PACK = "gratis" as const;
-export type AnyPackId = PackId | typeof FREE_PACK;
+
+/**
+ * The starter set's own shelf.
+ *
+ * Ten commons and uncommons that every account simply HAS: the collection of a
+ * new player is not empty, everyone has something to wear from minute one, and
+ * nothing here can be bought, sold, dropped from a pack or lost. It is seeded on
+ * read in `lib/keens-store.ts` rather than written to the database, so accounts
+ * that existed before the starter set got it too, with no migration.
+ */
+export const START_PACK = "start" as const;
+export type AnyPackId = PackId | typeof FREE_PACK | typeof START_PACK;
 
 /**
  * The Admin Keen's own shelf.
@@ -38,25 +49,42 @@ export type Keen = {
   nameEn: string;
   emoji: string;
   rarity: Rarity;
-  pack: PackId | typeof ADMIN_PACK;
+  pack: PackId | typeof ADMIN_PACK | typeof START_PACK;
   /** Base hue (0–360) for this Keen's body, so the grid looks like a collection. */
   hue: number;
 };
 
-/** True for Keens that are given out rather than collected from a pack. */
+/** True for the Admin Keen: handed out by a person, never by a pack. */
 export function isGiftKeen(keen: Keen): boolean {
   return keen.pack === ADMIN_PACK;
+}
+
+/** True for a starter Keen: every account has it, and it cannot be lost. */
+export function isStarterKeen(keen: Keen): boolean {
+  return keen.pack === START_PACK;
+}
+
+/**
+ * True for Keens nobody collects — they are held, not earned.
+ *
+ * Both the Admin Keen and the starter set are in this class, and every rule that
+ * asks "can this be traded, sold or rolled?" goes through here rather than
+ * asking about one specific shelf.
+ */
+export function isGrantedKeen(keen: Keen): boolean {
+  return isGiftKeen(keen) || isStarterKeen(keen);
 }
 
 /**
  * Can this Keen be bought and sold in the market?
  *
- * A gift Keen never can, whatever its rarity says — the Admin Keen is Mystisk and
- * Mystisk is a normal pack tier, so "is it handed out?" is the question the
- * market asks, not "which tier is it?".
+ * A granted Keen never can, whatever its rarity says — the Admin Keen is Mystisk
+ * and Mystisk is a normal pack tier, and a starter Keen that sold for coins
+ * would be a coin printer — so "is it handed out?" is the question the market
+ * asks, not "which tier is it?".
  */
 export function isTradeable(keen: Keen): boolean {
-  return RARITY_META[keen.rarity].tradeable && !isGiftKeen(keen);
+  return RARITY_META[keen.rarity].tradeable && !isGrantedKeen(keen);
 }
 
 export type RarityMeta = {
@@ -237,6 +265,22 @@ export type Pack = {
 
 export const PACKS: Pack[] = [
   {
+    // Free and hidden at once, so it is neither on the shelf nor in the "off the
+    // shelf" note: it is not a pack you open, it is the ten Keens you start with.
+    id: START_PACK,
+    hidden: true,
+    free: true,
+    name: "Startpaketet",
+    nameEn: "Starter set",
+    tagline: "Tio Keens som alla har från dag ett.",
+    taglineEn: "Ten Keens everyone has from day one.",
+    price: 0,
+    emoji: "🌱",
+    hue: 165,
+    odds: {},
+    sizes: [],
+  },
+  {
     id: FREE_PACK,
     name: "Gratispaketet",
     nameEn: "Free pack",
@@ -404,6 +448,21 @@ const P = (
 ): Keen => ({ id, name, nameEn, emoji, rarity, pack, hue });
 
 export const KEENS: Keen[] = [
+  // ── Startpaketet ───────────────────────────────────────────────────────────
+  // Ten Keens every account owns from the start. Commons and uncommons only, so
+  // the ladder above them still means something, and none of them is in any pack
+  // pool — see `keensInPack`, which keeps granted Keens out of every roll.
+  P(START_PACK, "VANLIG", 45, "keenungen", "Keenungen", "Keenling", "🐣"),
+  P(START_PACK, "VANLIG", 210, "blipp", "Roboten Blipp", "Blipp the Robot", "🤖"),
+  P(START_PACK, "VANLIG", 205, "puff", "Molnet Puff", "Puff the Cloud", "☁️"),
+  P(START_PACK, "VANLIG", 190, "driz", "Droppen Driz", "Driz the Droplet", "💧"),
+  P(START_PACK, "VANLIG", 48, "sunny", "Solstrålen Sunny", "Sunny the Sunbeam", "☀️"),
+  P(START_PACK, "OVANLIG", 330, "blom", "Blomman Blom", "Blom the Flower", "🌸"),
+  P(START_PACK, "OVANLIG", 355, "svamp", "Svampen Svamp", "Svamp the Mushroom", "🍄"),
+  P(START_PACK, "OVANLIG", 235, "sten", "Stenen Sten", "Sten the Stone", "🪨"),
+  P(START_PACK, "OVANLIG", 5, "popp", "Ballongen Popp", "Popp the Balloon", "🎈"),
+  P(START_PACK, "OVANLIG", 265, "tia", "Tärningen Tia", "Tia the Dice", "🎲"),
+
   // ── Djurpaketet ────────────────────────────────────────────────────────────
   P("djur", "VANLIG", 28, "kisse", "Katten Kisse", "Kisse the Cat", "🐱"),
   P("djur", "VANLIG", 45, "vovve", "Valpen Vovve", "Vovve the Pup", "🐶"),
@@ -501,6 +560,18 @@ export const KEENS: Keen[] = [
  * argument on every `P(...)` row) so the big table stays readable as a table.
  */
 export const KEEN_BIOS: Record<string, string> = {
+  // ── Startpaketet ──────────────────────────────────────────────────────────
+  keenungen: "Nykläckt, nyfiken och med på varje fråga.",
+  blipp: "Räknar allt, piper när svaret är rätt.",
+  puff: "Svävar in, svävar ut, glömmer aldrig ett glosförhör.",
+  driz: "Liten droppe, stor tålamod — rinner aldrig ut.",
+  sunny: "Går upp tidigt för att hinna plugga ikapp.",
+  blom: "Blommar när du svarar rätt, slokar när du gissar.",
+  svamp: "Växer i skuggan av dina misstag — och lär sig av dem.",
+  sten: "Trögstartad, men glömmer aldrig något den lärt sig.",
+  popp: "Spricker av glädje varje gång du klarar ett prov.",
+  tia: "Slår alltid sex — utom när det gäller.",
+
   // ── Djurpaketet ───────────────────────────────────────────────────────────
   kisse: "Sover 18 timmar om dagen och vinner resten av tiden.",
   vovve: "Hämtar alltid bollen — även när du inte kastat den.",
@@ -598,7 +669,7 @@ export const PACK_BY_ID: Record<string, Pack> = Object.fromEntries(PACKS.map((p)
  * that pack, so counting it would promise a collection nobody can complete.
  */
 export function isObtainable(keen: Keen): boolean {
-  return isGiftKeen(keen) || !PACK_BY_ID[keen.pack]?.hidden;
+  return isGrantedKeen(keen) || !PACK_BY_ID[keen.pack]?.hidden;
 }
 
 /**
@@ -607,6 +678,21 @@ export function isObtainable(keen: Keen): boolean {
  * It follows the shelf instead of the file: putting a pack back on sale (delete
  * its `hidden: true`) grows this set again, and every counter in the app with it.
  */
+/**
+ * The starter set: what every account owns on purpose.
+ *
+ * `owned` maps for a viewer start from `starterOwned()`, so the same ten Keens
+ * that the grid shows as yours are also the ones the wear-check and the market
+ * treat as yours. One source, so the pages and the rules cannot disagree.
+ */
+export const STARTER_KEENS: Keen[] = KEENS.filter(isStarterKeen);
+export const STARTER_KEEN_IDS: string[] = STARTER_KEENS.map((k) => k.id);
+
+/** One of each starter Keen, ready to seed a collection with. */
+export function starterOwned(): OwnedMap {
+  return Object.fromEntries(STARTER_KEEN_IDS.map((id) => [id, 1]));
+}
+
 export const OBTAINABLE_KEENS: Keen[] = KEENS.filter(isObtainable);
 export const OBTAINABLE_KEEN_IDS: string[] = OBTAINABLE_KEENS.map((k) => k.id);
 
@@ -648,7 +734,9 @@ export function retiredKeens(owned: OwnedMap = {}): Keen[] {
  */
 export function keensInPack(pack: ShelfId): Keen[] {
   if (pack === FREE_PACK) {
-    return OBTAINABLE_KEENS.filter((k) => !isGiftKeen(k) && RARITY_META[k.rarity].order <= RARITY_META.SALLSYNT.order);
+    return OBTAINABLE_KEENS.filter(
+      (k) => !isGrantedKeen(k) && RARITY_META[k.rarity].order <= RARITY_META.SALLSYNT.order
+    );
   }
   return KEENS.filter((k) => k.pack === pack);
 }

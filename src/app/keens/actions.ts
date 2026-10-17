@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { buyKeen, loadKeenState, openPack, sellAllDuplicates, sellKeen, type KeenState } from "@/lib/keens-store";
 import { KEEN_BY_ID, PACKS } from "@/lib/keens";
+import { WORN_COOKIE, WORN_MAX_AGE } from "@/lib/worn";
 
 /**
  * The thin layer between the browser and the economy in `lib/keens-store.ts`:
@@ -143,6 +145,43 @@ export async function sellDuplicatesAction(): Promise<
 
   touch();
   return { ok: true, coins: result.coins, earned: result.earned, sold: result.sold };
+}
+
+/**
+ * Wear a Keen — or take the current one off with `null`.
+ *
+ * The check is the collection itself: you can wear what you own, which includes
+ * the starter set every account has. Nothing is charged and nothing is stored on
+ * the server beyond the cookie, so this cannot be used to gain anything; it just
+ * decides which Keen the rest of the app draws for you.
+ */
+export async function wearKeenAction(
+  keenId: string | null
+): Promise<{ ok: true; keenId: string | null } | { ok: false; message: string }> {
+  const userId = await currentUserId();
+  if (!userId) return fail("auth");
+
+  const jar = await cookies();
+
+  if (!keenId) {
+    jar.set(WORN_COOKIE, "", { path: "/", maxAge: 0, sameSite: "lax" });
+    touch();
+    return { ok: true, keenId: null };
+  }
+
+  if (!KEEN_BY_ID[keenId]) return fail("keen");
+
+  const state = await attempt(() => loadKeenState(userId));
+  if (!state) return fail("server");
+  if ((state.owned[keenId] ?? 0) <= 0) {
+    return { ok: false, message: "Den Keen äger du inte — hitta den först!" };
+  }
+
+  // Readable by the browser on purpose: the quiz lobby and the flashcards read
+  // it directly to draw your character, and it is a display choice, not a secret.
+  jar.set(WORN_COOKIE, keenId, { path: "/", maxAge: WORN_MAX_AGE, sameSite: "lax" });
+  touch();
+  return { ok: true, keenId };
 }
 
 /** Fresh numbers for a client component that just animated something. */
