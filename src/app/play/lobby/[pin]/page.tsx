@@ -13,19 +13,24 @@ const LobbyGame = dynamic(() => import("@/components/lobby-game"), {
   ),
 });
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { onlinePlayers } from "@/lib/presence";
+import KeenAvatar from "@/components/keens/keen-avatar";
+import { onlinePlayerEntries } from "@/lib/presence";
+import { KEEN_BY_ID } from "@/lib/keens";
+import { wornIdFromCookieString } from "@/lib/worn";
 import { Users, Hash } from "lucide-react";
+
+type LobbyPlayer = { name: string; keen: string | null };
 
 function LobbyInner() {
   const params = useParams();
   const search = useSearchParams();
   const pin = params.pin as string;
   const name = search.get("name") || "Spelare";
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const supabaseRef = useRef(createClient());
   // players heard from over the position channel, used for instant feedback
-  // when presence has not caught up yet
-  const seenRef = useRef<Record<string, number>>({});
+  // when presence has not caught up yet (keyed by name, newest answer wins)
+  const seenRef = useRef<Record<string, { at: number; keen: string | null }>>({});
 
   useEffect(() => {
     const supabase = supabaseRef.current;
@@ -34,6 +39,10 @@ function LobbyInner() {
     let onTx: ((e: any) => void) | null = null;
     let ticker: ReturnType<typeof setInterval> | undefined;
     let lastMerge = 0;
+
+    // The Keen this browser is wearing, straight from the cookie: the lobby is a
+    // client page and the cookie is the same one the server action wrote.
+    const wornKeen = wornIdFromCookieString(document.cookie);
 
     const setup = async () => {
       for (const ch of supabase.getChannels()) {
@@ -51,13 +60,17 @@ function LobbyInner() {
       const refresh = () => {
         if (!channel) return;
         const now = Date.now();
-        const live = onlinePlayers(channel.presenceState());
-        const recent = Object.keys(seenRef.current).filter(
-          (n) => n !== name && now - seenRef.current[n] < 10000
-        );
-        const merged = Array.from(new Set([...live, ...recent]));
+        const merged = new Map<string, string | null>();
+        for (const p of onlinePlayerEntries(channel.presenceState())) merged.set(p.name, p.keen);
+        for (const [who, info] of Object.entries(seenRef.current)) {
+          if (who === name || now - info.at >= 10000 || merged.has(who)) continue;
+          merged.set(who, info.keen);
+        }
+        const next: LobbyPlayer[] = Array.from(merged.entries()).map(([who, keen]) => ({ name: who, keen }));
         setPlayers((prev) =>
-          prev.length === merged.length && prev.every((p, i) => p === merged[i]) ? prev : merged
+          prev.length === next.length && prev.every((p, i) => p.name === next[i].name && p.keen === next[i].keen)
+            ? prev
+            : next
         );
       };
 
@@ -70,10 +83,11 @@ function LobbyInner() {
       });
 
       channel.on("broadcast", { event: "pos" }, (msg: any) => {
-        const who = (msg.payload as { name?: string } | null)?.name;
+        const payload = (msg.payload ?? {}) as { name?: string; k?: string | null };
+        const who = payload.name;
         if (who && who !== name) {
           const fresh = !seenRef.current[who];
-          seenRef.current[who] = Date.now();
+          seenRef.current[who] = { at: Date.now(), keen: payload.k ?? null };
           // throttled so a busy lobby cannot cause a render per packet
           if (fresh || Date.now() - lastMerge > 400) {
             lastMerge = Date.now();
@@ -94,7 +108,7 @@ function LobbyInner() {
 
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED" && !cancelled && channel) {
-          await channel.track({ name });
+          await channel.track({ name, keen: wornKeen });
           // show yourself straight away instead of waiting for the next sync
           refresh();
           setTimeout(refresh, 700);
@@ -134,11 +148,24 @@ function LobbyInner() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          {players.map((p) => (
-            <span key={p} className="animate-pop rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 text-sm font-medium text-slate-200">
-              {p}
-            </span>
-          ))}
+          {players.map((p) => {
+            const keen = p.keen ? KEEN_BY_ID[p.keen] : undefined;
+            return (
+              <span
+                key={p.name}
+                className="flex animate-pop items-center gap-2 rounded-xl border border-white/10 bg-white/5 py-1.5 pl-1.5 pr-3.5 text-sm font-medium text-slate-200"
+              >
+                {keen ? (
+                  <KeenAvatar keen={keen} size={28} className="shrink-0" />
+                ) : (
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-800 text-[11px] font-bold text-slate-400">
+                    {p.name.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                {p.name}
+              </span>
+            );
+          })}
         </CardContent>
       </Card>
 

@@ -21,7 +21,7 @@ export const HOST_PRESENCE_CONFIG = { presence: { key: HOST_PRESENCE_KEY } };
 export const LOBBY_PING = "quizkeen:ping";
 export const LOBBY_PONG = "quizkeen:pong";
 
-type PresenceEntry = { role?: string; name?: string };
+type PresenceEntry = { role?: string; name?: string; keen?: string };
 
 export function isHostKey(key: string): boolean {
   return key === HOST_PRESENCE_KEY;
@@ -49,6 +49,37 @@ export function onlinePlayers(
     }
   }
   return Array.from(names);
+}
+
+/**
+ * The same list, with the Keen each player is wearing.
+ *
+ * Presence carries the worn Keen alongside the name, so a lobby can draw every
+ * player as their own character without asking the database anything — the Keen
+ * is a display choice that lives in a cookie, and the cookie travels with the
+ * client that tracks presence.
+ */
+export function onlinePlayerEntries(
+  state: Record<string, PresenceEntry[] | undefined> | undefined
+): { name: string; keen: string | null }[] {
+  const byName = new Map<string, string | null>();
+  for (const [key, entries] of Object.entries(state ?? {})) {
+    const list = entries ?? [];
+    if (isHostEntry(key, list)) continue;
+    if (list.length === 0) {
+      if (!byName.has(key)) byName.set(key, null);
+      continue;
+    }
+    for (const entry of list) {
+      const name = typeof entry?.name === "string" ? entry.name.trim() : "";
+      const keen = typeof entry?.keen === "string" && entry.keen ? entry.keen : null;
+      const key2 = name || key;
+      // The newest entry for a name wins, so re-tracking with a new Keen updates
+      // the lobby instead of leaving the first answer stuck on screen.
+      byName.set(key2, keen);
+    }
+  }
+  return Array.from(byName.entries()).map(([name, keen]) => ({ name, keen }));
 }
 
 /**
