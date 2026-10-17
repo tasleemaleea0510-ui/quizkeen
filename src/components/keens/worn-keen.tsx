@@ -41,6 +41,42 @@ export function useWorn() {
   return { keen, wear };
 }
 
+/**
+ * The Keen you are wearing, as a strip: your character, what it is doing, and
+ * optionally something on the right (a score, a count of cards).
+ *
+ * Used by the surfaces you actually play on — the quiz and the flashcards — so
+ * the thing you collect is the thing that shows up while you work.
+ */
+export function WornBuddy({
+  label,
+  right,
+  className,
+}: {
+  label: string;
+  right?: React.ReactNode;
+  className?: string;
+}) {
+  const { keen } = useWorn();
+  if (!keen) return null;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-900/50 px-3 py-2 backdrop-blur-xl",
+        className
+      )}
+    >
+      <KeenAvatar keen={keen} size={38} className="shrink-0 animate-keen-bob" />
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="truncate text-sm font-bold text-white">{keen.name}</p>
+      </div>
+      {right}
+    </div>
+  );
+}
+
 /** Your worn Keen, drawn — or nothing at all when you are not wearing one. */
 export default function WornKeen({
   size = 34,

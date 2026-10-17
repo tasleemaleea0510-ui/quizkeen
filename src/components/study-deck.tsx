@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCw, Shuffle } from "lucide-react";
+import { WornBuddy } from "@/components/keens/worn-keen";
 
 type CardT = { id: string; front: string; back: string };
 
@@ -28,6 +29,8 @@ export default function StudyDeck({ cards }: { cards: CardT[] }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
+      {/* Your Keen studies with you — the same character you show off in a quiz. */}
+      <WornBuddy label="Pluggar med dig" right={<span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400">{order.length} kort</span>} className="w-full max-w-xl" />
       <style>{`
         .qk-scene { perspective: 1200px; }
         .qk-card3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }

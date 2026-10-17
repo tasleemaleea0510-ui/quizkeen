@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyUsername } from "@/app/settings/actions";
 import { CheckCircle2, XCircle, Trophy, Loader2 } from "lucide-react";
+import { WornBuddy } from "@/components/keens/worn-keen";
 
 const COLORS = [
   "from-rose-500 to-rose-600 shadow-rose-900/40",
@@ -120,8 +121,21 @@ function GameInner() {
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
 
+  const myScore = scores[name] ?? scores[accountRef.current] ?? 0;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
+      {/* Who you are in this game: the Keen you wear, and your points so far. */}
+      <WornBuddy
+        label="Du spelar som"
+        className="mb-5"
+        right={
+          <span data-no-translate className="shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-200">
+            {myScore} p
+          </span>
+        }
+      />
+
       {phase === "waiting" && (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-500/30 bg-indigo-500/10">
