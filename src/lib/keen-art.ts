@@ -1297,7 +1297,7 @@ export function keenRunnerSvg(keen: ArtKeen, opts: { size?: number } = {}): stri
     `<circle cx="50" cy="50" r="46" fill="url(#${id}-bg)"/>` +
     `<g clip-path="url(#${id}-clip)">` +
     `<circle cx="50" cy="62" r="40" fill="${rim}" opacity="0.28"/>` +
-    `<g transform="translate(50 51) scale(1.2) translate(-50 -51)">` +
+    `<g transform="translate(50 49) scale(1.12) translate(-50 -49)">` +
     (parts.backIsPlate ? "" : parts.back) +
     parts.body +
     parts.front +
