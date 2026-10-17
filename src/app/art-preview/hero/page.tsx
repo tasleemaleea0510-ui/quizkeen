@@ -3,7 +3,21 @@ import { KEEN_BY_ID } from "@/lib/keens";
 
 export const dynamic = "force-static";
 
-const IDS = ["frogula", "omeisaurus", "chickchicken", "chickenchick", "pumpkinking", "cookieghost", "pumpkin", "cookiemummy"];
+const IDS = [
+  // Halloween, sheet order
+  "pumpkin",
+  "chickenchick",
+  "chickchicken",
+  "frogula",
+  "cookiepumpkin",
+  "cookiemummy",
+  "cookieghost",
+  "pumpkinking",
+  // Gamer chase cards and the Admin Keen
+  "creeper",
+  "pixelthorne",
+  "omeisaurus",
+];
 
 /** Close-up of the hand-drawn Keens, for checking a drawing against its sheet. */
 export default function HeroPreviewPage() {
