@@ -3,6 +3,8 @@ import { KEENS, RARITY_META } from "@/lib/keens";
 
 export const dynamic = "force-static";
 
+const HEROES = ["frogula", "omeisaurus", "chickchicken", "chickenchick", "pumpkinking", "cookieghost"];
+
 /**
  * Every Keen, at the sizes the app draws them.
  *
@@ -23,6 +25,16 @@ export default function ArtPreviewPage() {
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
               {RARITY_META[keen.rarity].label}
             </span>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="mt-14 font-display text-2xl font-extrabold text-white">Handtecknade</h2>
+      <div className="mt-5 flex flex-wrap gap-4">
+        {KEENS.filter((k) => HEROES.includes(k.id)).map((keen) => (
+          <div key={keen.id} className="flex flex-col items-center gap-2">
+            <KeenAvatar keen={keen} size={168} />
+            <span className="text-[11px] font-bold text-white"><span data-no-translate>{keen.name}</span></span>
           </div>
         ))}
       </div>
