@@ -206,12 +206,19 @@ type Plate = {
 };
 
 const VIOLET_PLATE: Plate = { from: hsl(262, 58, 38), to: hsl(262, 72, 15) };
-/** The Gamer pack's arcade black, with the lime glow the design sheet shows. */
-const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#7cf03a" };
+/**
+ * The Gamer pack's arcade black, with the lime glow the design sheet shows.
+ *
+ * The glow is deliberately a dark lime rather than the character's own bright
+ * green: the light sits *behind* the character, so a bright glow painted the
+ * whole plate green and the alien vanished into it. Bright characters need a
+ * muted halo.
+ */
+const DARK_PLATE: Plate = { from: "#1c1a24", to: "#07060b", glow: "#3f7a1c" };
 /** A mossy green corner for the Creeper, so the face reads as a block in grass. */
-const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#57c33f" };
+const MOSS_PLATE: Plate = { from: "#2c4a24", to: "#101f0d", glow: "#2f5f22" };
 /** Pixel Thorne: black board, neon frame drawn by the character itself. */
-const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#ff2fd0" };
+const VOID_PLATE: Plate = { from: "#120016", to: "#05000a", glow: "#7a1050" };
 /** The Admin Keen's purple, taken from the design sheet. */
 const ROYAL_PLATE: Plate = { from: "#8b3ae0", to: "#4c1594", glow: "#c084fc" };
 
@@ -344,7 +351,15 @@ const RECIPES: Record<string, Recipe> = {
   pumpkinking: { shape: "pumpkin", custom: "pumpkinKing" },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
-  omeisaurus: { shape: "blob", custom: "omeisaurus", noGloss: true, plate: ROYAL_PLATE },
+  omeisaurus: {
+    shape: "blob",
+    custom: "omeisaurus",
+    noGloss: true,
+    plate: ROYAL_PLATE,
+    // The sheet's dragon is a deep red with orange rim light, not the pale
+    // orange the hue alone would mix — the gold filigree needs dark to sit on.
+    colors: { light: "#ff8a5c", base: "#e2452a", dark: "#a81f13", line: "#6b120c" },
+  },
 };
 
 const DEFAULT_RECIPE: Recipe = { shape: "blob", eyes: "big", mouth: "smile" };
@@ -902,12 +917,15 @@ function customArt(
           `<circle cx="68" cy="29" r="11.5" fill="#ffffff" stroke="#14532d" stroke-width="2"/>` +
           `<circle cx="33" cy="30" r="5.6" fill="#101c10"/><circle cx="67" cy="30" r="5.6" fill="#101c10"/>` +
           `<circle cx="31" cy="27.5" r="2.2" fill="#ffffff"/><circle cx="65" cy="27.5" r="2.2" fill="#ffffff"/>` +
-          `<circle cx="43" cy="49" r="1.8" fill="#14532d"/><circle cx="57" cy="49" r="1.8" fill="#14532d"/>` +
-          `<path d="M30 57c6 8 13 12 20 12s14-4 20-12" stroke="#14532d" stroke-width="3" fill="none" stroke-linecap="round"/>` +
-          `<path d="M38 61l3 8 3-8Z" fill="#ffffff"/><path d="M56 61l3 8 3-8Z" fill="#ffffff"/>` +
-          `<path d="M48 76C39 69 25 64 14 69c-5 9 4 18 15 18 9 0 15-4 19-11Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
-          `<path d="M52 76c9-7 23-12 34-7 5 9-4 18-15 18-9 0-15-4-19-11Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
-          `<circle cx="50" cy="76" r="5.4" fill="#f59e0b" stroke="#7c2d12" stroke-width="1.4"/>` +
+          `<circle cx="44" cy="47" r="1.8" fill="#14532d"/><circle cx="56" cy="47" r="1.8" fill="#14532d"/>` +
+          // The grin sits above the bow tie, not under it: on the sheet you read
+          // the mouth first and the collar second.
+          `<path d="M31 53c5 8 12 12 19 12s14-4 19-12" stroke="#14532d" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+          `<path d="M38 57l3 8 3-8Z" fill="#ffffff"/><path d="M56 57l3 8 3-8Z" fill="#ffffff"/>` +
+          // big bat wings, wider than the face, meeting at an orange knot
+          `<path d="M48 84C38 76 20 68 8 74c-5 10 5 20 18 20 10 0 17-4 22-10Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
+          `<path d="M52 84c10-8 28-16 40-10 5 10-5 20-18 20-10 0-17-4-22-10Z" fill="#0b0618" stroke="#000000" stroke-width="1.4"/>` +
+          `<circle cx="50" cy="83" r="5.6" fill="#f59e0b" stroke="#7c2d12" stroke-width="1.4"/>` +
           `<ellipse cx="34" cy="85" rx="9" ry="4.4" fill="#4ade80" stroke="#14532d" stroke-width="1.8"/>` +
           `<ellipse cx="66" cy="85" rx="9" ry="4.4" fill="#4ade80" stroke="#14532d" stroke-width="1.8"/>`,
         face: null,
@@ -941,7 +959,7 @@ function customArt(
           `<circle cx="39" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/><circle cx="67" cy="41.5" r="1.3" fill="#ffffff" opacity="0.85"/>` +
           `<ellipse cx="21" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
           `<ellipse cx="79" cy="49" rx="6.5" ry="3.6" fill="#fb7185" opacity="0.6"/>` +
-          `<path d="M50 42l9 6-9 7-9-7Z" fill="#f97316" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>` +
+          `<path d="M50 40l11 7-11 9-11-9Z" fill="#f97316" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>` +
           // the screen face
           `<rect x="20" y="55" width="60" height="26" rx="9" fill="#c7ecff" stroke="${shellEdge}" stroke-width="4"/>` +
           `<path d="M26 62c4-3 9-4 14-3" stroke="#ffffff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.8"/>` +
@@ -949,7 +967,7 @@ function customArt(
           `<circle cx="61" cy="65" r="7.2" fill="#ffffff" stroke="#0369a1" stroke-width="1.2"/>` +
           `<circle cx="39.6" cy="66" r="4.2" fill="#111827"/><circle cx="60.4" cy="66" r="4.2" fill="#111827"/>` +
           `<circle cx="37.8" cy="64" r="1.5" fill="#ffffff"/><circle cx="58.6" cy="64" r="1.5" fill="#ffffff"/>` +
-          `<path d="M50 71l6 4-6 5-6-5Z" fill="#f97316" stroke="#c2410c" stroke-width="1.4" stroke-linejoin="round"/>` +
+          `<path d="M50 69l8 5-8 6-8-6Z" fill="#f97316" stroke="#c2410c" stroke-width="1.4" stroke-linejoin="round"/>` +
           // wattle on the bottom edge
           `<path d="M45 84c0 6 2 9 5 9s5-3 5-9Z" fill="${comb}" stroke="#9d174d" stroke-width="1.4"/>`,
         face: null,
