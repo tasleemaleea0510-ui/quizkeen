@@ -18,6 +18,7 @@ import {
   spyOnChats,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
+import { omeisaurusSvg } from "../../lib/keen-art";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
 import { HelpButton, HelpPanel } from "../../components/help-guide";
@@ -475,10 +476,17 @@ export default function AdminPage() {
                 <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
                   <Gift className="h-5 w-5 text-purple-400" /> Admin-Keen
                 </h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — den
-                  kan bara delas ut härifrån. Välj personen, och den hamnar i samlingen direkt.
-                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  {/* The drawing the receiver will actually see, not a placeholder. */}
+                  <span
+                    className="shrink-0 drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
+                    dangerouslySetInnerHTML={{ __html: omeisaurusSvg(96) }}
+                  />
+                  <p className="max-w-md text-sm text-slate-400">
+                    <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — den
+                    kan bara delas ut härifrån. Välj personen, och den hamnar i samlingen direkt.
+                  </p>
+                </div>
 
                 {keenFor ? (
                   <div className="mt-4 rounded-2xl border border-purple-500/40 bg-purple-500/10 p-4">
