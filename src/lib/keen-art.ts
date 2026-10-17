@@ -206,6 +206,16 @@ type Plate = {
 };
 
 const VIOLET_PLATE: Plate = { from: hsl(262, 58, 38), to: hsl(262, 72, 15) };
+/** Halloween: a night sky lit from behind by a candle. */
+const NIGHT_PLATE: Plate = { from: "#3d1263", to: "#150424", glow: "#ff9a3c" };
+/** Halloween, but lit by the moon rather than a flame. */
+const MOON_PLATE: Plate = { from: "#3d1263", to: "#150424", glow: "#e9d5ff" };
+/** The frozen half of the chicken pair. */
+const FROST_PLATE: Plate = { from: "#123a5c", to: "#071c30", glow: "#7dd3fc" };
+/** The sunny half of the chicken pair. */
+const HONEY_PLATE: Plate = { from: "#5a3a0a", to: "#241404", glow: "#fbbf24" };
+/** The Pumpkin King's crypt. */
+const CRYPT_PLATE: Plate = { from: "#2e1065", to: "#0d0420", glow: "#a855f7" };
 /**
  * The Gamer pack's arcade black, with the lime glow the design sheet shows.
  *
@@ -345,14 +355,17 @@ const RECIPES: Record<string, Recipe> = {
   pixelthorne: { shape: "blob", custom: "pixelthorne", noGloss: true, plate: VOID_PLATE },
 
   // ── Halloweenpaketet ───────────────────────────────────────────────────────
-  pumpkin: { shape: "pumpkin", custom: "halloweenPumpkin" },
-  chickenchick: { shape: "cube", custom: "chickCube" },
-  chickchicken: { shape: "cube", custom: "chickenCube" },
-  frogula: { shape: "wide", custom: "frogula" },
-  cookiepumpkin: { shape: "pumpkin", custom: "cookiePumpkin" },
-  cookiemummy: { shape: "blob", custom: "cookieMummy" },
-  cookieghost: { shape: "ghost", custom: "cookieGhost" },
-  pumpkinking: { shape: "pumpkin", custom: "pumpkinKing" },
+  pumpkin: { shape: "pumpkin", custom: "halloweenPumpkin", noGloss: true, plate: NIGHT_PLATE },
+  // The two chicken cubes are the same animal frozen and thawed: the blue one is
+  // the ice cube, the yellow one the bird out of it. Each has a plate that
+  // matches where it lives.
+  chickenchick: { shape: "cube", custom: "chickCube", noGloss: true, plate: FROST_PLATE },
+  chickchicken: { shape: "cube", custom: "chickenCube", noGloss: true, plate: HONEY_PLATE },
+  frogula: { shape: "wide", custom: "frogula", noGloss: true, plate: MOON_PLATE },
+  cookiepumpkin: { shape: "pumpkin", custom: "cookiePumpkin", noGloss: true, plate: NIGHT_PLATE },
+  cookiemummy: { shape: "blob", custom: "cookieMummy", noGloss: true, plate: NIGHT_PLATE },
+  cookieghost: { shape: "ghost", custom: "cookieGhost", noGloss: true, plate: MOON_PLATE },
+  pumpkinking: { shape: "pumpkin", custom: "pumpkinKing", noGloss: true, plate: CRYPT_PLATE },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   omeisaurus: {
