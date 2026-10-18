@@ -476,6 +476,17 @@ const PAIRS: [string, string][] = [
   ["Tysta chatten — 1 tim / 1 dag / FÖR ALLTID", "Mute the chat — 1 hr / 1 day / FOREVER"],
   ["STÄNG sajten / Öppna sajten", "CLOSE the site / Open the site"],
   ["Ägarkod · Admin-kod · Säkerhetskod", "Owner code · Admin code · Security code"],
+
+  // Tooltips and placeholders that live in attributes rather than text.
+  ["Hemlig anteckning som bara personal ser", "Private note only staff can see"],
+  ["Rensa banderollen", "Clear the banner"],
+  ["Skriv ett meddelande till HELA sajten…", "Write a message to the WHOLE site…"],
+  ["Tysta chatten i 60 minuter", "Mute the chat for 60 minutes"],
+  ["Inte aktiv än — ingen daglig bonus finns i QuizKeen", "Not active yet — QuizKeen has no daily bonus"],
+  ["Inte aktiv än — ingen mynt-utgift finns i QuizKeen", "Not active yet — QuizKeen has no coin spending"],
+  ["Visa senaste X minuterna", "Show the last X minutes"],
+  ["egna minuter", "custom minutes"],
+  ["5 minuter", "5 minutes"],
 ];
 
 // ── compiled lookup tables ───────────────────────────────────────────────

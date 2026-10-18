@@ -959,6 +959,12 @@ const PAIRS: [string, string][] = [
     "48 figurer i sex paket och sex sällsynthetsgrader — från vanliga till Kroma. Tjäna mynt genom att svara rätt, öppna paket, och byt till dig de du saknar i marknaden.",
     "48 characters across six packs and six rarities — from Common to Kroma. Earn coins by answering right, open packs, and trade for the ones you're missing in the market.",
   ],
+  ["Instruktioner", "Instructions"],
+  ["mynt", "coins"],
+  ["Dina mynt", "Your coins"],
+  ["Du spelar som", "You are playing as"],
+  ["Nya", "New"],
+  ["Pluggar med dig", "Studies with you"],
 ];
 
 // ── compiled lookup tables ───────────────────────────────────────────────
