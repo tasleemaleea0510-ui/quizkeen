@@ -260,7 +260,6 @@ export default function ChatPage() {
               {convos.map((c) => (
                 <button 
                   key={c.chan} 
-                  data-no-translate
                   onClick={() => { setChan(c.chan); setChanLabel(c.label); }}
                   className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors ${
                     chan === c.chan ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-slate-800/70"
@@ -282,7 +281,7 @@ export default function ChatPage() {
           {chan ? (
             <>
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <span className="text-base font-bold text-white" data-no-translate>{chanLabel}</span>
+                <span className="text-base font-bold text-white">{chanLabel}</span>
               </div>
               <div ref={boxRef} className="mt-3 h-[26rem] space-y-2.5 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/70 p-4">
                 {msgs.length === 0 && (

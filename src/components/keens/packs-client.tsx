@@ -363,7 +363,7 @@ function PackTile({
         )}
         {complete && <span className="text-[11px] font-bold text-emerald-300">Alla hittade! 🎉</span>}
         {!complete && missing.length > 0 && (
-          <span data-no-translate className="ml-auto text-[10px] font-bold text-slate-500">
+          <span className="ml-auto text-[10px] font-bold text-slate-500">
             {missing.length} kvar
           </span>
         )}
@@ -392,7 +392,7 @@ function PackTile({
               )}
             >
               <span>{working ? "Öppnar…" : size === 1 ? "Öppna 1" : `Öppna ${size}`}</span>
-              <span data-no-translate className="text-[10px] font-bold opacity-80">
+              <span className="text-[10px] font-bold opacity-80">
                 {cost} mynt
               </span>
             </button>
