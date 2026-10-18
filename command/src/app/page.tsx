@@ -3,57 +3,75 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { unlock } from "./actions";
-import { Crown, Shield, Detective, Lock, Unlock } from "../components/icons";
+import { Crown, Shield, Detective, Lock, Unlock, Check, Clock } from "../components/icons";
+import { Tilt, ToolButton, type Tone } from "../components/ui";
 
 type Kind = "OWNER" | "ADMIN" | "SECURITY";
 
+/**
+ * The front door.
+ *
+ * Three ways in, one per role, and each is a card you can read at a glance:
+ * what it unlocks, which code opens it, and one big button that says so. The
+ * checkerboard tint and the receding grid are the same print the app and the
+ * other console screens wear, so this screen is recognisably the same product
+ * as `/admin` and `/security` rather than a plain form in front of them.
+ */
 const CARDS: {
   kind: Kind;
   Icon: typeof Crown;
   title: string;
+  tag: string;
   desc: string;
-  box: string;
-  text: string;
-  border: string;
+  tone: Tone;
+  card: string;
+  tint: string;
+  badge: string;
+  label: string;
   btn: string;
-  focus: string;
-  glow: string;
+  input: string;
 }[] = [
   {
     kind: "OWNER",
     Icon: Crown,
-    title: "ÄGARE",
-    desc: "Ange den 8-siffriga koden för att låsa upp ÄGARE-kontroller.",
-    box: "bg-amber-500/15 text-amber-300 border border-amber-500/40",
-    text: "text-amber-300",
-    border: "border-amber-500/30",
-    btn: "bg-amber-600 hover:bg-amber-500",
-    focus: "focus:border-amber-400",
-    glow: "shadow-amber-500/10",
+    title: "Ägare",
+    tag: "Full kontroll",
+    desc: "Låser upp Ägare-kontrollerna: allt Admin och Säkerhet kan göra, plus ägarverktygen.",
+    tone: "amber",
+    card: "border-amber-500/25 hover:border-amber-400/45",
+    tint: "text-amber-500",
+    badge: "border-amber-500/40 bg-amber-500/15 text-amber-300",
+    label: "text-amber-300",
+    btn: "bg-amber-500 text-slate-950 shadow-lg shadow-amber-950/40 hover:bg-amber-400",
+    input: "focus:border-amber-400 focus:ring-amber-400/20",
   },
   {
     kind: "ADMIN",
     Icon: Shield,
-    title: "ADMIN",
-    desc: "Ange den 8-siffriga koden för att låsa upp ADMIN-kontroller.",
-    box: "bg-red-500/15 text-red-300 border border-red-500/40",
-    text: "text-red-400",
-    border: "border-red-500/30",
-    btn: "bg-red-600 hover:bg-red-500",
-    focus: "focus:border-red-400",
-    glow: "shadow-red-500/10",
+    title: "Admin",
+    tag: "Spelare & innehåll",
+    desc: "Låser upp Admin-kontrollerna: ban, XP, utskick, live och Admin-Keen.",
+    tone: "red",
+    card: "border-red-500/25 hover:border-red-400/45",
+    tint: "text-red-500",
+    badge: "border-red-500/40 bg-red-500/15 text-red-300",
+    label: "text-red-300",
+    btn: "bg-red-600 text-white shadow-lg shadow-red-950/40 hover:bg-red-500",
+    input: "focus:border-red-400 focus:ring-red-400/20",
   },
   {
     kind: "SECURITY",
     Icon: Detective,
-    title: "SÄKERHET",
-    desc: "Ange den 8-siffriga koden för att låsa upp SÄKERHET-kontroller.",
-    box: "bg-sky-500/15 text-sky-300 border border-sky-500/40",
-    text: "text-sky-300",
-    border: "border-sky-500/30",
-    btn: "bg-sky-600 hover:bg-sky-500",
-    focus: "focus:border-sky-400",
-    glow: "shadow-sky-500/10",
+    title: "Säkerhet",
+    tag: "Moderering",
+    desc: "Låser upp Säkerhets-kontrollerna: varningar, tystningar, chatt och loggar.",
+    tone: "sky",
+    card: "border-sky-500/25 hover:border-sky-400/45",
+    tint: "text-sky-500",
+    badge: "border-sky-500/40 bg-sky-500/15 text-sky-300",
+    label: "text-sky-300",
+    btn: "bg-sky-600 text-white shadow-lg shadow-sky-950/40 hover:bg-sky-500",
+    input: "focus:border-sky-400 focus:ring-sky-400/20",
   },
 ];
 
@@ -77,7 +95,7 @@ export default function Gate() {
   }, []);
 
   async function tryUnlock(kind: Kind) {
-    if (busy) return;
+    if (busy || codes[kind].length !== 8) return;
     setBusy(kind);
     setErrs((e) => ({ ...e, [kind]: false }));
     try {
@@ -113,108 +131,178 @@ export default function Gate() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 animate-cmd-drift rounded-full bg-amber-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 animate-cmd-drift-rev rounded-full bg-red-600/20 blur-3xl" />
+      <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-12 sm:pt-16">
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <header className="relative isolate overflow-hidden rounded-[2rem] border border-white/[0.07] bg-slate-950/70 px-6 py-10 text-center shadow-2xl sm:px-10 sm:py-12">
+          <span aria-hidden className="cmd-checkers-tint absolute inset-0 text-indigo-500" />
+          <span aria-hidden className="cmd-checkers-floor absolute text-indigo-400 opacity-60" />
+          <span aria-hidden className="cmd-hero-glow absolute text-indigo-500" />
 
-      <div className="relative mx-auto max-w-xl px-4 py-20">
-        <div className="animate-cmd-fade-up text-center">
-          <p className="text-2xl font-extrabold text-white">
-            Quiz<span className="text-indigo-400">Keen</span>
-          </p>
-          <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-            COMMAND{" "}
-            <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-sky-400 bg-[length:200%_auto] bg-clip-text text-transparent animate-cmd-pan">
-              CENTER
-            </span>
-          </h1>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-slate-500">
-            <Lock className="h-3.5 w-3.5 animate-cmd-breathe" />
-            Endast för betrodda. Alla öppningar loggas.
-          </p>
-        </div>
-
-        {saved?.role && (
-          <div className="mt-8 flex animate-cmd-slide-down items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/60 px-5 py-4">
-            <p className="text-sm text-slate-300">
-              Senast inloggad som <b className="text-white">{saved.role}</b>
+          <div className="relative">
+            <p className="flex items-center justify-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.28em] text-slate-400">
+              <span className="relative grid h-2 w-2 place-items-center text-indigo-400">
+                <span className="absolute inset-0 animate-cmd-pulse-ring rounded-full border border-current" />
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              </span>
+              QuizKeen
             </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={openSaved}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500"
-              >
-                Fortsätt
-              </button>
-              <button
-                type="button"
-                onClick={forgetSaved}
-                className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
-              >
-                Glöm
-              </button>
+
+            <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
+              COMMAND{" "}
+              <span className="animate-cmd-pan bg-gradient-to-r from-indigo-400 via-violet-400 to-sky-400 bg-[length:200%_auto] bg-clip-text text-transparent">
+                CENTER
+              </span>
+            </h1>
+
+            <p className="mx-auto mt-4 flex max-w-xl items-center justify-center gap-2 text-sm leading-relaxed text-slate-400">
+              <Lock className="h-4 w-4 shrink-0 animate-cmd-breathe text-slate-500" />
+              Endast för betrodda. Alla öppningar loggas.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+              {CARDS.map((c) => (
+                <span
+                  key={c.kind}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold ${c.badge}`}
+                >
+                  <c.Icon className="h-3.5 w-3.5" />
+                  {c.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        </header>
+
+        {/* ── Saved session ────────────────────────────────────────────── */}
+        {saved?.role && (
+          <div className="cmd-panel mt-5 flex animate-cmd-slide-down flex-wrap items-center justify-between gap-4 p-4 sm:px-5">
+            <p className="flex items-center gap-2 text-sm text-slate-300">
+              <Clock className="h-4 w-4 shrink-0 text-slate-500" />
+              Senast inloggad som <b className="font-extrabold text-white">{saved.role}</b>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <ToolButton label="Fortsätt" Icon={Unlock} tone="indigo" variant="solid" onClick={openSaved} />
+              <ToolButton label="Glöm sessionen" Icon={Lock} onClick={forgetSaved} />
             </div>
           </div>
         )}
 
-        {CARDS.map((c, index) => (
-          <div
-            key={c.kind}
-            style={{ animationDelay: `${120 + index * 100}ms` }}
-            className={`mt-8 animate-cmd-fade-up rounded-3xl border ${c.border} bg-slate-900/60 p-8 text-center shadow-xl backdrop-blur transition-colors duration-300 ${
-              c.glow
-            } ${unlocked === c.kind ? "border-emerald-400/70 shadow-emerald-500/20" : ""}`}
-          >
-            <div className={`relative mx-auto flex h-20 w-20 items-center justify-center rounded-2xl ${c.box}`}>
-              {unlocked === c.kind && (
-                <span className="pointer-events-none absolute inset-0 animate-cmd-pulse-ring rounded-2xl border-2 border-emerald-400/80" />
-              )}
-              <c.Icon className={`h-10 w-10 ${unlocked === c.kind ? "text-emerald-300" : ""}`} />
-            </div>
-            <h2 className={`mt-4 text-3xl font-extrabold ${c.text}`}>{c.title}</h2>
-            <p className="mt-2 text-sm text-slate-400">{c.desc}</p>
-            <input
-              value={codes[c.kind]}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
-                setCodes((p) => ({ ...p, [c.kind]: digits }));
-                setErrs((p) => ({ ...p, [c.kind]: false }));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") tryUnlock(c.kind);
-              }}
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={8}
-              placeholder="Ange 8-siffrig kod"
-              className={`mt-4 w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-center text-lg tracking-[0.3em] text-white placeholder:tracking-normal placeholder:text-slate-500 focus:outline-none ${
-                errs[c.kind] ? "animate-cmd-shake border-red-500/70" : "border-slate-700"
-              } ${c.focus}`}
-            />
-            {errs[c.kind] && (
-              <p className="mt-2 animate-cmd-slide-down text-sm font-bold text-red-400">Fel kod. Försök igen.</p>
-            )}
-            <button
-              type="button"
-              onClick={() => tryUnlock(c.kind)}
-              disabled={busy !== null || codes[c.kind].length !== 8}
-              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-extrabold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                unlocked === c.kind
-                  ? "animate-cmd-stamp bg-emerald-600"
-                  : busy === c.kind
-                    ? "animate-pulse " + c.btn
-                    : c.btn
-              }`}
-            >
-              <Unlock className="h-5 w-5" />
-              {unlocked === c.kind
-                ? "UPPRÄTTAT!"
-                : busy === c.kind
-                  ? "Kontrollerar..."
-                  : `LÅS UPP ${c.title}`}
-            </button>
-          </div>
-        ))}
+        {/* ── One card per role ────────────────────────────────────────── */}
+        <div className="mt-6 grid gap-5 lg:grid-cols-3">
+          {CARDS.map((c, index) => {
+            const done = unlocked === c.kind;
+            const wrong = errs[c.kind];
+            const working = busy === c.kind;
+
+            return (
+              <div
+                key={c.kind}
+                style={{ animationDelay: `${120 + index * 110}ms` }}
+                className="animate-cmd-fade-up"
+              >
+                <Tilt max={5} className="h-full">
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      tryUnlock(c.kind);
+                    }}
+                    className={`cmd-panel relative isolate flex h-full flex-col overflow-hidden p-6 transition-colors duration-300 sm:p-7 ${
+                      c.card
+                    } ${done ? "border-emerald-400/60 shadow-emerald-500/20" : ""}`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`cmd-checkers-tint pointer-events-none absolute inset-0 ${
+                        done ? "text-emerald-500" : c.tint
+                      }`}
+                    />
+
+                    <div className="relative flex items-start justify-between gap-3">
+                      <div
+                        className={`relative grid h-14 w-14 place-items-center rounded-2xl border ${
+                          done ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300" : c.badge
+                        }`}
+                      >
+                        {done && (
+                          <span className="pointer-events-none absolute inset-0 animate-cmd-pulse-ring rounded-2xl border-2 border-emerald-400/80" />
+                        )}
+                        <c.Icon className="h-7 w-7" />
+                      </div>
+                      <span
+                        className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] ${
+                          done ? "text-emerald-300" : c.label
+                        }`}
+                      >
+                        {done ? "Upplåst" : c.tag}
+                      </span>
+                    </div>
+
+                    <h2 className="relative mt-5 text-2xl font-extrabold tracking-tight text-white">{c.title}</h2>
+                    <p className="relative mt-2 text-sm leading-relaxed text-slate-400">{c.desc}</p>
+
+                    <div className="relative mt-auto pt-6">
+                      <label className="block">
+                        <span className="mb-2 flex items-center justify-between text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+                          <span>Kod</span>
+                          <span className="tabular-nums">{codes[c.kind].length}/8</span>
+                        </span>
+                        <input
+                          value={codes[c.kind]}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                            setCodes((p) => ({ ...p, [c.kind]: digits }));
+                            setErrs((p) => ({ ...p, [c.kind]: false }));
+                          }}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={8}
+                          aria-label={`Åttasiffrig kod för ${c.title}`}
+                          placeholder="••••••••"
+                          className={`w-full rounded-xl border bg-slate-950/70 px-4 py-3.5 text-center text-lg font-bold tracking-[0.45em] text-white placeholder:tracking-[0.35em] placeholder:text-slate-600 focus:outline-none focus:ring-2 ${
+                            wrong ? "animate-cmd-shake border-red-500/70" : "border-white/10"
+                          } ${c.input}`}
+                        />
+                      </label>
+
+                      <p aria-live="polite" className="mt-2 min-h-[1.25rem] text-sm font-bold text-red-400">
+                        {wrong ? "Fel kod. Försök igen." : ""}
+                      </p>
+
+                      <button
+                        type="submit"
+                        disabled={busy !== null || codes[c.kind].length !== 8}
+                        className={`cmd-shine flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-extrabold transition-all disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none ${
+                          done
+                            ? "animate-cmd-stamp bg-emerald-600 text-white"
+                            : working
+                              ? "animate-pulse " + c.btn
+                              : c.btn
+                        }`}
+                      >
+                        {done ? (
+                          <Check className="h-5 w-5" />
+                        ) : working ? (
+                          <Lock className="h-5 w-5 animate-cmd-breathe" />
+                        ) : (
+                          <Unlock className="h-5 w-5" />
+                        )}
+                        {done ? "Upplåst!" : working ? "Kontrollerar…" : `Lås upp ${c.title}`}
+                      </button>
+
+                      <p className="mt-3 text-center text-[11px] text-slate-500">
+                        {codes[c.kind].length === 8 ? "Tryck Enter för att låsa upp" : "Åtta siffror krävs"}
+                      </p>
+                    </div>
+                  </form>
+                </Tilt>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="mt-8 text-center text-[11px] text-slate-600">
+          QuizKeen Command · åtkomst loggas med roll och tid
+        </p>
       </div>
     </div>
   );

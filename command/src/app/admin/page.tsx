@@ -37,15 +37,16 @@ import {
   Pin,
   Note,
   Pray,
-  Search,
   Inbox,
   Handshake,
   Eraser,
   Dot,
   Clock,
   Help,
+  Cross,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
+import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "log" | "help";
@@ -179,6 +180,9 @@ export default function AdminPage() {
   }
 
   const banned = data.users.filter((u: any) => u.bannedUntil).length;
+  const online = data.users.filter(
+    (u: any) => u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000
+  ).length;
   const users = data.users.filter((u: any) => u.username.toLowerCase().includes(q.toLowerCase()));
 
   const nav: { id: NavId; Icon: typeof Users; label: string }[] = [
@@ -197,73 +201,74 @@ export default function AdminPage() {
       <div className="mx-auto max-w-7xl pt-10">
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
-        <div className="red-glow animate-cmd-fade-up rounded-3xl border border-red-500/40 bg-red-500/5 p-6">
-          <h1 className="red-title flex items-center gap-2 text-3xl font-extrabold text-red-400">
-            <Shield className="h-7 w-7" />
-            ADMIN — RÖD KONSOL
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate-400">
-            <Gift className="h-4 w-4 text-emerald-400" /> Belöna (max 500, 3/dag)
-            <span className="text-slate-600">·</span>
-            <Ban className="h-4 w-4 text-red-400" /> Banna (5min/1tim/1dag) · längre?{" "}
-            <b className="text-amber-400">Be ägaren om lov!</b>
-            <span className="text-slate-600">·</span> Allt loggas.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-            <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-slate-300">
-              <Users className="h-4 w-4" /> <CountUp value={data.users.length} /> användare
-            </span>
-            <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-red-400">
-              <Ban className="h-4 w-4" /> <CountUp value={banned} /> bannade
-            </span>
-          </div>
-        </div>
+        <ConsoleHero
+          tone="red"
+          Icon={Shield}
+          eyebrow="Röd konsol · endast personal"
+          title="ADMIN"
+          lead={
+            <>
+              Belöna med XP, banna i upp till ett dygn och följ vad som händer just nu. Längre
+              bannlysningar går via ägaren. <b className="text-slate-200">Allt loggas.</b>
+            </>
+          }
+          chips={[
+            { Icon: Users, label: "användare", value: <CountUp value={data.users.length} /> },
+            { Icon: Dot, label: "online nu", value: <CountUp value={online} />, tone: "emerald" },
+            { Icon: Ban, label: "bannade", value: <CountUp value={banned} />, tone: "red" },
+            { Icon: Gift, label: "max XP per gåva", value: 500, tone: "amber" },
+          ]}
+        />
 
         {info && (
-          <div className="mt-4 flex animate-cmd-slide-right items-center justify-between rounded-xl border border-red-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-red-300">
+          <div className="mt-4 flex animate-cmd-slide-right items-center justify-between gap-4 rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">
             <span data-no-translate>{info}</span>
-            <button type="button" onClick={() => setInfo("")} className="text-slate-500 hover:text-white">
-              stäng
-            </button>
+            <ToolButton label="Stäng" Icon={Cross} tone="red" onClick={() => setInfo("")} />
           </div>
         )}
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[230px_1fr]">
-          <div className="space-y-2">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[248px_1fr]">
+          <nav className="mb-2 flex gap-2 overflow-x-auto pb-1 lg:mb-0 lg:sticky lg:top-6 lg:flex-col lg:overflow-visible lg:pb-0">
             {nav.map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => setSection(n.id)}
-                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all duration-200 hover:translate-x-0.5 ${
+                className={`group flex shrink-0 items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-sm font-bold transition-all duration-200 lg:w-full ${
                   section === n.id
-                    ? "bg-red-600 text-white shadow-lg shadow-red-900/40"
-                    : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    ? "bg-red-600 text-white shadow-lg shadow-red-950/50"
+                    : "border border-white/[0.06] bg-slate-900/60 text-slate-300 hover:translate-x-0.5 hover:border-red-500/30 hover:text-white"
                 }`}
               >
-                <n.Icon className="h-4 w-4" />
+                <span
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${
+                    section === n.id ? "bg-white/15" : "bg-white/[0.04] text-slate-400 group-hover:text-red-300"
+                  }`}
+                >
+                  <n.Icon className="h-4 w-4" />
+                </span>
                 {n.label}
               </button>
             ))}
-          </div>
 
-          <div key={section} className="animate-cmd-fade rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="hidden rounded-2xl border border-white/[0.06] bg-slate-900/40 p-4 lg:mt-2 lg:block">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-red-300">Osäker på en knapp?</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                Varje grupp är märkt med vad den gör. Hjälp-fliken förklarar allt — och vad som loggas.
+              </p>
+            </div>
+          </nav>
+
+          <Panel key={section} className="animate-cmd-fade">
             {section === "users" && (
               <div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                    <Users className="h-5 w-5 text-red-400" /> Användare ({users.length})
-                  </h2>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5">
-                    <Search className="h-4 w-4 text-slate-500" />
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="Sök användare..."
-                      className="w-40 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
+                <SectionHead
+                  Icon={Users}
+                  tone="red"
+                  title={`Användare (${users.length})`}
+                  note="Välj grupp utifrån vad du vill göra: belöna, banna eller bevaka. Gröna knappar ger, röda tar bort."
+                  right={<SearchField value={q} onChange={setQ} />}
+                />
 
                 <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
                   {users.map((u: any, idx: number) => {
@@ -272,121 +277,138 @@ export default function AdminPage() {
                       <div
                         key={u.id}
                         style={{ animationDelay: `${Math.min(idx * 30, 420)}ms` }}
-                        className="animate-cmd-row rounded-xl border border-slate-800 bg-slate-950/60 p-3 transition-colors hover:border-red-500/30"
+                        className="animate-cmd-row rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4 transition-colors hover:border-red-500/30"
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
-                            <Dot online={online} className="h-2.5 w-2.5" />
-                            <span data-no-translate>{u.username}</span>
-                            <span className="ml-1 text-xs font-normal text-slate-500">
-                              {u.role} · Lv {u.level} · {u.xp} XP
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span
+                              aria-hidden
+                              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-[13px] font-extrabold uppercase text-slate-200"
+                            >
+                              {String(u.username).slice(0, 2)}
                             </span>
-                            {u.livePath && (
-                              <span className="rounded bg-emerald-500/10 px-1.5 text-xs font-normal text-emerald-400">
-                                {u.livePath}
-                              </span>
-                            )}
-                            {u.bannedUntil && (
-                              <span className="flex items-center gap-1 rounded-full bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400">
-                                <Ban className="h-3 w-3" /> BANNAD
-                              </span>
-                            )}
-                          </p>
-                          {(u.role === "STUDENT" || u.role === "TEACHER") &&
-                            (u.bannedUntil ? (
-                              <button
-                                type="button"
-                                onClick={() => run(adminUnban(s, u.username), "Klart!")}
-                                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                              >
-                                <Check className="h-3 w-3" /> Unbanna
-                              </button>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const pid = "qk-staff-" + Date.now();
-                                    try {
-                                      await requestLive(s, u.id, u.username, pid);
-                                    } catch {
-                                      setInfo("Nätverksfel — försök igen.");
-                                      return;
-                                    }
-                                    setLiveFor({ username: u.username, pid });
-                                  }}
-                                  title="Be om LIVE-skärm"
-                                  className="flex items-center gap-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white hover:bg-red-500"
-                                >
-                                  <Video className="h-3 w-3" /> Live
-                                </button>
-                                {[50, 200, 500].map((g) => (
-                                  <button
-                                    key={g}
-                                    type="button"
-                                    onClick={() => run(adminGiveXP(s, u.id, u.username, g))}
-                                    className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                                  >
-                                    <Gift className="h-3 w-3" /> +{g}
-                                  </button>
-                                ))}
-                                <button
-                                  type="button"
-                                  onClick={() => setGift({ user: u, amount: "100" })}
-                                  className="rounded-lg border border-emerald-500/40 px-2 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-600/20"
-                                >
-                                  XP...
-                                </button>
-                                {QUICK.map((qq) => (
-                                  <button
-                                    key={qq.min}
-                                    type="button"
-                                    onClick={() => run(adminBan(s, u.username, qq.min, ""))}
-                                    className="flex items-center gap-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white hover:bg-red-500"
-                                  >
-                                    <Ban className="h-3 w-3" /> {qq.label}
-                                  </button>
-                                ))}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAskFor(u.username);
-                                    setAskReason("");
-                                    setAskMin("2880");
-                                  }}
-                                  className="flex items-center gap-1 rounded-lg border border-amber-500/50 bg-amber-600/20 px-2 py-1 text-xs font-bold text-amber-300 hover:bg-amber-600/40"
-                                >
-                                  <Pray className="h-3 w-3" /> Be om mer
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setMute({ user: u, minutes: "60" })}
-                                  title="Tysta chatten"
-                                  className="rounded-lg bg-purple-600 px-2 py-1 text-xs font-bold text-white hover:bg-purple-500"
-                                >
-                                  <Mute className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(togglePin(s, u.id, u.username))}
-                                  title="Fäst"
-                                  className="rounded-lg bg-rose-600 px-2 py-1 text-xs font-bold text-white hover:bg-rose-500"
-                                >
-                                  <Pin className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setNote({ user: u, text: u.secretNote || "" })}
-                                  title="Hemlig anteckning"
-                                  className="rounded-lg bg-yellow-600 px-2 py-1 text-xs font-bold text-white hover:bg-yellow-500"
-                                >
-                                  <Note className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ))}
+                            <div className="min-w-0">
+                              <p className="flex flex-wrap items-center gap-2 font-bold text-white">
+                                <Dot online={online} className="h-2.5 w-2.5" />
+                                <span data-no-translate>{u.username}</span>
+                                {u.livePath && (
+                                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                                    live · <span data-no-translate>{u.livePath}</span>
+                                  </span>
+                                )}
+                                {u.bannedUntil && (
+                                  <span className="flex items-center gap-1 rounded-full bg-red-600/20 px-2 py-0.5 text-[11px] font-bold text-red-300">
+                                    <Ban className="h-3 w-3" /> BANNAD
+                                  </span>
+                                )}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500" data-no-translate>
+                                {u.role} · Lv {u.level} · {u.xp} XP
+                              </p>
+                            </div>
+                          </div>
+                          {u.bannedUntil && (
+                            <ToolButton
+                              label="Unbanna"
+                              Icon={Check}
+                              tone="emerald"
+                              variant="solid"
+                              onClick={() => run(adminUnban(s, u.username), "Klart!")}
+                            />
+                          )}
                         </div>
+
+                        {(u.role === "STUDENT" || u.role === "TEACHER") && !u.bannedUntil && (
+                          <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+                            <ToolGroup title="Belöna" Icon={Gift} tone="emerald">
+                              {[50, 200, 500].map((g) => (
+                                <ToolButton
+                                  key={g}
+                                  label={`+${g} XP`}
+                                  Icon={Gift}
+                                  tone="emerald"
+                                  onClick={() => run(adminGiveXP(s, u.id, u.username, g))}
+                                />
+                              ))}
+                              <ToolButton
+                                label="Egen summa"
+                                Icon={Gift}
+                                tone="emerald"
+                                onClick={() => setGift({ user: u, amount: "100" })}
+                              />
+                            </ToolGroup>
+
+                            <ToolGroup title="Banna" Icon={Ban} tone="red">
+                              {QUICK.map((qq) => (
+                                <ToolButton
+                                  key={qq.min}
+                                  label={qq.label}
+                                  Icon={Ban}
+                                  tone="red"
+                                  title={`Banna i ${qq.label}`}
+                                  onClick={() => run(adminBan(s, u.username, qq.min, ""))}
+                                />
+                              ))}
+                              <ToolButton
+                                label="Begär längre"
+                                Icon={Pray}
+                                tone="amber"
+                                onClick={() => {
+                                  setAskFor(u.username);
+                                  setAskReason("");
+                                  setAskMin("2880");
+                                }}
+                              />
+                            </ToolGroup>
+
+                            <ToolGroup title="Bevaka & verktyg" Icon={Video} tone="sky">
+                              <ToolButton
+                                label="Live"
+                                Icon={Video}
+                                tone="rose"
+                                title="Be om att få se personens skärm"
+                                onClick={async () => {
+                                  const pid = "qk-staff-" + Date.now();
+                                  try {
+                                    await requestLive(s, u.id, u.username, pid);
+                                  } catch {
+                                    setInfo("Nätverksfel — försök igen.");
+                                    return;
+                                  }
+                                  setLiveFor({ username: u.username, pid });
+                                }}
+                              />
+                              <ToolButton
+                                label="Tysta"
+                                Icon={Mute}
+                                tone="violet"
+                                title="Tysta chatten i 60 minuter"
+                                onClick={() => setMute({ user: u, minutes: "60" })}
+                              />
+                              <ToolButton
+                                label="Fäst"
+                                Icon={Pin}
+                                tone="rose"
+                                onClick={() => run(togglePin(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Anteckning"
+                                Icon={Note}
+                                tone="amber"
+                                title="Hemlig anteckning som bara personal ser"
+                                onClick={() => setNote({ user: u, text: u.secretNote || "" })}
+                              />
+                            </ToolGroup>
+                          </div>
+                        )}
+
+                        {u.role !== "STUDENT" && u.role !== "TEACHER" && (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                            <Shield className="h-3.5 w-3.5 text-amber-400" /> Skyddad roll — inga åtgärder härifrån.
+                          </p>
+                        )}
                         {u.secretNote && (
-                          <p className="mt-1 rounded bg-yellow-500/10 px-2 py-1 text-xs italic text-yellow-400" data-no-translate>
+                          <p className="mt-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs italic text-amber-200" data-no-translate>
                             {u.secretNote}
                           </p>
                         )}
@@ -400,9 +422,20 @@ export default function AdminPage() {
 
             {section === "chats" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Detective className="h-5 w-5 text-red-400" /> CHATSPANING
-                </h2>
+                <SectionHead
+                  Icon={Detective}
+                  tone="red"
+                  title="Chatspaning"
+                  note="Globala kanaler, inkorgar, staben och förfrågningar — samlade på ett ställe."
+                  right={
+                    <ToolButton
+                      label="Uppdatera"
+                      Icon={Clock}
+                      tone="red"
+                      onClick={() => spyOnChats(s).then(setChats).catch(() => setChats(null))}
+                    />
+                  }
+                />
                 {!chats && <p className="mt-4 text-sm text-slate-500">Kunde inte läsa in chattar.</p>}
                 {chats && (
                   <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -412,11 +445,17 @@ export default function AdminPage() {
                       { key: "staff", title: "Stab-kanaler", Icon: Users, tone: "red" },
                       { key: "requests", title: "Chatt-förfrågningar", Icon: Handshake, tone: "red" },
                     ].map((panel) => (
-                      <div key={panel.key} className="rounded-2xl border border-red-500/30 bg-slate-950/60 p-4">
-                        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-red-300">
-                          <panel.Icon className="h-4 w-4" /> {panel.title} ({chats[panel.key].length})
+                      <div
+                        key={panel.key}
+                        className="rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4 transition-colors hover:border-red-500/25"
+                      >
+                        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-red-300">
+                          <panel.Icon className="h-4 w-4" /> {panel.title}
+                          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-slate-400">
+                            {chats[panel.key].length}
+                          </span>
                         </h3>
-                        <div className="max-h-72 space-y-1 overflow-y-auto pr-1 text-xs">
+                        <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1 text-xs">
                           {chats[panel.key].map((m: any) => (
                             <p key={m.id} className="rounded bg-slate-900/60 px-2 py-1" data-no-translate>
                               <b className="text-white">{m.from}</b>
@@ -437,44 +476,48 @@ export default function AdminPage() {
 
             {section === "broadcast" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Megaphone className="h-5 w-5 text-red-400" /> Global sändning
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">ALLA ser detta som gul banderoll. Ägaren ser i loggen.</p>
+                <SectionHead
+                  Icon={Megaphone}
+                  tone="red"
+                  title="Global sändning"
+                  note="Alla inloggade ser detta som en gul banderoll högst upp. Ägaren ser i loggen vem som skickade."
+                />
                 <textarea
                   value={bc}
                   onChange={(e) => setBc(e.target.value)}
-                  rows={3}
-                  placeholder="Skriv ett meddelande till HELA sajten..."
-                  className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-white placeholder:text-slate-500 focus:border-red-400 focus:outline-none"
+                  rows={4}
+                  placeholder="Skriv ett meddelande till HELA sajten…"
+                  className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-red-400/70 focus:outline-none"
                 />
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ToolButton
+                    label="Sänd till alla"
+                    Icon={Megaphone}
+                    tone="red"
+                    variant="solid"
                     onClick={() => run(adminSetBroadcast(s, bc), "Sänt!")}
-                    className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500"
-                  >
-                    <Megaphone className="h-4 w-4" /> Sänd
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ToolButton
+                    label="Rensa banderollen"
+                    Icon={Eraser}
+                    tone="slate"
                     onClick={() => {
                       setBc("");
                       run(adminSetBroadcast(s, ""), "Rensat!");
                     }}
-                    className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white hover:bg-slate-600"
-                  >
-                    <Eraser className="h-4 w-4" /> Rensa
-                  </button>
+                  />
                 </div>
               </div>
             )}
 
             {section === "chat" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <ChatIcon className="h-5 w-5 text-red-400" /> Stabs-chatt
-                </h2>
+                <SectionHead
+                  Icon={ChatIcon}
+                  tone="red"
+                  title="Stabs-chatt"
+                  note="Bara personal. Eleven ser aldrig den här kanalen."
+                />
                 <div className="mt-4">
                   <StaffChat s={s} accent="bg-red-600" />
                 </div>
@@ -483,10 +526,13 @@ export default function AdminPage() {
 
             {section === "keen" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Gift className="h-5 w-5 text-purple-400" /> Admin-Keen
-                </h2>
-                <div className="mt-4 flex flex-wrap items-center gap-4">
+                <SectionHead
+                  Icon={Gift}
+                  tone="violet"
+                  title="Admin-Keen"
+                  note="En Keen som inte finns i något paket. Dela ut den härifrån — den hamnar i samlingen direkt."
+                />
+                <div className="mt-4 flex flex-wrap items-center gap-5 rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
                   {/* The drawing the receiver will actually see, not a placeholder. */}
                   <span
                     className="shrink-0 drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
@@ -506,9 +552,12 @@ export default function AdminPage() {
                     <p className="mt-1 text-xs text-slate-400">
                       Den läggs i personens samling direkt och går inte att ta tillbaka härifrån. Allt loggas.
                     </p>
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <ToolButton
+                        label="Ja, ge den"
+                        Icon={Gift}
+                        tone="violet"
+                        variant="solid"
                         disabled={busy}
                         onClick={async () => {
                           const target = keenFor;
@@ -516,29 +565,14 @@ export default function AdminPage() {
                           await run(adminGiveAdminKeen(s, target.id, target.username));
                           await loadHolders(s);
                         }}
-                        className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500 disabled:opacity-50"
-                      >
-                        <Gift className="h-4 w-4" /> Ja, ge den
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setKeenFor(null)}
-                        className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white hover:bg-slate-600"
-                      >
-                        Avbryt
-                      </button>
+                      />
+                      <ToolButton label="Avbryt" Icon={Cross} tone="slate" onClick={() => setKeenFor(null)} />
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="mt-4 flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5">
-                      <Search className="h-4 w-4 text-slate-500" />
-                      <input
-                        value={kq}
-                        onChange={(e) => setKq(e.target.value)}
-                        placeholder="Sök användare..."
-                        className="w-40 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                      />
+                    <div className="mt-4">
+                      <SearchField value={kq} onChange={setKq} />
                     </div>
 
                     <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
@@ -549,7 +583,7 @@ export default function AdminPage() {
                           return (
                             <div
                               key={u.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3"
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.07] bg-slate-950/50 p-3.5 transition-colors hover:border-violet-500/30"
                             >
                               <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
                                 <span data-no-translate>{u.username}</span>
@@ -562,18 +596,13 @@ export default function AdminPage() {
                                   </span>
                                 )}
                               </p>
-                              <button
-                                type="button"
+                              <ToolButton
+                                label={has ? "Har den" : "Ge Admin-Keen"}
+                                Icon={Gift}
+                                tone="violet"
                                 disabled={has || busy}
                                 onClick={() => setKeenFor(u)}
-                                className={
-                                  has
-                                    ? "flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1 text-xs font-bold text-slate-500"
-                                    : "flex items-center gap-1 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-200 hover:bg-purple-600/20"
-                                }
-                              >
-                                <Gift className="h-3 w-3" /> Ge Admin-Keen
-                              </button>
+                              />
                             </div>
                           );
                         })}
@@ -587,12 +616,16 @@ export default function AdminPage() {
 
             {section === "log" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Scroll className="h-5 w-5 text-red-400" /> Logg
-                </h2>
-                <div className="mt-4 max-h-[30rem] space-y-1 overflow-y-auto pr-1 text-xs text-slate-400">
+                <SectionHead
+                  Icon={Scroll}
+                  tone="red"
+                  title="Logg"
+                  note="Varje åtgärd i konsolen, med vem och när. Ägaren ser samma lista."
+                  right={<ToolButton label="Uppdatera" Icon={Clock} tone="red" onClick={refresh} />}
+                />
+                <div className="mt-4 max-h-[30rem] space-y-1.5 overflow-y-auto pr-1 text-xs text-slate-400">
                   {data.log.map((l: any, i: number) => (
-                    <p key={i} className="rounded bg-slate-900/60 px-3 py-2" data-no-translate>
+                    <p key={i} className="rounded-xl bg-slate-950/60 px-3.5 py-2.5" data-no-translate>
                       <b className="text-slate-300">{l.username}</b> {l.action}
                       <span className="ml-1 text-slate-600">
                         · {l.createdAt ? new Date(l.createdAt).toLocaleString("sv-SE") : ""}
@@ -602,12 +635,12 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-          </div>
+          </Panel>
         </div>
 
         {busy && (
-          <div className="fixed bottom-4 right-4 z-[110] flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-extrabold text-white shadow-lg">
-            <Clock className="h-4 w-4 animate-pulse" /> Jobbar...
+          <div className="fixed bottom-5 right-5 z-[110] flex animate-cmd-pop items-center gap-2 rounded-2xl border border-red-400/40 bg-red-600 px-5 py-3 text-sm font-extrabold text-white shadow-2xl shadow-red-950/60">
+            <Clock className="h-4 w-4 animate-spin" /> Jobbar…
           </div>
         )}
       </div>

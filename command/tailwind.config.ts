@@ -82,6 +82,16 @@ const config: Config = {
           "0%": { backgroundPosition: "0% 50%" },
           "100%": { backgroundPosition: "200% 50%" },
         },
+        // A hero ornament hanging in space.
+        "cmd-float": {
+          "0%,100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        // A slow halo orbit behind a badge.
+        "cmd-spin-slow": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "cmd-fade-up": "cmd-fade-up 0.45s cubic-bezier(0.22,1,0.36,1) both",
@@ -98,6 +108,8 @@ const config: Config = {
         "cmd-drift-rev": "cmd-drift-rev 34s ease-in-out infinite",
         "cmd-breathe": "cmd-breathe 2.6s ease-in-out infinite",
         "cmd-pan": "cmd-pan 6s linear infinite",
+        "cmd-float": "cmd-float 6s ease-in-out infinite",
+        "cmd-spin-slow": "cmd-spin-slow 26s linear infinite",
       },
     },
   },

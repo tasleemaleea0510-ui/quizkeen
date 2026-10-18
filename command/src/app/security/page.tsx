@@ -35,15 +35,16 @@ import {
   Ghost,
   Pin,
   Note,
-  Search,
   Inbox,
   Handshake,
   Dot,
   Clock,
   Shield,
   Help,
+  Cross,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
+import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "chat" | "log" | "help";
@@ -131,6 +132,10 @@ export default function SecurityPage() {
   }
 
   const users = data.users.filter((u: any) => u.username.toLowerCase().includes(q.toLowerCase()));
+  const online = data.users.filter(
+    (u: any) => u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000
+  ).length;
+  const warnings = data.users.reduce((a: number, u: any) => a + (u.warnings || 0), 0);
 
   const nav: { id: NavId; Icon: typeof Users; label: string }[] = [
     { id: "users", Icon: Users, label: "Användare" },
@@ -145,71 +150,73 @@ export default function SecurityPage() {
       <div className="mx-auto max-w-7xl pt-10">
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
-        <div className="mb-6 animate-cmd-fade-up rounded-3xl border border-sky-500/40 bg-sky-500/5 p-6">
-          <h1 className="flex items-center gap-2 text-3xl font-extrabold text-sky-300">
-            <Detective className="h-7 w-7" />
-            SÄKERHET — ISVAKT
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate-400">
-            <Warning className="h-4 w-4 text-amber-400" /> Övervaka · varna · kyla ner (5 min / 1 tim) · namnbyte · tysta ·
-            osynlig. Allt loggas.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
-            <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-slate-300">
-              <Users className="h-4 w-4" /> <CountUp value={data.users.length} /> användare
-            </span>
-            <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-amber-400">
-              <Warning className="h-4 w-4" />{" "}
-              <CountUp value={data.users.reduce((a: number, u: any) => a + (u.warnings || 0), 0)} /> varningar
-            </span>
-          </div>
-        </div>
+        <ConsoleHero
+          tone="sky"
+          Icon={Detective}
+          eyebrow="Isvakt · endast personal"
+          title="SÄKERHET"
+          lead={
+            <>
+              Håll ordning utan att frysa hela sajten: varna, kyl ner i fem minuter eller en timme, be om
+              namnbyte och titta med när det behövs. <b className="text-slate-200">Allt loggas.</b>
+            </>
+          }
+          chips={[
+            { Icon: Users, label: "användare", value: <CountUp value={data.users.length} /> },
+            { Icon: Dot, label: "online nu", value: <CountUp value={online} />, tone: "emerald" },
+            { Icon: Warning, label: "varningar totalt", value: <CountUp value={warnings} />, tone: "amber" },
+          ]}
+        />
 
         {info && (
-          <div className="mb-4 flex animate-cmd-slide-right items-center justify-between rounded-xl border border-sky-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-300">
+          <div className="mb-4 mt-4 flex animate-cmd-slide-right items-center justify-between gap-4 rounded-2xl border border-sky-500/35 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-200">
             <span data-no-translate>{info}</span>
-            <button type="button" onClick={() => setInfo("")} className="text-slate-500 hover:text-white">
-              stäng
-            </button>
+            <ToolButton label="Stäng" Icon={Cross} tone="sky" onClick={() => setInfo("")} />
           </div>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
-          <div className="space-y-2">
+        <div className="grid gap-4 lg:grid-cols-[248px_1fr]">
+          <nav className="flex gap-2 overflow-x-auto pb-1 lg:sticky lg:top-6 lg:flex-col lg:overflow-visible lg:pb-0">
             {nav.map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => setSection(n.id)}
-                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all duration-200 hover:translate-x-0.5 ${
+                className={`group flex shrink-0 items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-sm font-bold transition-all duration-200 lg:w-full ${
                   section === n.id
-                    ? "bg-sky-600 text-white shadow-lg shadow-sky-900/40"
-                    : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    ? "bg-sky-600 text-white shadow-lg shadow-sky-950/50"
+                    : "border border-white/[0.06] bg-slate-900/60 text-slate-300 hover:translate-x-0.5 hover:border-sky-500/30 hover:text-white"
                 }`}
               >
-                <n.Icon className="h-4 w-4" />
+                <span
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${
+                    section === n.id ? "bg-white/15" : "bg-white/[0.04] text-slate-400 group-hover:text-sky-300"
+                  }`}
+                >
+                  <n.Icon className="h-4 w-4" />
+                </span>
                 {n.label}
               </button>
             ))}
-          </div>
 
-          <div key={section} className="animate-cmd-fade rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="hidden rounded-2xl border border-white/[0.06] bg-slate-900/40 p-4 lg:mt-2 lg:block">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-sky-300">Isvaktens regel</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                Varna först, kyl ner sedan. Längre straff än en timme går alltid via admin eller ägare.
+              </p>
+            </div>
+          </nav>
+
+          <Panel key={section} className="animate-cmd-fade">
             {section === "users" && (
               <div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                    <Users className="h-5 w-5 text-sky-400" /> Användare ({users.length})
-                  </h2>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5">
-                    <Search className="h-4 w-4 text-slate-500" />
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="Sök användare..."
-                      className="w-40 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
+                <SectionHead
+                  Icon={Users}
+                  tone="sky"
+                  title={`Användare (${users.length})`}
+                  note="Milda verktyg först, kyla ner längst ner. Varje knapp säger vad den gör innan du trycker."
+                  right={<SearchField value={q} onChange={setQ} />}
+                />
 
                 <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
                   {users.map((u: any, idx: number) => {
@@ -218,129 +225,149 @@ export default function SecurityPage() {
                       <div
                         key={u.id}
                         style={{ animationDelay: `${Math.min(idx * 30, 420)}ms` }}
-                        className="animate-cmd-row rounded-xl border border-slate-800 bg-slate-950/60 p-3 transition-colors hover:border-sky-500/30"
+                        className="animate-cmd-row rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4 transition-colors hover:border-sky-500/30"
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
-                            <Dot online={online} className="h-2.5 w-2.5" />
-                            <span data-no-translate>{u.username}</span>
-                            <span className="ml-1 text-xs font-normal text-slate-500">
-                              {u.role} · Lv {u.level} · {u.warnings}/3 varningar
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span
+                              aria-hidden
+                              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-[13px] font-extrabold uppercase text-slate-200"
+                            >
+                              {String(u.username).slice(0, 2)}
                             </span>
-                            {u.livePath && (
-                              <span className="rounded bg-emerald-500/10 px-1.5 text-xs font-normal text-emerald-400">
-                                {u.livePath}
-                              </span>
-                            )}
-                            {u.bannedUntil && (
-                              <span className="flex items-center gap-1 rounded-full bg-sky-600/20 px-2 py-0.5 text-xs font-bold text-sky-300">
-                                <Ban className="h-3 w-3" /> BANNAD
-                              </span>
-                            )}
-                          </p>
-                          {(u.role === "STUDENT" || u.role === "TEACHER") &&
-                            (u.bannedUntil ? (
-                              <button
-                                type="button"
-                                onClick={() => run(secUnban(s, u.username))}
-                                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                              >
-                                <Check className="h-3 w-3" /> Unbanna
-                              </button>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const pid = "qk-staff-" + Date.now();
-                                    try {
-                                      await requestLive(s, u.id, u.username, pid);
-                                    } catch {
-                                      setInfo("Nätverksfel — försök igen.");
-                                      return;
-                                    }
-                                    setLiveFor({ username: u.username, pid });
-                                  }}
-                                  title="Be om LIVE-skärm"
-                                  className="rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white hover:bg-red-500"
+                            <div className="min-w-0">
+                              <p className="flex flex-wrap items-center gap-2 font-bold text-white">
+                                <Dot online={online} className="h-2.5 w-2.5" />
+                                <span data-no-translate>{u.username}</span>
+                                {u.livePath && (
+                                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                                    live · <span data-no-translate>{u.livePath}</span>
+                                  </span>
+                                )}
+                                {u.bannedUntil && (
+                                  <span className="flex items-center gap-1 rounded-full bg-sky-600/20 px-2 py-0.5 text-[11px] font-bold text-sky-300">
+                                    <Ban className="h-3 w-3" /> BANNAD
+                                  </span>
+                                )}
+                              </p>
+                              <p className="mt-1 flex items-center gap-2 text-xs text-slate-500" data-no-translate>
+                                <span>{u.role} · Lv {u.level}</span>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                    u.warnings > 0 ? "bg-amber-500/15 text-amber-300" : "bg-white/[0.05] text-slate-500"
+                                  }`}
                                 >
-                                  <Video className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(requestRename(s, u.id, u.username))}
-                                  title="Begär namnbyte"
-                                  className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-bold text-white hover:bg-indigo-500"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(secWarn(s, u.id, u.username))}
-                                  title="Varna"
-                                  className="rounded-lg bg-amber-600 px-2 py-1 text-xs font-bold text-white hover:bg-amber-500"
-                                >
-                                  <Warning className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(secBan(s, u.username, 5))}
-                                  className="flex items-center gap-1 rounded-lg bg-sky-600 px-2 py-1 text-xs font-bold text-white hover:bg-sky-500"
-                                >
-                                  <Ban className="h-3 w-3" /> 5min
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(secBan(s, u.username, 60))}
-                                  className="flex items-center gap-1 rounded-lg bg-sky-600 px-2 py-1 text-xs font-bold text-white hover:bg-sky-500"
-                                >
-                                  <Ban className="h-3 w-3" /> 1h
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setMute({ user: u, minutes: "60" })}
-                                  title="Tysta chatten"
-                                  className="rounded-lg bg-purple-600 px-2 py-1 text-xs font-bold text-white hover:bg-purple-500"
-                                >
-                                  <Mute className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(unmuteChat(s, u.id, u.username))}
-                                  title="Öppna chatten igen"
-                                  className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                                >
-                                  <Sound className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(toggleGhost(s, u.id, u.username))}
-                                  title="Osynlig"
-                                  className="rounded-lg bg-slate-600 px-2 py-1 text-xs font-bold text-white hover:bg-slate-500"
-                                >
-                                  <Ghost className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => run(togglePin(s, u.id, u.username))}
-                                  title="Fäst"
-                                  className="rounded-lg bg-rose-600 px-2 py-1 text-xs font-bold text-white hover:bg-rose-500"
-                                >
-                                  <Pin className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setNote({ user: u, text: u.secretNote || "" })}
-                                  title="Hemlig anteckning"
-                                  className="rounded-lg bg-yellow-600 px-2 py-1 text-xs font-bold text-white hover:bg-yellow-500"
-                                >
-                                  <Note className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ))}
+                                  {u.warnings}/3 varningar
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                          {u.bannedUntil && (
+                            <ToolButton
+                              label="Unbanna"
+                              Icon={Check}
+                              tone="emerald"
+                              variant="solid"
+                              onClick={() => run(secUnban(s, u.username))}
+                            />
+                          )}
                         </div>
+
+                        {(u.role === "STUDENT" || u.role === "TEACHER") && !u.bannedUntil && (
+                          <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+                            <ToolGroup title="Vårda" Icon={Warning} tone="amber">
+                              <ToolButton
+                                label="Varna"
+                                Icon={Warning}
+                                tone="amber"
+                                title="Ge en varning — tre varningar är gränsen"
+                                onClick={() => run(secWarn(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Begär namnbyte"
+                                Icon={Pencil}
+                                tone="indigo"
+                                onClick={() => run(requestRename(s, u.id, u.username))}
+                              />
+                            </ToolGroup>
+
+                            <ToolGroup title="Kyla ner" Icon={Ban} tone="sky">
+                              <ToolButton
+                                label="5 minuter"
+                                Icon={Ban}
+                                tone="sky"
+                                onClick={() => run(secBan(s, u.username, 5))}
+                              />
+                              <ToolButton
+                                label="1 timme"
+                                Icon={Ban}
+                                tone="sky"
+                                onClick={() => run(secBan(s, u.username, 60))}
+                              />
+                            </ToolGroup>
+
+                            <ToolGroup title="Bevaka & verktyg" Icon={Video} tone="violet">
+                              <ToolButton
+                                label="Live"
+                                Icon={Video}
+                                tone="rose"
+                                title="Be om att få se personens skärm"
+                                onClick={async () => {
+                                  const pid = "qk-staff-" + Date.now();
+                                  try {
+                                    await requestLive(s, u.id, u.username, pid);
+                                  } catch {
+                                    setInfo("Nätverksfel — försök igen.");
+                                    return;
+                                  }
+                                  setLiveFor({ username: u.username, pid });
+                                }}
+                              />
+                              <ToolButton
+                                label="Tysta"
+                                Icon={Mute}
+                                tone="violet"
+                                title="Tysta chatten i 60 minuter"
+                                onClick={() => setMute({ user: u, minutes: "60" })}
+                              />
+                              <ToolButton
+                                label="Öppna"
+                                Icon={Sound}
+                                tone="emerald"
+                                title="Öppna chatten igen"
+                                onClick={() => run(unmuteChat(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Osynlig"
+                                Icon={Ghost}
+                                tone="slate"
+                                title="Växla osynlig närvaro"
+                                onClick={() => run(toggleGhost(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Fäst"
+                                Icon={Pin}
+                                tone="rose"
+                                onClick={() => run(togglePin(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Anteckning"
+                                Icon={Note}
+                                tone="amber"
+                                title="Hemlig anteckning som bara personal ser"
+                                onClick={() => setNote({ user: u, text: u.secretNote || "" })}
+                              />
+                            </ToolGroup>
+                          </div>
+                        )}
+
+                        {u.role !== "STUDENT" && u.role !== "TEACHER" && (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                            <Shield className="h-3.5 w-3.5 text-amber-400" /> Skyddad roll — inga åtgärder härifrån.
+                          </p>
+                        )}
                         {u.secretNote && (
-                          <p className="mt-1 text-xs italic text-yellow-400" data-no-translate>
+                          <p className="mt-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs italic text-amber-200" data-no-translate>
                             {u.secretNote}
                           </p>
                         )}
@@ -354,10 +381,20 @@ export default function SecurityPage() {
 
             {section === "chats" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Detective className="h-5 w-5 text-sky-400" /> CHATSPANING
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">Global, inkorg, stab, förfrågningar. Allt loggas.</p>
+                <SectionHead
+                  Icon={Detective}
+                  tone="sky"
+                  title="Chatspaning"
+                  note="Globala kanaler, inkorgar, staben och förfrågningar — samlade på ett ställe."
+                  right={
+                    <ToolButton
+                      label="Uppdatera"
+                      Icon={Clock}
+                      tone="sky"
+                      onClick={() => spyOnChats(s).then(setChats).catch(() => setChats(null))}
+                    />
+                  }
+                />
                 {!chats && <p className="mt-4 text-sm text-slate-500">Kunde inte läsa in chattar.</p>}
                 {chats && (
                   <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -367,11 +404,17 @@ export default function SecurityPage() {
                       { key: "staff", title: "Stab-kanaler", Icon: Users },
                       { key: "requests", title: "Chatt-förfrågningar", Icon: Handshake },
                     ].map((panel) => (
-                      <div key={panel.key} className="rounded-2xl border border-sky-500/30 bg-slate-950/60 p-4">
-                        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-sky-300">
-                          <panel.Icon className="h-4 w-4" /> {panel.title} ({chats[panel.key].length})
+                      <div
+                        key={panel.key}
+                        className="rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4 transition-colors hover:border-sky-500/25"
+                      >
+                        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-sky-300">
+                          <panel.Icon className="h-4 w-4" /> {panel.title}
+                          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-slate-400">
+                            {chats[panel.key].length}
+                          </span>
                         </h3>
-                        <div className="max-h-64 space-y-1 overflow-y-auto pr-1 text-xs">
+                        <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1 text-xs">
                           {chats[panel.key].map((m: any) => (
                             <p key={m.id} className="rounded bg-slate-900/60 px-2 py-1" data-no-translate>
                               <b className="text-white">{m.from}</b>
@@ -392,9 +435,12 @@ export default function SecurityPage() {
 
             {section === "chat" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <ChatIcon className="h-5 w-5 text-sky-400" /> Stabs-chatt
-                </h2>
+                <SectionHead
+                  Icon={ChatIcon}
+                  tone="sky"
+                  title="Stabs-chatt"
+                  note="Bara personal. Eleven ser aldrig den här kanalen."
+                />
                 <div className="mt-4">
                   <StaffChat s={s} accent="bg-sky-600" />
                 </div>
@@ -405,12 +451,16 @@ export default function SecurityPage() {
 
             {section === "log" && (
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-extrabold text-white">
-                  <Scroll className="h-5 w-5 text-sky-400" /> Aktivitetslogg
-                </h2>
-                <div className="mt-4 max-h-[30rem] space-y-1 overflow-y-auto pr-1 text-xs text-slate-400">
+                <SectionHead
+                  Icon={Scroll}
+                  tone="sky"
+                  title="Aktivitetslogg"
+                  note="Varje åtgärd i isvakten, med vem och när."
+                  right={<ToolButton label="Uppdatera" Icon={Clock} tone="sky" onClick={refresh} />}
+                />
+                <div className="mt-4 max-h-[30rem] space-y-1.5 overflow-y-auto pr-1 text-xs text-slate-400">
                   {data.log.map((l: any, i: number) => (
-                    <p key={i} className="rounded bg-slate-900/60 px-3 py-2" data-no-translate>
+                    <p key={i} className="rounded-xl bg-slate-950/60 px-3.5 py-2.5" data-no-translate>
                       <b className="text-slate-300">{l.username}</b> {l.action}
                       <span className="ml-1 text-slate-600">
                         · {l.createdAt ? new Date(l.createdAt).toLocaleString("sv-SE") : ""}
@@ -420,12 +470,12 @@ export default function SecurityPage() {
                 </div>
               </div>
             )}
-          </div>
+          </Panel>
         </div>
 
         {busy && (
-          <div className="fixed bottom-4 right-4 z-[110] flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-extrabold text-white shadow-lg">
-            <Clock className="h-4 w-4 animate-pulse" /> Jobbar...
+          <div className="fixed bottom-5 right-5 z-[110] flex animate-cmd-pop items-center gap-2 rounded-2xl border border-sky-400/40 bg-sky-600 px-5 py-3 text-sm font-extrabold text-white shadow-2xl shadow-sky-950/60">
+            <Clock className="h-4 w-4 animate-spin" /> Jobbar…
           </div>
         )}
       </div>

@@ -39,17 +39,136 @@
   }
 }
 
+/* ── Checkerboard ─────────────────────────────────────────────────────────
+   The console now wears the same pixel-tile print the Keens packs are made
+   from. Two offset gradients make the squares; a radial mask keeps the middle
+   of a panel patterned and lets the edges fall back to plain dark, so text
+   never fights the texture. */
+.cmd-checkers {
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
+  -webkit-mask-image: radial-gradient(125% 105% at 50% 0%, #000 8%, transparent 76%);
+  mask-image: radial-gradient(125% 105% at 50% 0%, #000 8%, transparent 76%);
+}
+
+/* A bigger, coloured version for a hero banner. */
+.cmd-checkers-tint {
+  background-image:
+    linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%),
+    linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 11px 11px;
+  opacity: 0.055;
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 88%);
+  mask-image: linear-gradient(to bottom, #000, transparent 88%);
+}
+
+/* The same tiles, laid flat and pushed into the distance — a floor under the
+   hero, like standing at the edge of the grid. */
+.cmd-checkers-floor {
+  inset: 46% -40% -70% -40%;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 52px 52px;
+  transform: perspective(420px) rotateX(64deg);
+  transform-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+}
+
+/* A soft pool of the console's own colour, sitting behind a hero's title. */
+.cmd-hero-glow {
+  inset: -60% 20% auto 20%;
+  height: 26rem;
+  background: radial-gradient(circle at 50% 50%, currentColor, transparent 68%);
+  opacity: 0.28;
+  filter: blur(70px);
+}
+
+/* A route arriving. `template.tsx` remounts on navigation, so this plays once. */
+.page-enter {
+  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.996);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Pointer tilt ─────────────────────────────────────────────────────────
+   `Tilt` writes --tilt-rx/ry/mx/my. Nothing is rotated until a pointer moves
+   across it, so the resting state is flat and keyboard users lose nothing. */
+.cmd-tilt {
+  position: relative;
+  transform: perspective(1000px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-style: preserve-3d;
+}
+.cmd-tilt[data-tilting="on"] {
+  transition-duration: 0.1s;
+}
+
+.cmd-tilt-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    260px circle at var(--tilt-mx, 50%) var(--tilt-my, 50%),
+    rgba(255, 255, 255, 0.14),
+    transparent 68%
+  );
+}
+.cmd-tilt:hover .cmd-tilt-glare {
+  opacity: 1;
+}
+
+/* A light that crosses a primary button on hover. */
+.cmd-shine {
+  position: relative;
+  overflow: hidden;
+}
+.cmd-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-130%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.cmd-shine:hover::after {
+  transform: translateX(130%) skewX(-18deg);
+}
+
 /* 🎯 click feedback — every button feels ALIVE */
 button, a {
   transition: transform 0.08s ease, filter 0.08s ease, background-color 0.18s ease,
     border-color 0.18s ease, box-shadow 0.18s ease;
 }
 button:hover, a:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.12);
 }
 button:active, a:active {
-  transform: scale(0.95);
-  filter: brightness(1.4);
+  transform: scale(0.97);
+  filter: brightness(1.25);
+}
+/* A control that is genuinely unavailable should not look pressable. */
+button:disabled, a:disabled {
+  filter: none;
+  transform: none;
 }
 
 /* A thin, quiet scrollbar; the console has long tables. */
