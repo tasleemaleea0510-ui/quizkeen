@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowRight, Clock, Coins, Crown, Flame, Package, Search, Shirt, Sparkles, Store, Tag, Trophy } from "lucide-react";
 import {
@@ -66,6 +67,10 @@ export default function CollectionClient({ state }: { state: KeenState }) {
   const [sort, setSort] = React.useState<Sort>("sallhet");
   const [query, setQuery] = React.useState("");
   const [selected, setSelected] = React.useState<Keen | null>(null);
+  // Portals need a browser: the first client render has none, so the modal waits
+  // for mount instead of trying to reach `document` during prerender.
+  const [mounted, setMounted] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   // The Keen on your back: shown in the grid, set from the detail card, and read
@@ -75,6 +80,35 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
   const owned = state.owned;
   const distinct = state.distinct;
+
+  React.useEffect(() => setMounted(true), []);
+
+  /**
+   * While a Keen is open the page behind must not scroll, Escape must close it,
+   * and the card must start at its top. Before this, opening a Keen from the
+   * bottom of a long grid left you looking at a blurred page and scrolling up to
+   * find the stats: the sheet opened mid-document and the wheel moved the grid
+   * underneath it.
+   */
+  React.useEffect(() => {
+    if (!selected) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(null);
+    };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [selected]);
+
+  // A sibling Keen swaps the content in place; rewind so its name and stats are
+  // the first thing shown rather than wherever the previous card was scrolled to.
+  React.useEffect(() => {
+    panelRef.current?.scrollTo({ top: 0 });
+  }, [selected?.id]);
 
   // ── the daily spotlight ────────────────────────────────────────────────────
   // The same Keen for everyone until midnight UTC, with a clock so you can watch
@@ -475,15 +509,22 @@ export default function CollectionClient({ state }: { state: KeenState }) {
       )}
 
       {/* ── detail modal ─────────────────────────────────────────────────── */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-[65] grid place-items-center bg-slate-950/80 p-4 backdrop-blur-md animate-keen-fade"
-          onClick={() => setSelected(null)}
-        >
+      {selected &&
+        mounted &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="keen-scroll max-h-[88vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-raise animate-keen-pop"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${selected.name} – detaljer`}
+            className="fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-slate-950/80 backdrop-blur-md animate-keen-fade"
+            onClick={() => setSelected(null)}
           >
+            <div className="flex min-h-full items-start justify-center p-4 sm:items-center">
+              <div
+                ref={panelRef}
+                onClick={(e) => e.stopPropagation()}
+                className="keen-scroll relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-slate-900/90 p-6 text-center shadow-raise animate-keen-pop"
+              >
             <div className="flex justify-center">
               <KeenAvatar
                 keen={selected}
@@ -697,9 +738,11 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                 Stäng
               </button>
             </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       <Toasts toasts={toasts} dismiss={dismiss} />
     </div>

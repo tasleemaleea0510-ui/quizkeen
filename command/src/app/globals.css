@@ -89,9 +89,12 @@
   filter: blur(70px);
 }
 
-/* A route arriving. `template.tsx` remounts on navigation, so this plays once. */
+/* A route arriving. `template.tsx` remounts on navigation, so this plays once.
+   `backwards`, not `both`, so the wrapper releases its transform when the
+   animation ends — a transformed ancestor turns every `position: fixed` overlay
+   inside a page into a document-relative one. */
 .page-enter {
-  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes page-in {

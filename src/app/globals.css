@@ -175,9 +175,16 @@ button:active, a:active {
    required to read the page, and all of it is switched off by the
    reduced-motion block at the bottom of this file. */
 
-/* A route arriving. `template.tsx` remounts, so this plays once per visit. */
+/* A route arriving. `template.tsx` remounts, so this plays once per visit.
+   `backwards`, not `both`: an animation that retains its final keyframe leaves
+   an identity transform on this wrapper, and a transformed ancestor is a
+   containing block — every `position: fixed` overlay in a page (the Keen sheet,
+   the pack opener, confetti) would then be laid out against the whole document
+   instead of the screen, so opening one at the bottom of a long page showed a
+   blurred page with the card far above. Releasing the transform when the
+   animation ends keeps the entrance and gives fixed positioning back. */
 .page-enter {
-  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes page-in {
