@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import CopyButton from "@/components/copy-button";
+import ActionForm from "@/components/action-form";
 import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate, deleteAssignment, clearAssignments } from "./actions";
 import { 
   School, 
@@ -113,14 +114,14 @@ export default async function ClassroomPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={createClassroom} className="flex flex-wrap gap-2.5">
+              <ActionForm action={createClassroom} className="flex flex-wrap gap-2.5" pendingLabel="Skapar klassrum…">
                 <Input name="name" placeholder="Klassens namn (t.ex. 8A Biologi)" required className="max-w-xs" />
                 <Input name="description" placeholder="Beskrivning (valfritt)" className="max-w-xs" />
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-500 gap-1.5">
                   <Plus className="h-4 w-4" />
                   <span>Skapa klassrum</span>
                 </Button>
-              </form>
+              </ActionForm>
               <p className="mt-2 text-xs text-slate-500 flex items-center gap-1">
                 <Lock className="h-3 w-3" />
                 <span>Endast lärare kan skapa klassrum — elever ansluter via join-kod.</span>
@@ -274,13 +275,13 @@ export default async function ClassroomPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={joinClassroom} className="flex flex-wrap gap-2.5">
+              <ActionForm action={joinClassroom} className="flex flex-wrap gap-2.5" pendingLabel="Går med…">
                 <Input name="code" placeholder="Join-kod (6 tecken)" required className="max-w-xs font-mono uppercase" />
                 <Button type="submit" className="gap-1.5">
                   <span>Gå med</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
 

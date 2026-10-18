@@ -2,42 +2,71 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import type { ActionResult } from "@/components/action-form";
 
 async function ulog(who: string, action: string) {
   await prisma.activity.create({ data: { username: who, action } });
 }
 
-export async function createClassroom(formData: FormData): Promise<void> {
+/** Every page that shows classes, so one revalidate covers the whole app. */
+function revalidateClassPages() {
+  revalidatePath("/classroom");
+  revalidatePath("/classroom/analytics");
+  revalidatePath("/dashboard");
+}
+
+export async function createClassroom(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) return { ok: false, error: "Du måste vara inloggad." };
   const profile = await prisma.profile.findUnique({ where: { id: user.id } });
-  if (!profile || profile.role !== "TEACHER") return;
+  if (!profile || profile.role !== "TEACHER") {
+    return { ok: false, error: "Endast lärare kan skapa klassrum." };
+  }
   const name = (formData.get("name") as string)?.trim();
-  if (!name) return;
-  const joinCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  if (!name) return { ok: false, error: "Klassrummet behöver ett namn." };
+
+  // The join code is unique in the database, so a collision must be retried
+  // rather than thrown — otherwise the room silently fails to save.
+  let joinCode = "";
+  for (let attempt = 0; attempt < 5 && !joinCode; attempt++) {
+    const candidate = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const taken = await prisma.classroom.findUnique({ where: { joinCode: candidate }, select: { id: true } });
+    if (!taken) joinCode = candidate;
+  }
+  if (!joinCode) return { ok: false, error: "Kunde inte skapa en join-kod — försök igen." };
+
   await prisma.classroom.create({
     data: { name, description: (formData.get("description") as string)?.trim() || null, joinCode, ownerId: user.id },
   });
   await ulog(profile.username, `skapade klassrummet ${name}`);
-  revalidatePath("/classroom");
+  revalidateClassPages();
+  return { ok: true, message: `${name} skapat — join-koden är ${joinCode}.` };
 }
 
-export async function joinClassroom(formData: FormData): Promise<void> {
+export async function joinClassroom(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  const code = (formData.get("code") as string)?.trim().toUpperCase();
+  if (!user) return { ok: false, error: "Du måste vara inloggad." };
+  const code = ((formData.get("code") as string) ?? "").trim().toUpperCase();
+  if (!code) return { ok: false, error: "Skriv join-koden du fått av din lärare." };
+
   const room = await prisma.classroom.findUnique({ where: { joinCode: code } });
-  if (!room) return;
+  if (!room) return { ok: false, error: `Ingen klassrum hittades med koden "${code}".` };
+
   const existing = await prisma.enrollment.findUnique({
     where: { classroomId_studentId: { classroomId: room.id, studentId: user.id } },
   });
-  if (existing) return;
+  if (existing) {
+    revalidateClassPages();
+    return { ok: true, message: `Du är redan med i ${room.name}.` };
+  }
+
   await prisma.enrollment.create({ data: { classroomId: room.id, studentId: user.id } });
   const prof = await prisma.profile.findUnique({ where: { id: user.id } });
   await ulog(prof?.username ?? "okänd", `gick med i klassrummet ${room.name}`);
-  revalidatePath("/classroom");
+  revalidateClassPages();
+  return { ok: true, message: `Du är med i ${room.name}!` };
 }
 
 export async function addCoTeacher(formData: FormData): Promise<void> {
