@@ -43,6 +43,7 @@ import {
   Shield,
   Help,
 } from "../../components/icons";
+import { CountUp } from "../../components/motion";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "chat" | "log" | "help";
@@ -144,7 +145,7 @@ export default function SecurityPage() {
       <div className="mx-auto max-w-7xl pt-10">
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
-        <div className="mb-6 rounded-3xl border border-sky-500/40 bg-sky-500/5 p-6">
+        <div className="mb-6 animate-cmd-fade-up rounded-3xl border border-sky-500/40 bg-sky-500/5 p-6">
           <h1 className="flex items-center gap-2 text-3xl font-extrabold text-sky-300">
             <Detective className="h-7 w-7" />
             SÄKERHET — ISVAKT
@@ -155,17 +156,17 @@ export default function SecurityPage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
             <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-slate-300">
-              <Users className="h-4 w-4" /> {data.users.length} användare
+              <Users className="h-4 w-4" /> <CountUp value={data.users.length} /> användare
             </span>
             <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-amber-400">
               <Warning className="h-4 w-4" />{" "}
-              {data.users.reduce((a: number, u: any) => a + (u.warnings || 0), 0)} varningar
+              <CountUp value={data.users.reduce((a: number, u: any) => a + (u.warnings || 0), 0)} /> varningar
             </span>
           </div>
         </div>
 
         {info && (
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-sky-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-300">
+          <div className="mb-4 flex animate-cmd-slide-right items-center justify-between rounded-xl border border-sky-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-300">
             <span data-no-translate>{info}</span>
             <button type="button" onClick={() => setInfo("")} className="text-slate-500 hover:text-white">
               stäng
@@ -180,8 +181,10 @@ export default function SecurityPage() {
                 key={n.id}
                 type="button"
                 onClick={() => setSection(n.id)}
-                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition ${
-                  section === n.id ? "bg-sky-600 text-white shadow-lg" : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all duration-200 hover:translate-x-0.5 ${
+                  section === n.id
+                    ? "bg-sky-600 text-white shadow-lg shadow-sky-900/40"
+                    : "bg-slate-900 text-slate-300 hover:bg-slate-800"
                 }`}
               >
                 <n.Icon className="h-4 w-4" />
@@ -190,7 +193,7 @@ export default function SecurityPage() {
             ))}
           </div>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+          <div key={section} className="animate-cmd-fade rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
             {section === "users" && (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -209,10 +212,14 @@ export default function SecurityPage() {
                 </div>
 
                 <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
-                  {users.map((u: any) => {
+                  {users.map((u: any, idx: number) => {
                     const online = Boolean(u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
                     return (
-                      <div key={u.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <div
+                        key={u.id}
+                        style={{ animationDelay: `${Math.min(idx * 30, 420)}ms` }}
+                        className="animate-cmd-row rounded-xl border border-slate-800 bg-slate-950/60 p-3 transition-colors hover:border-sky-500/30"
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
                             <Dot online={online} className="h-2.5 w-2.5" />

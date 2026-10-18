@@ -1,9 +1,48 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #05060f;
+    background-image:
+      radial-gradient(900px 520px at 8% -10%, rgba(99, 102, 241, 0.14), transparent 62%),
+      radial-gradient(820px 480px at 96% 2%, rgba(139, 92, 246, 0.12), transparent 64%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(129, 140, 248, 0.35);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #05060f, 0 0 0 4px rgba(129, 140, 248, 0.75);
+    border-radius: 0.5rem;
+  }
+}
+
+@layer components {
+  /* The console's standard surface: one border, one blur, one shadow. */
+  .cmd-panel {
+    @apply rounded-3xl border border-white/[0.07] bg-slate-900/60 shadow-xl backdrop-blur-xl;
+  }
+
+  .cmd-glass {
+    @apply border border-white/10 bg-white/[0.03] backdrop-blur-xl;
+  }
+}
+
 /* 🎯 click feedback — every button feels ALIVE */
 button, a {
-  transition: transform 0.08s ease, filter 0.08s ease;
+  transition: transform 0.08s ease, filter 0.08s ease, background-color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
 }
 button:hover, a:hover {
   filter: brightness(1.15);
@@ -11,4 +50,80 @@ button:hover, a:hover {
 button:active, a:active {
   transform: scale(0.95);
   filter: brightness(1.4);
+}
+
+/* A thin, quiet scrollbar; the console has long tables. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.32);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.55);
+  background-clip: content-box;
+}
+
+/* The drifting colour fields behind the console. */
+.cmd-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cmd-aurora span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform;
+}
+.cmd-aurora span:nth-child(1) {
+  top: -18rem;
+  left: -12rem;
+  width: 44rem;
+  height: 44rem;
+  background: radial-gradient(circle at 40% 40%, rgba(99, 102, 241, 0.4), transparent 68%);
+  animation: cmd-drift 26s ease-in-out infinite;
+}
+.cmd-aurora span:nth-child(2) {
+  top: -10rem;
+  right: -14rem;
+  width: 38rem;
+  height: 38rem;
+  background: radial-gradient(circle at 55% 45%, rgba(168, 85, 247, 0.34), transparent 70%);
+  animation: cmd-drift-rev 34s ease-in-out infinite;
+}
+.cmd-aurora span:nth-child(3) {
+  bottom: -22rem;
+  left: 32%;
+  width: 40rem;
+  height: 40rem;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.24), transparent 70%);
+  animation: cmd-drift 40s ease-in-out infinite reverse;
+}
+
+@keyframes cmd-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6vw, 4vh, 0) scale(1.16); }
+}
+@keyframes cmd-drift-rev {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); }
+  50% { transform: translate3d(-6vw, 5vh, 0) scale(0.94); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

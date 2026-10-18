@@ -62,6 +62,9 @@ export default function Gate() {
   const [codes, setCodes] = useState<Record<Kind, string>>({ OWNER: "", ADMIN: "", SECURITY: "" });
   const [errs, setErrs] = useState<Record<Kind, boolean>>({ OWNER: false, ADMIN: false, SECURITY: false });
   const [busy, setBusy] = useState<Kind | null>(null);
+  // The role that just unlocked, held for a beat so the card can flash green
+  // before the console navigates away.
+  const [unlocked, setUnlocked] = useState<Kind | null>(null);
   const [saved, setSaved] = useState<{ role: string } | null>(null);
 
   useEffect(() => {
@@ -81,6 +84,9 @@ export default function Gate() {
       const res = await unlock(codes[kind], kind);
       if (res?.ok) {
         localStorage.setItem("cmd_session", JSON.stringify({ role: res.role, code: res.code }));
+        setUnlocked(kind);
+        // Let the confirmation land before the route changes.
+        await new Promise((resolve) => setTimeout(resolve, 260));
         router.push(`/${res.role.toLowerCase()}`);
       } else {
         setErrs((e) => ({ ...e, [kind]: true }));
@@ -107,25 +113,28 @@ export default function Gate() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-amber-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 rounded-full bg-red-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 animate-cmd-drift rounded-full bg-amber-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-96 w-96 animate-cmd-drift-rev rounded-full bg-red-600/20 blur-3xl" />
 
       <div className="relative mx-auto max-w-xl px-4 py-20">
-        <div className="text-center">
+        <div className="animate-cmd-fade-up text-center">
           <p className="text-2xl font-extrabold text-white">
             Quiz<span className="text-indigo-400">Keen</span>
           </p>
           <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-            COMMAND <span className="text-indigo-400">CENTER</span>
+            COMMAND{" "}
+            <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-sky-400 bg-[length:200%_auto] bg-clip-text text-transparent animate-cmd-pan">
+              CENTER
+            </span>
           </h1>
           <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-slate-500">
-            <Lock className="h-3.5 w-3.5" />
+            <Lock className="h-3.5 w-3.5 animate-cmd-breathe" />
             Endast för betrodda. Alla öppningar loggas.
           </p>
         </div>
 
         {saved?.role && (
-          <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/60 px-5 py-4">
+          <div className="mt-8 flex animate-cmd-slide-down items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/60 px-5 py-4">
             <p className="text-sm text-slate-300">
               Senast inloggad som <b className="text-white">{saved.role}</b>
             </p>
@@ -148,13 +157,19 @@ export default function Gate() {
           </div>
         )}
 
-        {CARDS.map((c) => (
+        {CARDS.map((c, index) => (
           <div
             key={c.kind}
-            className={`mt-8 rounded-3xl border ${c.border} bg-slate-900/60 p-8 text-center shadow-xl backdrop-blur ${c.glow}`}
+            style={{ animationDelay: `${120 + index * 100}ms` }}
+            className={`mt-8 animate-cmd-fade-up rounded-3xl border ${c.border} bg-slate-900/60 p-8 text-center shadow-xl backdrop-blur transition-colors duration-300 ${
+              c.glow
+            } ${unlocked === c.kind ? "border-emerald-400/70 shadow-emerald-500/20" : ""}`}
           >
-            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-2xl ${c.box}`}>
-              <c.Icon className="h-10 w-10" />
+            <div className={`relative mx-auto flex h-20 w-20 items-center justify-center rounded-2xl ${c.box}`}>
+              {unlocked === c.kind && (
+                <span className="pointer-events-none absolute inset-0 animate-cmd-pulse-ring rounded-2xl border-2 border-emerald-400/80" />
+              )}
+              <c.Icon className={`h-10 w-10 ${unlocked === c.kind ? "text-emerald-300" : ""}`} />
             </div>
             <h2 className={`mt-4 text-3xl font-extrabold ${c.text}`}>{c.title}</h2>
             <p className="mt-2 text-sm text-slate-400">{c.desc}</p>
@@ -172,19 +187,31 @@ export default function Gate() {
               autoComplete="off"
               maxLength={8}
               placeholder="Ange 8-siffrig kod"
-              className={`mt-4 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-center text-lg tracking-[0.3em] text-white placeholder:tracking-normal placeholder:text-slate-500 focus:outline-none ${c.focus}`}
+              className={`mt-4 w-full rounded-xl border bg-slate-950/60 px-4 py-3 text-center text-lg tracking-[0.3em] text-white placeholder:tracking-normal placeholder:text-slate-500 focus:outline-none ${
+                errs[c.kind] ? "animate-cmd-shake border-red-500/70" : "border-slate-700"
+              } ${c.focus}`}
             />
             {errs[c.kind] && (
-              <p className="mt-2 text-sm font-bold text-red-400">Fel kod. Försök igen.</p>
+              <p className="mt-2 animate-cmd-slide-down text-sm font-bold text-red-400">Fel kod. Försök igen.</p>
             )}
             <button
               type="button"
               onClick={() => tryUnlock(c.kind)}
               disabled={busy !== null || codes[c.kind].length !== 8}
-              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl ${c.btn} py-3 text-lg font-extrabold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-extrabold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                unlocked === c.kind
+                  ? "animate-cmd-stamp bg-emerald-600"
+                  : busy === c.kind
+                    ? "animate-pulse " + c.btn
+                    : c.btn
+              }`}
             >
               <Unlock className="h-5 w-5" />
-              {busy === c.kind ? "Kontrollerar..." : `LÅS UPP ${c.title}`}
+              {unlocked === c.kind
+                ? "UPPRÄTTAT!"
+                : busy === c.kind
+                  ? "Kontrollerar..."
+                  : `LÅS UPP ${c.title}`}
             </button>
           </div>
         ))}

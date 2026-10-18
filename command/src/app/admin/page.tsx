@@ -45,6 +45,7 @@ import {
   Clock,
   Help,
 } from "../../components/icons";
+import { CountUp } from "../../components/motion";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "log" | "help";
@@ -167,8 +168,11 @@ export default function AdminPage() {
 
   if (!s || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center gap-2 bg-slate-950 text-slate-400">
-        <Shield className="h-5 w-5 animate-pulse text-red-400" />
+      <div className="flex min-h-screen animate-cmd-fade items-center justify-center gap-3 bg-slate-950 text-slate-400">
+        <span className="relative grid h-12 w-12 place-items-center">
+          <span className="absolute inset-1 animate-cmd-pulse-ring rounded-full border-2 border-red-500/70" />
+          <Shield className="h-6 w-6 animate-cmd-breathe text-red-400" />
+        </span>
         Laddar RÖD KONSOL...
       </div>
     );
@@ -193,7 +197,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-7xl pt-10">
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
-        <div className="red-glow rounded-3xl border border-red-500/40 bg-red-500/5 p-6">
+        <div className="red-glow animate-cmd-fade-up rounded-3xl border border-red-500/40 bg-red-500/5 p-6">
           <h1 className="red-title flex items-center gap-2 text-3xl font-extrabold text-red-400">
             <Shield className="h-7 w-7" />
             ADMIN — RÖD KONSOL
@@ -207,16 +211,16 @@ export default function AdminPage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
             <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-slate-300">
-              <Users className="h-4 w-4" /> {data.users.length} användare
+              <Users className="h-4 w-4" /> <CountUp value={data.users.length} /> användare
             </span>
             <span className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-red-400">
-              <Ban className="h-4 w-4" /> {banned} bannade
+              <Ban className="h-4 w-4" /> <CountUp value={banned} /> bannade
             </span>
           </div>
         </div>
 
         {info && (
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-red-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-red-300">
+          <div className="mt-4 flex animate-cmd-slide-right items-center justify-between rounded-xl border border-red-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-red-300">
             <span data-no-translate>{info}</span>
             <button type="button" onClick={() => setInfo("")} className="text-slate-500 hover:text-white">
               stäng
@@ -231,8 +235,10 @@ export default function AdminPage() {
                 key={n.id}
                 type="button"
                 onClick={() => setSection(n.id)}
-                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition ${
-                  section === n.id ? "bg-red-600 text-white shadow-lg" : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-bold transition-all duration-200 hover:translate-x-0.5 ${
+                  section === n.id
+                    ? "bg-red-600 text-white shadow-lg shadow-red-900/40"
+                    : "bg-slate-900 text-slate-300 hover:bg-slate-800"
                 }`}
               >
                 <n.Icon className="h-4 w-4" />
@@ -241,7 +247,7 @@ export default function AdminPage() {
             ))}
           </div>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
+          <div key={section} className="animate-cmd-fade rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
             {section === "users" && (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -260,10 +266,14 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mt-4 max-h-[36rem] space-y-2 overflow-y-auto pr-1">
-                  {users.map((u: any) => {
+                  {users.map((u: any, idx: number) => {
                     const online = Boolean(u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
                     return (
-                      <div key={u.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <div
+                        key={u.id}
+                        style={{ animationDelay: `${Math.min(idx * 30, 420)}ms` }}
+                        className="animate-cmd-row rounded-xl border border-slate-800 bg-slate-950/60 p-3 transition-colors hover:border-red-500/30"
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="flex flex-wrap items-center gap-1.5 font-bold text-white">
                             <Dot online={online} className="h-2.5 w-2.5" />

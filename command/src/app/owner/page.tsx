@@ -87,6 +87,7 @@ import {
   Search,
   Help,
 } from "../../components/icons";
+import { CountUp } from "../../components/motion";
 
 type User = {
   id: string;
@@ -222,8 +223,11 @@ export default function OwnerPage() {
 
   if (!data) {
     return (
-      <div className="flex min-h-screen items-center justify-center gap-2 bg-slate-950 text-amber-300">
-        <Crown className="h-5 w-5 animate-pulse" />
+      <div className="flex min-h-screen animate-cmd-fade items-center justify-center gap-3 bg-slate-950 text-amber-300">
+        <span className="relative grid h-12 w-12 place-items-center">
+          <span className="absolute inset-1 animate-cmd-pulse-ring rounded-full border-2 border-amber-400/70" />
+          <Crown className="h-6 w-6 animate-cmd-breathe" />
+        </span>
         Laddar tronen...
       </div>
     );
@@ -272,8 +276,8 @@ export default function OwnerPage() {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`relative flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
-                tab === t.id ? "bg-amber-600 text-white" : "text-slate-400 hover:bg-slate-800"
+              className={`relative flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition-all duration-200 hover:translate-x-0.5 ${
+                tab === t.id ? "bg-amber-600 text-white shadow-lg shadow-amber-900/40" : "text-slate-400 hover:bg-slate-800"
               }`}
             >
               <t.Icon className="h-4 w-4" />
@@ -290,13 +294,13 @@ export default function OwnerPage() {
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
         {busy && (
-          <div className="gold-glow fixed bottom-4 right-4 z-[110] flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-extrabold text-white">
+          <div className="gold-glow fixed bottom-4 right-4 z-[110] flex animate-cmd-pop items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-extrabold text-white">
             <Clock className="h-4 w-4 animate-pulse" /> Jobbar...
           </div>
         )}
 
         {info && (
-          <div className="gold-glow mb-4 flex items-start justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300">
+          <div className="gold-glow mb-4 flex animate-cmd-slide-right items-start justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300">
             <span data-no-translate>{info}</span>
             <button type="button" onClick={() => setInfo("")} className="text-slate-400 hover:text-white">
               <Cross className="h-4 w-4" />
@@ -313,12 +317,18 @@ export default function OwnerPage() {
               Allt ditt rike, i ett ögonkast. Endast för betrodda. Alla öppningar loggas.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {statCards.map(([label, val, Icon]) => (
-                <div key={label} className="gold-glow rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5">
+              {statCards.map(([label, val, Icon], i) => (
+                <div
+                  key={label}
+                  style={{ animationDelay: `${i * 55}ms` }}
+                  className="gold-glow animate-cmd-fade-up rounded-2xl border border-amber-500/20 bg-slate-900/60 p-5 transition-colors hover:border-amber-400/50"
+                >
                   <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
                     <Icon className="h-4 w-4 text-amber-400" /> {label}
                   </p>
-                  <p className="mt-1 text-3xl font-extrabold text-amber-300">{val}</p>
+                  <p className="mt-1 text-3xl font-extrabold text-amber-300">
+                    <CountUp value={Number(val) || 0} />
+                  </p>
                 </div>
               ))}
             </div>

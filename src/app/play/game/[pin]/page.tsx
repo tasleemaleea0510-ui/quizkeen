@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyUsername } from "@/app/settings/actions";
 import { CheckCircle2, XCircle, Trophy, Loader2 } from "lucide-react";
 import { WornBuddy } from "@/components/keens/worn-keen";
+import CountUp from "@/components/motion/count-up";
 
 const COLORS = [
   "from-rose-500 to-rose-600 shadow-rose-900/40",
@@ -131,7 +132,7 @@ function GameInner() {
         className="mb-5"
         right={
           <span data-no-translate className="shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-200">
-            {myScore} p
+            <CountUp value={myScore} duration={650} /> p
           </span>
         }
       />
@@ -163,7 +164,8 @@ function GameInner() {
                   key={i}
                   onClick={() => answer(i)}
                   disabled={choice !== null}
-                  className={`flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br p-6 text-left text-lg font-bold text-white shadow-raise transition-all duration-200 ${COLORS[i % 4]} ${
+                  style={{ animationDelay: `${i * 70}ms` }}
+                  className={`flex animate-fade-up items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br p-6 text-left text-lg font-bold text-white shadow-raise transition-all duration-200 ${COLORS[i % 4]} ${
                     selected ? "scale-[0.98] ring-4 ring-white/80" : dimmed ? "opacity-40" : "hover:-translate-y-0.5 hover:brightness-110"
                   }`}
                 >
@@ -197,14 +199,24 @@ function GameInner() {
 
           <div className="flex items-center justify-center">
             {choice === correctIndex ? (
-              <div className="inline-flex animate-pop items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-base font-bold text-emerald-400">
-                <CheckCircle2 className="h-5 w-5" />
-                <span>RÄTT SVAR!</span>
+              // A hit: a ring flies out of the badge and the badge stamps in.
+              <div className="relative">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 animate-ring-burst rounded-full border-2 border-emerald-400/70"
+                />
+                <div className="relative inline-flex animate-stamp items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-base font-bold text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span>RÄTT SVAR!</span>
+                </div>
               </div>
             ) : (
-              <div className="inline-flex animate-pop items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-2 text-base font-bold text-rose-400">
-                <XCircle className="h-5 w-5" />
-                <span>INTE RIKTIGT DEN HÄR GÅNGEN</span>
+              // A miss: the badge lands, then shakes its head once.
+              <div className="answer-wrong">
+                <div className="inline-flex animate-pop items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-2 text-base font-bold text-rose-400">
+                  <XCircle className="h-5 w-5" />
+                  <span>INTE RIKTIGT DEN HÄR GÅNGEN</span>
+                </div>
               </div>
             )}
           </div>
@@ -226,7 +238,8 @@ function GameInner() {
             </div>
           </div>
           <div className="text-center text-sm font-mono text-slate-400">
-            Din poäng: <span className="font-bold text-white">{scores[name] ?? 0}</span> poäng
+            Din poäng:{" "}
+            <CountUp value={scores[name] ?? 0} className="font-bold text-white" /> poäng
           </div>
         </div>
       )}
@@ -243,7 +256,8 @@ function GameInner() {
             {leaderboard.map(([n, s], i) => (
               <div
                 key={n}
-                className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
+                style={{ animationDelay: `${Math.min(i * 55, 550)}ms` }}
+                className={`flex animate-row-in items-center justify-between rounded-xl px-4 py-3 transition-colors ${
                   n === name
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 font-bold text-white shadow-glow-sm"
                     : "border border-white/5 bg-slate-900/60 text-slate-300"

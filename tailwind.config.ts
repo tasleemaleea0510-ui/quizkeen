@@ -165,6 +165,42 @@ const config: Config = {
           "0%,100%": { transform: "translateY(0) rotate(-0.4deg)" },
           "50%": { transform: "translateY(-7px) rotate(0.4deg)" },
         },
+        // ── Motion language ───────────────────────────────────────────────
+        // A route arriving: a short rise, no fade-through-black.
+        "page-in": {
+          "0%": { opacity: "0", transform: "translateY(10px) scale(0.996)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        // The ring that expands out of a correct answer.
+        "ring-burst": {
+          "0%": { opacity: "0.85", transform: "scale(0.72)" },
+          "70%": { opacity: "0.28" },
+          "100%": { opacity: "0", transform: "scale(2.15)" },
+        },
+        // Rows of a leaderboard stacking into place.
+        "row-in": {
+          "0%": { opacity: "0", transform: "translateX(-10px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        // The three background fields, each on its own slow orbit.
+        "aurora-a": {
+          "0%": { transform: "translate3d(0,0,0) scale(1)" },
+          "100%": { transform: "translate3d(8vw,6vh,0) scale(1.18)" },
+        },
+        "aurora-b": {
+          "0%": { transform: "translate3d(0,0,0) scale(1.1)" },
+          "100%": { transform: "translate3d(-7vw,4vh,0) scale(0.92)" },
+        },
+        "aurora-c": {
+          "0%": { transform: "translate3d(0,0,0) scale(0.95)" },
+          "100%": { transform: "translate3d(5vw,-6vh,0) scale(1.2)" },
+        },
+        // A win badge landing harder than a normal pop.
+        "stamp": {
+          "0%": { opacity: "0", transform: "scale(1.9) rotate(-8deg)" },
+          "60%": { opacity: "1", transform: "scale(0.94) rotate(2deg)" },
+          "100%": { opacity: "1", transform: "scale(1) rotate(0deg)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both",
@@ -189,6 +225,13 @@ const config: Config = {
         "keen-wiggle": "keen-wiggle 1.1s ease-in-out 2",
         "keen-pan": "keen-pan 5s linear infinite",
         "keen-bob": "keen-bob 5.5s ease-in-out infinite",
+        "page-in": "page-in 0.5s cubic-bezier(0.22,1,0.36,1) both",
+        "ring-burst": "ring-burst 0.85s cubic-bezier(0.22,1,0.36,1) both",
+        "row-in": "row-in 0.4s cubic-bezier(0.22,1,0.36,1) both",
+        "aurora-a": "aurora-a 24s ease-in-out infinite alternate",
+        "aurora-b": "aurora-b 31s ease-in-out infinite alternate",
+        "aurora-c": "aurora-c 38s ease-in-out infinite alternate",
+        stamp: "stamp 0.55s cubic-bezier(0.22,1,0.36,1) both",
       },
     },
   },

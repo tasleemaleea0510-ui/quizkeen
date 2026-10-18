@@ -49,8 +49,10 @@ export function ConfirmModal({
   }, [onCancel]);
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className={`w-full max-w-md rounded-3xl border ${TONE_RING[tone]} bg-slate-900 p-6 shadow-2xl`}>
+    <div className="fixed inset-0 z-[130] flex animate-cmd-fade items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div
+        className={`w-full max-w-md animate-cmd-pop rounded-3xl border ${TONE_RING[tone]} bg-slate-900 p-6 shadow-2xl`}
+      >
         <h3 className="text-lg font-extrabold text-white">{title}</h3>
         <p className="mt-2 text-sm text-slate-400">{body}</p>
         <div className="mt-5 flex gap-2">
@@ -119,8 +121,8 @@ export default function PromptModal({
     "mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none";
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className={`w-full max-w-md rounded-3xl border ${toneRing} bg-slate-900 p-6 shadow-2xl`}>
+    <div className="fixed inset-0 z-[120] flex animate-cmd-fade items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className={`w-full max-w-md animate-cmd-pop rounded-3xl border ${toneRing} bg-slate-900 p-6 shadow-2xl`}>
         <h3 className="text-lg font-extrabold text-white">{title}</h3>
         {label && <label className="mt-3 block text-xs font-bold text-slate-400">{label}</label>}
         {multiline ? (

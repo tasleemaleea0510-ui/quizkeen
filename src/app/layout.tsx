@@ -12,6 +12,7 @@ import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
 import LiveShareClient from "@/components/live-share-client";
 import TranslateButton from "@/components/translate-button";
+import Aurora from "@/components/motion/aurora";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -45,8 +46,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="sv" className={`${sans.variable} ${display.variable}`}>
       <body className="min-h-screen font-sans antialiased selection:bg-indigo-500/30">
+        {/* Without JavaScript nothing can reveal these blocks, so they start shown. */}
+        <noscript>
+          <style>{`[data-reveal]{opacity:1 !important;transform:none !important}`}</style>
+        </noscript>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
+            <Aurora />
             <div
               aria-hidden
               className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px] bg-radial-brand"

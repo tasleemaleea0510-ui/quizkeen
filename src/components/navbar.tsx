@@ -85,7 +85,7 @@ export default function Navbar() {
                 const Icon = it.icon;
                 const active = pathname === it.href || pathname.startsWith(it.href + "/");
                 return (
-                  <Link key={it.href} href={it.href}>
+                  <Link key={it.href} href={it.href} className="relative inline-flex">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -94,9 +94,11 @@ export default function Navbar() {
                         active && "bg-white/10 text-white"
                       )}
                     >
-                      {Icon && <Icon className="h-4 w-4 text-slate-400" />}
+                      {Icon && <Icon className={cn("h-4 w-4", active ? "text-indigo-300" : "text-slate-400")} />}
                       <span className="hidden sm:inline">{it.label}</span>
                     </Button>
+                    {/* The tab you are on grows an underline out of its middle. */}
+                    <span aria-hidden className="nav-underline" data-active={active} />
                   </Link>
                 );
               })}

@@ -43,15 +43,26 @@ export default function StudyDeck({ cards }: { cards: CardT[] }) {
         <span>•</span>
         <span className="text-indigo-400">Klicka på kortet för att vända</span>
       </div>
-      <div className="qk-scene w-full max-w-xl cursor-pointer" onClick={() => setFlipped((f) => !f)}>
+      {/* How much of the deck is behind you. */}
+      <div className="h-1.5 w-full max-w-xl overflow-hidden rounded-full bg-white/5">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 transition-[width] duration-500 ease-out"
+          style={{ width: `${((i + 1) / order.length) * 100}%` }}
+        />
+      </div>
+      <div
+        key={card.id}
+        className="qk-scene w-full max-w-xl animate-keen-rise cursor-pointer"
+        onClick={() => setFlipped((f) => !f)}
+      >
         <div className={`qk-card3d relative h-72 w-full ${flipped ? "qk-flipped" : ""}`}>
-          <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-8 shadow-2xl shadow-indigo-500/10">
+          <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-8 shadow-2xl shadow-indigo-500/10 transition-shadow duration-300 hover:shadow-glow">
             <div className="text-center">
               <p className="mb-2 text-xs uppercase tracking-widest text-indigo-300 font-semibold">Fråga</p>
               <p className="text-2xl font-bold text-white">{card.front}</p>
             </div>
           </div>
-          <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-8 shadow-2xl shadow-emerald-500/10">
+          <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-8 shadow-2xl shadow-emerald-500/10 transition-shadow duration-300 hover:shadow-glow-sm">
             <div className="text-center">
               <p className="mb-2 text-xs uppercase tracking-widest text-emerald-300 font-semibold">Svar</p>
               <p className="text-2xl font-bold text-white">{card.back}</p>
