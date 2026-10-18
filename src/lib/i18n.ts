@@ -523,6 +523,442 @@ const PAIRS: [string, string][] = [
   ["dagar", "days"],
   ["sekunder", "seconds"],
   ["5 min", "5 min"],
+
+  // ── coverage pass ───────────────────────────────────────────────────────
+  // Every string below used to be missing, so English mode replaced stray
+  // words inside Swedish sentences and produced lines like "Nästa steg" or
+  // "delas bara ut of en admin". With the whole sentence in the dictionary the
+  // exact match wins and nothing is left half-translated.
+  ["Ange spelets PIN-kod och ditt namn för att delta.", "Enter the game PIN and your name to join."],
+  ["Bygg kortlekar och vänd kort för att träna inför prov.", "Build decks and flip cards to practise before exams."],
+  ["Byter färg varje gång du blinkar.", "Changes colour every time you blink."],
+  ["Fråga / Term (framsida)", "Question / Term (front)"],
+  ["Bär", "Wearing"],
+  ["Tio Keens som alla har från dag ett.", "Ten Keens everyone has from day one."],
+
+  // Keen bios — one line each, shown on the card and in the sheet.
+  ["Alla färger på en gång — och smakar regnbåge.", "All the colours at once — and it tastes like rainbow."],
+  ["Bara det bästa — och Kroma-Keens.", "Only the best — and Kroma Keens."],
+  ["Blir alltid nervös, även när det är grupparbete.", "Always nervous, even during group work."],
+  ["Blommar när du svarar rätt, slokar när du gissar.", "Blooms when you answer right, wilts when you guess."],
+  ["Bubblar fram svaret från havets botten.", "Bubbles the answer up from the seabed."],
+  ["Byter skepnad och landar på rätt svar.", "Changes shape and lands on the right answer."],
+  ["Bär alla böcker, glömmer alltid läxan hemma.", "Carries every book, always forgets the homework at home."],
+  ["Eldar bara när svaret är fel.", "Only breathes fire when the answer is wrong."],
+  ["En skugga med tänder — bara några har sett den.", "A shadow with teeth — only a few have seen it."],
+  ["Ett horn, ett ben, ett rätt svar.", "One horn, one leg, one right answer."],
+  ["Ett hål i mitten och socker överallt.", "A hole in the middle and sugar everywhere."],
+  ["Ett lager för varje rätt svar.", "A layer for every right answer."],
+  ["Frusen sedan i tisdags — men kammen är röd och glad.", "Frozen since Tuesday — but the comb is red and cheerful."],
+  ["Från suddgummi till rektor.", "From eraser to head teacher."],
+  ["Gladast av alla spöken — den är söt, inte hemsk.", "The happiest of all ghosts — cute, not scary."],
+  ["Glömmer aldrig något — och verkligen inget prov.", "Never forgets anything — and certainly not an exam."],
+  ["Gräddad i pumpform, med choklad i ögonen.", "Baked in a pumpkin mould, with chocolate eyes."],
+  ["Går upp tidigt för att hinna studera ikapp.", "Gets up early to catch up on studying."],
+  ["Halv, full eller bara trött — alltid vacker.", "Half, full or just tired — always beautiful."],
+  ["Har ringar, attityd och alldeles för många månar.", "Has rings, attitude and far too many moons."],
+  ["Hoppar hellre än går, och räknar morötter bäst i klassen.", "Would rather hop than walk, and counts carrots best in class."],
+  ["Hämtar alltid bollen — även när du inte kastat den.", "Always fetches the ball — even when you didn't throw it."],
+  ["Klänger på allt, även riktigt svåra uppgifter.", "Clings to everything, even really hard tasks."],
+  ["Knaprig, med choklad i varje hörn.", "Crispy, with chocolate in every corner."],
+  ["Kommer farande med svansen av glöd.", "Comes flying in with a tail of embers."],
+  ["Kungen av djungeln, men rädd för bin.", "King of the jungle, but scared of bees."],
+  ["Kungen i mörkret: 0,1 % chans och en hel armé av pumpor.", "King of the dark: a 0.1 % chance and a whole army of pumpkins."],
+  ["Landar i åtta bitar och flyttar sig i sidled.", "Lands in eight pieces and moves sideways."],
+  ["Lindad i band och redo för evigheten.", "Wrapped in bandages and ready for eternity."],
+  ["Liten droppe, stor tålamod — rinner aldrig ut.", "Small drop, great patience — never runs out."],
+  ["Liten, men med glasyr över hela krönet.", "Small, but with icing over the whole crown."],
+  ["Lyser upp mörka nätter och svåra tal.", "Lights up dark nights and hard sums."],
+  ["Lyser upp mörkret och ler bredare än alla andra.", "Lights up the dark and smiles wider than anyone."],
+  ["Lånar dina pennor och lämnar tillbaka dem oslipade.", "Borrows your pencils and gives them back blunt."],
+  ["Långsam på frågor, omöjlig att slå på tålamod.", "Slow at questions, impossible to beat at patience."],
+  ["Nykläckt, nyfiken och med på varje fråga.", "Newly hatched, curious and in on every question."],
+  ["Pip pip! Sjunger svaret när du inte hinner.", "Beep beep! Sings the answer when you're out of time."],
+  ["Pratar i signaler och förstår ändå alla frågor.", "Speaks in signals and still understands every question."],
+  ["Pumpor, spöken och en kung i mörkret.", "Pumpkins, ghosts and a king in the dark."],
+  ["Raketer, planeter och något som tittar tillbaka.", "Rockets, planets and something looking back."],
+  ["Regnbågens krona — den sista på hyllan.", "The rainbow crown — the last on the shelf."],
+  ["Reser sig ur provet och börjar om.", "Rises from the exam and starts over."],
+  ["Ringlar fram utan ben och utan brådska.", "Slithers along with no legs and no hurry."],
+  ["Rund, arg och överraskande svårfångad.", "Round, angry and surprisingly hard to catch."],
+  ["Räknar allt, piper när svaret är rätt.", "Counts everything, beeps when the answer is right."],
+  ["Räknar ned från tio och lämnar atmosfären.", "Counts down from ten and leaves the atmosphere."],
+  ["Räknar snabbare än du hinner skriva.", "Counts faster than you can write."],
+  ["Rättar i röd penna och ler ändå.", "Marks in red pen and smiles anyway."],
+  ["Samma kyckling, tinad, med slör och allt.", "Same chicken, thawed, bow tie and all."],
+  ["Ser allt som är för långt borta för att se.", "Sees everything too far away to see."],
+  ["Sitter still, sedan hopp — rätt svar.", "Sits still, then hops — right answer."],
+  ["Slår alltid sex — utom när det gäller.", "Always rolls a six — except when it counts."],
+  ["Smälter i handen, aldrig i provet.", "Melts in your hand, never in the exam."],
+  ["Snabb, fläckig och misstänkt självsäker.", "Fast, spotty and suspiciously confident."],
+  ["Sover genom provet och drömmer om honung.", "Sleeps through the exam and dreams of honey."],
+  ["Sover i kistan på dagen och hoppar i provet på natten.", "Sleeps in the coffin by day and hops through the exam at night."],
+  ["Spetsad och redo — suddar aldrig ett rätt svar.", "Sharpened and ready — never erases a right answer."],
+  ["Spricker av glädje varje gång du klarar ett prov.", "Bursts with joy every time you pass an exam."],
+  ["Svävar in, svävar ut, glömmer aldrig ett glosförhör.", "Drifts in, drifts out, never forgets a vocabulary test."],
+  ["Söt ut i tåspetsarna, kladdig i marginalen.", "Sweet to the tips of its toes, sticky in the margins."],
+  ["Sött, sötare, regnbåge.", "Sweet, sweeter, rainbow."],
+  ["Trollar fram rätt svar med en vink av staven.", "Conjures the right answer with a flick of the wand."],
+  ["Trögstartad, men glömmer aldrig något den lärt sig.", "Slow to start, but never forgets what it has learned."],
+  ["Upprepar allt du säger — även rätt svar.", "Repeats everything you say — right answers included."],
+  ["Vinsten är tung att bära — men den är snygg.", "The trophy is heavy to carry — but it looks good."],
+  ["Växer i skuggan av dina misstag — och lär sig av dem.", "Grows in the shadow of your mistakes — and learns from them."],
+  ["Ylar mot månen och svarar rätt på ren instinkt.", "Howls at the moon and answers right on pure instinct."],
+  ["Åtta i besättningen, och en av dem ljuger.", "Eight in the crew, and one of them is lying."],
+
+  // Keens screens and pack opening.
+  ["Allt är gjort för idag — samlingen är komplett. Njut.", "Everything is done for today — the collection is complete. Enjoy."],
+  ["Bär den här Keen", "Wear this Keen"],
+  ["Bästa drag:", "Best pull:"],
+  ["Bästa samlarna", "Top collectors"],
+  ["Daglig bonus är avstängd på ditt konto.", "The daily bonus is switched off for your account."],
+  ["Den Keen går inte att köpa längre — paketet den kom ifrån är inte till salu.", "That Keen can't be bought any more — its pack is no longer for sale."],
+  ["Den Keen äger du inte — hitta den först!", "You don't own that Keen — find it first!"],
+  ["Det paketet är inte till salu just nu.", "That pack isn't for sale right now."],
+  ["Din myntplånbok är fryst — du kan samla och sälja, men inte köpa paket eller Keens.", "Your coin wallet is frozen — you can collect and sell, but not buy packs or Keens."],
+  ["Din myntplånbok är fryst, så du kan inte handla just nu.", "Your coin wallet is frozen, so you can't trade right now."],
+  ["Din plånbok", "Your wallet"],
+  ["Ditt konto är avstängt och kan inte handla.", "Your account is suspended and can't trade."],
+  ["Du bär den här — ta av", "You're wearing this — take it off"],
+  ["Du bär den här Keen", "You're wearing this Keen"],
+  ["Du har den inte än", "You don't have it yet"],
+  ["Du har inte tillräckligt med mynt. Spela en quiz och tjäna fler!", "You don't have enough coins. Play a quiz and earn more!"],
+  ["Du har redan öppnat dagens gratispaket — kom tillbaka imorgon!", "You've already opened today's free pack — come back tomorrow!"],
+  ["Du kan inte öppna så många paket på en gång.", "You can't open that many packs at once."],
+  ["Du äger", "You own"],
+  ["Du äger ingen sådan Keen att sälja.", "You don't own one of those Keens to sell."],
+  ["Dubbletter värda", "Duplicates worth"],
+  ["Ett paket på huset — ta det innan midnatt.", "A pack on the house — take it before midnight."],
+  ["Fler från samma paket", "More from the same pack"],
+  ["Gratispaket att hämta", "Free pack to claim"],
+  ["Gratispaket tillgängligt", "Free pack available"],
+  ["Gratispaketet väntar", "Your free pack is waiting"],
+  ["Gratispaketet är öppnat", "Free pack already opened"],
+  ["Historien låses upp när du hittar den.", "The story unlocks when you find it."],
+  ["Hitta den för att läsa historien.", "Find it to read the story."],
+  ["Ingen har samlat några Keens än — bli den första!", "Nobody has collected any Keens yet — be the first!"],
+  ["Inget att sälja.", "Nothing to sell."],
+  ["Inte hittad än", "Not found yet"],
+  ["Keenen du bär", "The Keen you're wearing"],
+  ["Kom tillbaka imorgon för nästa.", "Come back tomorrow for the next one."],
+  ["Köp och sälj Keens för mynt. Nya deals varje dag.", "Buy and sell Keens for coins. New deals every day."],
+  ["Låst Keen", "Locked Keen"],
+  ["Nästa köp:", "Next purchase:"],
+  ["Nästa nivå", "Next level"],
+  ["Nästa steg", "Next step"],
+  ["Paketet är utgånget", "The pack is retired"],
+  ["Paketpåsar", "Pack bags"],
+  ["poäng", "points"],
+  ["Råd att handla", "Tips for trading"],
+  ["Saknar du en? Köp den i marknaden →", "Missing one? Buy it in the market →"],
+  ["Samla Keens, öppna paket och handla i marknaden.", "Collect Keens, open packs and trade in the market."],
+  ["Samlarnivå", "Collector level"],
+  ["Senaste öppningar", "Recent pulls"],
+  ["Servern hann inte med — inga mynt drogs. Försök igen!", "The server couldn't keep up — no coins were taken. Try again!"],
+  ["Sortera: lägsta pris", "Sort: lowest price"],
+  ["Sortera: sällsynthet", "Sort: rarity"],
+  ["Sälj alla dubbletter", "Sell all duplicates"],
+  ["Sök i marknaden…", "Search the market…"],
+  ["Sök Keen…", "Search Keens…"],
+  ["Tryck för att öppna direkt", "Press to open right away"],
+  ["Tryck var som helst för att skynda på", "Press anywhere to speed it up"],
+  ["Utgången", "Retired"],
+  ["Varje Keen ger poäng efter sällsynthet — en Vanlig 1, en Mystisk 8. Det är de sällsynta som lyfter nivån.", "Each Keen gives points by rarity — a Common 1, a Mystical 8. The rare ones lift your level."],
+  ["Öppna →", "Open →"],
+  ["Öppna ett paket", "Open a pack"],
+  ["Öppna paket", "Open packs"],
+  ["Öppna paket och få nya Keens. Gratispaket varje dag.", "Open packs and get new Keens. A free pack every day."],
+  ["Öppna paket, samla figurer och handla sällsynta Keens i marknaden.", "Open packs, collect characters and trade rare Keens in the market."],
+  ["Öppnar…", "Opening…"],
+  ["(utgången)", "(retired)"],
+
+  // Classroom and teacher screens.
+  ["— få realtidsöversikt över resultat och deltagande.", "— get a live overview of results and participation."],
+  ["— gör frågesporter exklusiva för dina elever.", "— make quizzes exclusive to your students."],
+  ["— till hela klassen eller en specifik elev, med deadline och prov-läge.", "— to the whole class or one student, with a deadline and exam mode."],
+  ["(prov-läge)", "(exam mode)"],
+  ["3 → ägaren!", "3 → the owner!"],
+  ["ADMIN — Systemoperatör", "ADMIN — System operator"],
+  ["Du är inte med i något klassrum än. Be din lärare om en join-kod!", "You're not in a classroom yet. Ask your teacher for a join code!"],
+  ["Endast lärare kan skapa klassrum — elever ansluter via join-kod.", "Only teachers can create classrooms — students join with a code."],
+  ["Endast lärare kan skapa klassrum.", "Only teachers can create classrooms."],
+  ["Följ upp i Analys", "Follow up in Analytics"],
+  ["Ge ut läxor", "Assign homework"],
+  ["Hantera användarnamn och inställningar direkt via inställningspanelen.", "Manage usernames and settings straight from the settings panel."],
+  ["Hantera klasser, läxor och elever", "Manage classes, homework and students"],
+  ["Inga aktiva läxor för tillfället.", "No active homework right now."],
+  ["Inga elever anslutna än — dela koden ovan.", "No students joined yet — share the code above."],
+  ["Inga elever ännu.", "No students yet."],
+  ["Inga klassrum än — skapa ditt första för att bjuda in elever.", "No classrooms yet — create your first to invite students."],
+  ["Inga klassrum ännu — skapa ett först!", "No classrooms yet — create one first!"],
+  ["Inga läxor tilldelade ännu.", "No homework assigned yet."],
+  ["Inga samlingar delade ännu.", "No collections shared yet."],
+  ["Join-kod för elever:", "Join code for students:"],
+  ["Klass-meddelande (syns live för eleverna)", "Class message (shown live to students)"],
+  ["Klassrummet behöver ett namn.", "The classroom needs a name."],
+  ["Klassrumsöversikt och administrativ kontroll.", "Classroom overview and admin control."],
+  ["Kom igång som lärare", "Get started as a teacher"],
+  ["Kunde inte skapa en join-kod — försök igen.", "Couldn't create a join code — try again."],
+  ["Laddar frågesport...", "Loading quiz..."],
+  ["Laddar läxa...", "Loading homework..."],
+  ["Lärare kan skapa klassrum, tilldela läxor och granska deltagarstatistik.", "Teachers can create classrooms, assign homework and review participation stats."],
+  ["Lärarläge", "Teacher mode"],
+  ["med eleverna — de ansluter via Klassrum &rarr; Gå med.", "with your students — they join via Classroom &rarr; Join."],
+  ["nedan — du får en join-kod direkt.", "below — you get a join code right away."],
+  ["Prov-läge: 1 försök", "Exam mode: 1 attempt"],
+  ["Redan slutförd", "Already completed"],
+  ["Roller & behörigheter", "Roles & permissions"],
+  ["Skriv join-koden du fått av din lärare.", "Enter the join code you got from your teacher."],
+  ["Starta läxa", "Start homework"],
+  ["Systemet har separata vyer för elever, lärare, administratörer och moderatorer.", "The system has separate views for students, teachers, administrators and moderators."],
+  ["Tilldela läxa", "Assign homework"],
+  ["Topp 5 ställning", "Top 5 standings"],
+  ["Översikt över elevernas aktivitet, läxor och resultat", "Overview of student activity, homework and results"],
+  ["eftersläpning", "lag"],
+
+  // Play, chat, quizzes and flashcards.
+  ["Användarnamn...", "Username..."],
+  ["Användarnamnet har uppdaterats.", "Your username has been updated."],
+  ["Användarnamnet måste vara 3–20 tecken: bokstäver, siffror eller _.", "The username must be 3–20 characters: letters, numbers or _."],
+  ["Användarnamnet måste vara mellan 3 och 20 tecken.", "The username must be between 3 and 20 characters."],
+  ["Användarnamnet måste vara minst 3 tecken.", "The username must be at least 3 characters."],
+  ["Användarnamnet är redan upptaget. Välj ett annat.", "That username is already taken. Pick another one."],
+  ["Användarnamnet är upptaget — välj ett annat.", "That username is taken — pick another one."],
+  ["Avbryt flervalsläge", "Cancel multiple-choice mode"],
+  ["Dags att byta användarnamn", "Time to change your username"],
+  ["Ditt nya användarnamn...", "Your new username..."],
+  ["Du har inte skapat några quizar än. Skapa din första med knappen ovan!", "You haven't created any quizzes yet. Make your first one with the button above!"],
+  ["Du är tystad i chatten", "You are muted in chat"],
+  ["E-postadressen kunde inte verifieras, så kontot skapades inte. Använd en riktig adress.", "The email address couldn't be verified, so the account wasn't created. Use a real address."],
+  ["Förfrågan avslogs.", "The request was rejected."],
+  ["Gå med i QuizKeen!", "Join QuizKeen!"],
+  ["Gör offentlig", "Make public"],
+  ["Hitta den för att läsa historien.", "Find it to read the story."],
+  ["Hittar du inget mejl? Kolla skräpposten. Adressen måste vara en riktig adress som du äger.", "No email? Check your spam folder. The address must be a real one you own."],
+  ["Hjärtan", "Hearts"],
+  ["Hoppa över till sammanfattningen", "Skip to the summary"],
+  ["Inga gloskort skapade än. Skapa din första uppsättning i formuläret ovan!", "No flashcards yet. Create your first set in the form above!"],
+  ["Inga gloskort än — skapa din första uppsättning för att träna!", "No flashcards yet — create your first set to practise!"],
+  ["Inga kort än — lägg till ditt första kort nedan.", "No cards yet — add your first card below."],
+  ["Inga quizar än — skapa din första för att utmana vänner!", "No quizzes yet — create your first to challenge friends!"],
+  ["Inga quizar än — skapa din första!", "No quizzes yet — create your first!"],
+  ["INTE RIKTIGT DEN HÄR GÅNGEN", "NOT QUITE THIS TIME"],
+  ["Inte tillgängligt", "Not available"],
+  ["Klicka för att markera som rätt svar", "Click to mark as the right answer"],
+  ["Klicka på kortet för att vända", "Click the card to flip it"],
+  ["Kom igång", "Get started"],
+  ["Kontot är avstängt", "The account is suspended"],
+  ["Kunde inte byta lösenord just nu. Försök igen om en stund.", "Couldn't change the password right now. Try again in a moment."],
+  ["Kunde inte nå servern — försök igen.", "Couldn't reach the server — try again."],
+  ["Kör realtidsstrider på dina kortlekar — vem vinner?", "Run real-time battles on your decks — who wins?"],
+  ["Live flerspelarquiz för hela klassrummet", "Live multiplayer quizzes for the whole classroom"],
+  ["Logga in för att fortsätta spela och tävla.", "Sign in to keep playing and competing."],
+  ["Lås", "Lock"],
+  ["Lås quizar", "Lock quizzes"],
+  ["låst", "locked"],
+  ["Lägg till fler svarsalternativ", "Add more answer options"],
+  ["Lägg till några kort i den här kortleken först!", "Add some cards to this deck first!"],
+  ["Lösenord (6+ tecken)", "Password (6+ characters)"],
+  ["Lösenordet har ändrats.", "Your password has been changed."],
+  ["Lösenordet måste vara minst 6 tecken.", "The password must be at least 6 characters."],
+  ["Markera knappen för det alternativ som är det korrekta svaret.", "Mark the button for the option that is the correct answer."],
+  ["Namnet är redan upptaget.", "That name is already taken."],
+  ["Nytt lösenord (6+ tecken)", "New password (6+ characters)"],
+  ["Nästa kort", "Next card"],
+  ["Nästan klart!", "Almost done!"],
+  ["Ogiltigt användarnamn.", "Invalid username."],
+  ["okänd", "unknown"],
+  ["Personalen har bett dig välja ett nytt användarnamn. Kontot är spärrat tills ett nytt namn valts.", "Staff have asked you to pick a new username. The account is locked until you choose one."],
+  ["På dig", "On you"],
+  ["QuizKeen — Lär. Spela. Tävla.", "QuizKeen — Learn. Play. Compete."],
+  ["Redan öppnat", "Already opened"],
+  ["Rätt svar / Definition", "Correct answer / Definition"],
+  ["RÄTT SVAR!", "CORRECT!"],
+  ["Rätta svar ger erfarenhetspoäng och mynt för att klättra på topplistan.", "Correct answers give XP and coins to climb the leaderboard."],
+  ["Skapa digitala kortlekar och vänd kort för att öva själv inför prov.", "Create digital decks and flip cards to practise on your own before exams."],
+  ["Skapa dina egna gloskort, öva inför prov och testa dina kunskaper.", "Make your own flashcards, practise before exams and test your knowledge."],
+  ["Skapa ett konto och börja spela på under en minut.", "Create an account and start playing in under a minute."],
+  ["Skapa ny kortuppsättning", "Create a new card set"],
+  ["Skriv din fråga här...", "Write your question here..."],
+  ["Snabbguide över funktionerna i plattformen.", "A quick guide to the platform's features."],
+  ["Spela minispelet i väntrummet medan arrangören förbereder start.", "Play the minigame in the waiting room while the host prepares to start."],
+  ["Spelare väljer “Gå med i ett spel”, anger PIN-koden och sitt namn för att delta i lobbyn.", "Players choose “Join a game”, enter the PIN and their name to join the lobby."],
+  ["Spärr: För många lösenordsbyten på kort tid. Vänta några minuter och försök igen.", "Locked: too many password changes in a short time. Wait a few minutes and try again."],
+  ["Starta live-frågesporter och kortleksstrider med en 6-siffrig PIN-kod. Hela klassen ansluter och tävlar i realtid.", "Start live quizzes and deck battles with a 6-digit PIN. The whole class joins and competes in real time."],
+  ["Stäng av ljud", "Mute sound"],
+  ["Svara snabbt för bonuspoäng", "Answer fast for bonus points"],
+  ["Svaret är registrerat! Väntar på resultatet...", "Answer recorded! Waiting for the result..."],
+  ["Systemet uppdateras för tillfället — vi är snart tillbaka!", "The system is being updated — we'll be right back!"],
+  ["Så fungerar", "How it works"],
+  ["Sätt på ljud", "Unmute sound"],
+  ["Söker efter spel...", "Looking for a game..."],
+  ["Tack för att du deltog i QuizKeen", "Thanks for playing QuizKeen"],
+  ["Utmana vänner i realtidsstrider baserade på dina gloskort.", "Challenge friends to real-time battles built from your flashcards."],
+  ["Varje rätt svar belönas med XP och mynt. Gå upp i nivå, klättra på topplistan och bemästra allt med den inbyggda guiden.", "Every right answer earns XP and coins. Level up, climb the leaderboard and master it all with the built-in guide."],
+  ["Vill du starta en strid med de här gloskorten? Lägg till svarsalternativ så att spelarna har val att välja mellan.", "Want to start a battle with these flashcards? Add answer options so players have choices."],
+  ["Välj bland svarsalternativen. Snabbare svar ger högre poäng.", "Pick one of the options. Faster answers score higher."],
+  ["Välj en quiz och få en 6-siffrig PIN-kod att dela med hela klassen.", "Pick a quiz and get a 6-digit PIN to share with the whole class."],
+  ["Välj en quiz, få en PIN-kod och dela med klassen.", "Pick a quiz, get a PIN and share it with the class."],
+  ["Välj ett spelarnamn", "Choose a player name"],
+  ["Väntar på att arrangören startar spelet. Spela minispelet under tiden!", "Waiting for the host to start. Play the minigame meanwhile!"],
+  ["Väntar på att spelare ansluter...", "Waiting for players to join..."],
+  ["Väntar på att spelledaren ska starta nästa fråga...", "Waiting for the host to start the next question..."],
+  ["Värde", "Value"],
+  ["Återaktiveras om", "Reactivates in"],
+  ["är under underhåll", "is under maintenance"],
+  ["Öppna chatt", "Open chat"],
+  ["Hantera konto, lösenord och profiluppgifter", "Manage your account, password and profile"],
+  ["Går upp tidigt för att hinna plugga ikapp.", "Gets up early to catch up on studying."],
+  [
+    "Inga tråkiga vänteskärmar — spela och interagera med dina vänner i lobbyns minispel medan arrangören gör sig redo.",
+    "No boring waiting screens — play and interact with your friends in the lobby minigame while the host gets ready.",
+  ],
+
+  // ── short labels and data copy ─────────────────────────────────────────
+  // Sentences without å/ä/ö ("Starta en quiz") were invisible to the first
+  // sweep, so English mode left them half-translated: "Start a quiz" came out
+  // as "Start en quiz". These are the rest of them.
+  ["Starta en quiz", "Start a quiz"],
+  ["Plugga med gloskort", "Study with flashcards"],
+  ["Samla Keens", "Collect Keens"],
+  ["Utmana i strid", "Battle it out"],
+  ["Till samlingen", "To the collection"],
+  ["Alla gloskort", "All flashcards"],
+  ["Skapa en quiz", "Create a quiz"],
+  ["Aktivera flervalsalternativ", "Enable multiple-choice options"],
+  ["Spara kort", "Save card"],
+  ["Anpassa din profil", "Customise your profile"],
+  ["Gloskort & kortlekar", "Flashcards & decks"],
+  ["Lärarverktyg", "Teacher tools"],
+  ["Systemmeddelande", "System message"],
+  ["Registrerad:", "Registered:"],
+  ["Till inloggningen", "Go to sign-in"],
+  ["Vi har skickat ett mejl till", "We've sent an email to"],
+  ["Skapa ett klassrum", "Create a classroom"],
+  ["Skapa nytt klassrum", "Create a new classroom"],
+  ["Dela koden", "Share the code"],
+  ["Hela klassen", "The whole class"],
+  ["PROV", "EXAM"],
+  ["Anslut till lobby", "Join the lobby"],
+  ["Avsluta", "End"],
+  ["Laddar lobbyn...", "Loading the lobby..."],
+  ["Laddar minispelet...", "Loading the minigame..."],
+  ["Laddar spelet...", "Loading the game..."],
+  ["Spel-PIN", "Game PIN"],
+  ["Spel-PIN — dela denna kod", "Game PIN — share this code"],
+  ["STARTA SPELET", "START THE GAME"],
+  ["STARTA STRIDEN", "START THE BATTLE"],
+  ["Slutresultat", "Final results"],
+  ["Visa slutresultat", "Show final results"],
+  ["Keens — marknad · QuizKeen", "Keens — market · QuizKeen"],
+  ["Keens — paket · QuizKeen", "Keens — packs · QuizKeen"],
+  ["Handtecknade", "Hand-drawn"],
+  ["Storlekarna", "The sizes"],
+
+  // Keens labels, ranks and pack names.
+  ["Alla", "All"],
+  ["Alla paket", "All packs"],
+  ["Alla Keens", "All Keens"],
+  ["Alla hittade! 🎉", "All found! 🎉"],
+  ["Chans i paketet", "Chance in the pack"],
+  ["Dagens deal", "Today's deal"],
+  ["Dagens deals", "Today's deals"],
+  ["Dagens Keen", "Today's Keen"],
+  ["Dina Keens", "Your Keens"],
+  ["Dubbletter", "Duplicates"],
+  ["Dubbletter gav tillbaka", "Duplicates gave back"],
+  ["Gratis!", "Free!"],
+  ["I samlingen", "In the collection"],
+  ["Inga Keens matchar filtret.", "No Keens match the filter."],
+  ["Kostade", "Cost"],
+  ["Marknad", "Market"],
+  ["Marknadspris", "Market price"],
+  ["Min samling", "My collection"],
+  ["Ny Keen!", "New Keen!"],
+  ["Närmast klart", "Closest to complete"],
+  ["Paket", "Packs"],
+  ["Pakethyllan", "The pack shelf"],
+  ["Samlade Keens", "Keens collected"],
+  ["Samling", "Collection"],
+  ["Se hela samlingen →", "See the whole collection →"],
+  ["Sortera: antal", "Sort: count"],
+  ["Sortera: namn", "Sort: name"],
+  ["Sällsynthetsjakt", "Rarity hunt"],
+  ["Ta av", "Take off"],
+  ["Till marknaden", "To the market"],
+  ["Varje dag", "Every day"],
+  ["Visa detaljer", "View details"],
+  [
+    "Kroma-Keens finns bara i Mytiskapaketet — eller i marknaden.",
+    "Kroma Keens only come from the Mythical pack — or the market.",
+  ],
+
+  // Rarities and ranks.
+  ["Nyfiken", "Curious"],
+  ["Samlare", "Collector"],
+  ["Kännare", "Connoisseur"],
+  ["Mästare", "Master"],
+  ["Keen-Kungen", "Keen King"],
+  ["Jägare", "Hunter"],
+  ["Vanlig", "Common"],
+  ["Ovanlig", "Uncommon"],
+  ["Sällsynt", "Rare"],
+  ["Episk", "Epic"],
+  ["Legendar", "Legendary"],
+  ["Legendarisk", "Legendary"],
+  ["Saker", "Things"],
+
+  // Packs.
+  ["Startpaketet", "Starter pack"],
+  ["Gratispaketet", "Free pack"],
+  ["Djungelpaketet", "Jungle pack"],
+  ["Djurpaketet", "Animal pack"],
+  ["Godispaketet", "Candy pack"],
+  ["Halloweenpaketet", "Halloween pack"],
+  ["Rymdpaketet", "Space pack"],
+  ["Skolpaketet", "School pack"],
+  ["Mytiskapaketet", "Mythical pack"],
+
+  // Emoji-picker categories.
+  ["Djur", "Animals"],
+  ["Glada", "Happy"],
+  ["Händer", "Hands"],
+  ["Mat", "Food"],
+
+  // Roles.
+  ["ELEV", "STUDENT"],
+  ["LÄRARE", "TEACHER"],
+  ["ÄGARE", "OWNER"],
+  ["SÄKERHET", "SECURITY"],
+  ["Säkerhet", "Security"],
+  ["Dina Keens", "Your Keens"],
+  ["Skapa ditt klassrum", "Create your classroom"],
+
+  // Long paragraphs (multi-line JSX) that the first sweep could not see.
+  [
+    "QuizKeen förvandlar ditt klassrum till en levande frågesport. Starta spel med en PIN-kod, kör roliga minispel i lobbyn, samla XP och mynt, och klättra på topplistan.",
+    "QuizKeen turns your classroom into a live quiz show. Start games with a PIN code, play fun minigames in the lobby, collect XP and coins, and climb the leaderboard.",
+  ],
+  [
+    "Den här får alla från dag ett. Den kan inte köpas, säljas eller tappas — men den kan bäras, och då syns den i quizen, lobbyn och på gloskorten.",
+    "Everyone gets this one from day one. It can't be bought, sold or lost — but it can be worn, and then it shows up in quizzes, the lobby and on flashcards.",
+  ],
+  [
+    "Den här Keen kommer från ett paket som inte är till salu längre, så den går bara att sälja — den syns kvar i samlingen för att du redan har den.",
+    "This Keen comes from a pack that is no longer for sale, so it can only be sold — it stays in the collection because you already have it.",
+  ],
+  [
+    "Dubbletter betalar tillbaka sig själva direkt: får du en Keen du redan har får du mynt tillbaka — säljvärdet för den sällsyntheten. Öppna fler paket på en gång för fler chanser!",
+    "Duplicates pay you back straight away: pull a Keen you already have and you get coins back — the sell value for that rarity. Open more packs at once for more chances!",
+  ],
+  [
+    "Marknaden säljer Keens som paketen i butiken kan ge. En Keen från ett paket som tagits bort syns bara om du redan har den, och då kan du sälja den — men inte köpa fler.",
+    "The market sells the Keens the packs in the shop can give. A Keen from a removed pack only shows if you already have it, and then you can sell it — but not buy more.",
+  ],
+  [
+    "48 figurer i sex paket och sex sällsynthetsgrader — från vanliga till Kroma. Tjäna mynt genom att svara rätt, öppna paket, och byt till dig de du saknar i marknaden.",
+    "48 characters across six packs and six rarities — from Common to Kroma. Earn coins by answering right, open packs, and trade for the ones you're missing in the market.",
+  ],
 ];
 
 // ── compiled lookup tables ───────────────────────────────────────────────
@@ -616,8 +1052,29 @@ function shouldSkip(el: Element | null): boolean {
   return false;
 }
 
+/**
+ * Has React taken ownership of this node yet?
+ *
+ * Next streams a route's HTML first and hydrates it a moment later. Text that
+ * is rewritten in that window is text React never rendered, and the comparison
+ * throws "Text content does not match server-rendered HTML" (and re-renders the
+ * whole Suspense boundary on the client). React tags the nodes it owns with a
+ * `__reactFiber$…` / `__reactProps$…` expando, so waiting for that marker is a
+ * direct signal instead of a guessed delay. Nodes without it are left alone
+ * until a later pass — by then hydration has claimed them.
+ */
+function isHydrated(el: Element): boolean {
+  for (const key in el) {
+    if (key.startsWith("__reactFiber$") || key.startsWith("__reactProps$") || key.startsWith("__reactInternalInstance$")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function patchText(node: Text, lang: Lang) {
   if (!node.parentElement || shouldSkip(node.parentElement)) return;
+  if (!isHydrated(node.parentElement)) return;
 
   const current = node.textContent ?? "";
   const original = ORIGINAL_TEXT.get(node);
@@ -639,6 +1096,7 @@ function patchText(node: Text, lang: Lang) {
 
 function patchAttrs(el: Element, lang: Lang) {
   if (shouldSkip(el)) return;
+  if (!isHydrated(el)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {
     const value = el.getAttribute(attr);
@@ -692,13 +1150,22 @@ export function observeTranslations(lang: Lang): () => void {
     return () => {};
   }
 
-  let frame = 0;
+  // React owns these nodes, so the pass has to wait for it.
+  //
+  // Next streams the server HTML for a route and React hydrates it a moment
+  // later. Rewriting the text as soon as the markup lands — which is what a
+  // per-frame pass did — made hydration compare text it never rendered against
+  // the DOM and throw "Text content does not match server-rendered HTML".
+  // Waiting past hydration keeps the console quiet: React has already claimed
+  // the nodes by then, so the only thing the pass does is swap words.
+  let timer = 0;
+  const DELAY_MS = 180;
   const schedule = () => {
-    if (frame) return;
-    frame = window.requestAnimationFrame(() => {
-      frame = 0;
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = 0;
       applyTranslations(lang);
-    });
+    }, DELAY_MS);
   };
 
   const observer = new MutationObserver(schedule);
@@ -712,6 +1179,6 @@ export function observeTranslations(lang: Lang): () => void {
 
   return () => {
     observer.disconnect();
-    if (frame) window.cancelAnimationFrame(frame);
+    if (timer) window.clearTimeout(timer);
   };
 }

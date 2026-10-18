@@ -568,8 +568,25 @@ function shouldSkip(el: Element | null): boolean {
   return false;
 }
 
+/**
+ * Has React taken ownership of this node yet? Next streams a route's HTML and
+ * hydrates it a moment later; rewriting text in that window makes hydration
+ * compare words it never rendered and throw a mismatch. React marks the nodes
+ * it owns with a `__reactFiber$…` / `__reactProps$…` expando, so this waits for
+ * that marker rather than guessing with a timer.
+ */
+function isHydrated(el: Element): boolean {
+  for (const key in el) {
+    if (key.startsWith("__reactFiber$") || key.startsWith("__reactProps$") || key.startsWith("__reactInternalInstance$")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function patchText(node: Text, lang: Lang) {
   if (!node.parentElement || shouldSkip(node.parentElement)) return;
+  if (!isHydrated(node.parentElement)) return;
 
   const current = node.textContent ?? "";
   const original = ORIGINAL_TEXT.get(node);
@@ -590,6 +607,7 @@ function patchText(node: Text, lang: Lang) {
 
 function patchAttrs(el: Element, lang: Lang) {
   if (shouldSkip(el)) return;
+  if (!isHydrated(el)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {
     const value = el.getAttribute(attr);
@@ -639,13 +657,16 @@ export function observeTranslations(lang: Lang): () => void {
     return () => {};
   }
 
-  let frame = 0;
+  // Wait out React's hydration before rewriting streamed markup, or the
+  // comparison throws "Text content does not match server-rendered HTML".
+  let timer = 0;
+  const DELAY_MS = 180;
   const schedule = () => {
-    if (frame) return;
-    frame = window.requestAnimationFrame(() => {
-      frame = 0;
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = 0;
       applyTranslations(lang);
-    });
+    }, DELAY_MS);
   };
 
   const observer = new MutationObserver(schedule);
@@ -659,6 +680,6 @@ export function observeTranslations(lang: Lang): () => void {
 
   return () => {
     observer.disconnect();
-    if (frame) window.cancelAnimationFrame(frame);
+    if (timer) window.clearTimeout(timer);
   };
 }

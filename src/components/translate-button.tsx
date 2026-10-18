@@ -23,8 +23,22 @@ export default function TranslateButton() {
 
   useEffect(() => {
     if (!mounted) return;
-    applyTranslations(lang);
-    return observeTranslations(lang);
+    // Let React finish hydrating the streamed page before touching its text;
+    // rewriting first made hydration compare words it never rendered.
+    const first = window.setTimeout(() => applyTranslations(lang), 120);
+    const stop = observeTranslations(lang);
+    // The root layout renders `<html lang="sv">`, and hydration writes that
+    // attribute back after the engine has set it, so a reload in English used
+    // to leave the document claiming Swedish. Re-assert it once hydration has
+    // settled, and again whenever the route changes.
+    const frame = window.requestAnimationFrame(() => {
+      document.documentElement.lang = lang;
+    });
+    return () => {
+      window.clearTimeout(first);
+      stop();
+      window.cancelAnimationFrame(frame);
+    };
   }, [lang, mounted, pathname]);
 
   function toggle() {

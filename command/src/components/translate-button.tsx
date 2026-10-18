@@ -24,8 +24,19 @@ export default function TranslateButton() {
 
   useEffect(() => {
     if (!mounted) return;
-    applyTranslations(lang);
-    return observeTranslations(lang);
+    // Let React finish hydrating the streamed page before touching its text.
+    const first = window.setTimeout(() => applyTranslations(lang), 120);
+    const stop = observeTranslations(lang);
+    // Hydration writes the layout's `lang` attribute back, so re-assert the
+    // chosen language once it has settled (and on every route change).
+    const frame = window.requestAnimationFrame(() => {
+      document.documentElement.lang = lang;
+    });
+    return () => {
+      window.clearTimeout(first);
+      stop();
+      window.cancelAnimationFrame(frame);
+    };
   }, [lang, mounted, pathname]);
 
   function toggle() {
