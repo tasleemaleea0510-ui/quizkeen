@@ -166,58 +166,18 @@ environment and a timestamp, so you can compare it against `git rev-parse HEAD`
 and see whether a push actually reached production rather than guessing from a
 "Ready" badge.
 
-### Custom domain (quizkeen.om.to)
+### Live deployments
 
-This is a free subdomain from the Intent Panel (`panel.int.yt`), which is also
-where its DNS lives. Because the delegated zone *is* `quizkeen.om.to`, that name
-is the zone **apex**, while Vercel displays record names relative to `om.to` — so
-Vercel's "quizkeen" label means `@` here. A CNAME cannot be used at an apex; use
-an ALIAS record.
+| App | URL |
+| --- | --- |
+| Student app | https://quizkeen.vercel.app |
+| Command console | https://quizkeencommand.vercel.app |
 
-The apex now carries an **ALIAS** record pointing at `bcc1a966b6af1974.vercel-dns-017.com`,
-which the panel flattens to Vercel's edge addresses (`216.198.79.65`,
-`64.29.17.65`). The earlier GitHub Pages A records
-(`185.199.108.153`–`.111`) are gone. Note that resolving correctly is not by
-itself enough: until Vercel's ownership claim clears, its edge answers
-`404 DEPLOYMENT_NOT_FOUND` for this hostname and serves no TLS certificate. To
-complete the move:
+Both projects build from this repository on every push to `main`. `quizkeen.om.to`
+is retired — it is no longer part of the setup, so nothing should point at it or
+wait on it.
 
-1. Vercel → project → Settings → Domains → add `quizkeen.om.to`. If it reports
-   that the domain is linked to another Vercel account, create the TXT record it
-   lists — the name is `_vercel.quizkeen.om.to` (Vercel's prose may call it
-   `_vercel.om.to`, which is a different name) — then press Refresh.
-
-   If it still refuses after the TXT is published, the two names matter. Vercel's
-   API pattern is `_vercel.<domain>`, i.e. `_vercel.quizkeen.om.to`, which sits
-   inside this zone and is creatable; the dashboard prose names `_vercel.om.to`,
-   which is outside this zone and only the operator of `om.to` can add (the
-   Intent panel runs `dns1-4.int.yt`). Before chasing either, check the
-   account/team switcher — if the claim belongs to another team of your own,
-   removing the domain there is far quicker. Note that this claim is the *only*
-   remaining blocker once DNS resolves: the edge answers
-   `404 DEPLOYMENT_NOT_FOUND` for the hostname until it clears, and no TLS
-   certificate is issued for it either.
-2. In the Intent panel, add one record at `@`. Prefer **ALIAS** — the panel
-   advertises apex ALIAS support, which flattens a CNAME at the root — pointing
-   at `bcc1a966b6af1974.vercel-dns-017.com` (Vercel's own target, so it follows
-   their addresses automatically). It is already in place. If ALIAS is refused,
-   use **A** `@` → `76.76.21.21`, which Vercel keeps working; that target
-   currently flattens to `216.198.79.1` and `64.29.17.1`. A CNAME cannot go at
-   the apex because the NS records live there — that is the error the panel shows
-   if you try. Also delete any record named `quizkeen`, which only creates the
-   useless
-   `quizkeen.quizkeen.om.to`.
-
-   Beware the 3600s TTL: after a change, resolvers may keep serving the old
-   answers for up to an hour, so a domain that still looks broken is often just
-   cached. Ask the authoritative server (`dns1.int.yt`) to see the truth.
-3. Repoint the `www` CNAME at the Vercel target, and add `www.quizkeen.om.to` in
-   Vercel, if `www` should work too.
-4. GitHub → repository → Settings → Pages → clear the custom domain, so GitHub
-   releases the name.
-
-Vercel issues the HTTPS certificate automatically once DNS resolves to it and the
-ownership claim above clears, and
-`/api/health` is the quickest way to confirm the domain serves this app. Note
-that `quizkeen.com.to` does not exist at all — only `om.to` — and its TTL is
-3600s, so allow up to an hour for a change to be visible everywhere.
+Open `/api/health` on the student app to see the short commit hash, the
+environment and a timestamp for the running production build. Compare it with
+`git rev-parse HEAD` to tell whether a push actually reached production, rather
+than trusting a "Ready" badge.
