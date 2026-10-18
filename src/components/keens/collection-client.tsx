@@ -574,7 +574,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </div>
               <div className="flex justify-between">
                 <dt className="text-slate-400">Chans i paketet</dt>
-                <dd data-no-translate className="font-semibold text-slate-200">
+                <dd className="font-semibold text-slate-200">
                   {selectedGift
                     ? "Delas ut"
                     : selectedRetired || !selectedPack
@@ -590,7 +590,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </div>
               <div className="flex justify-between">
                 <dt className="text-slate-400">Marknadspris</dt>
-                <dd data-no-translate className="font-semibold text-amber-300">
+                <dd className="font-semibold text-amber-300">
                   {selectedTradeable ? `${marketPrice(selected)} mynt` : "Går inte att köpa"}
                 </dd>
               </div>
@@ -803,7 +803,6 @@ function Spotlight({
               <Sparkles className="h-3.5 w-3.5" /> Dagens Keen
             </span>
             <span
-              data-no-translate
               className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/60 px-2 py-0.5 text-[10px] font-bold text-slate-400"
               title="Dagens Keen byts vid midnatt UTC"
             >
@@ -833,7 +832,7 @@ function Spotlight({
             {pack && (
               <span className="text-[11px] font-bold text-slate-400">
                 {pack.emoji} {pack.name}
-                {chance > 0 && <span data-no-translate> · {String(chance).replace(".", ",")} % chans</span>}
+                {chance > 0 && <span> · {String(chance).replace(".", ",")} % chans</span>}
               </span>
             )}
           </div>
@@ -897,9 +896,9 @@ function RankTrack({ rank }: { rank: ReturnType<typeof collectorRank> }) {
           </p>
           <p className="font-display text-xl font-extrabold text-white">{rank.rank.label}</p>
         </div>
-        <p data-no-translate className="text-xs font-bold text-slate-400">
+        <p className="text-xs font-bold text-slate-400">
           {rank.points} poäng
-          {rank.next && <span className="text-slate-500"> · {rank.toNext} till {rank.next.label}</span>}
+          {rank.next && <span className="text-slate-500"> · {rank.toNext} → {rank.next.label}</span>}
         </p>
       </div>
 
@@ -910,7 +909,6 @@ function RankTrack({ rank }: { rank: ReturnType<typeof collectorRank> }) {
           return (
             <li
               key={row.label}
-              data-no-translate
               title={`${row.points} poäng`}
               className={cn(
                 "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-extrabold transition-colors",

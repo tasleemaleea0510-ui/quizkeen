@@ -301,7 +301,6 @@ export default function PackOpener({
                 </span>
               ) : (
                 <span
-                  data-no-translate
                   className="mt-1 flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1 text-xs font-extrabold text-amber-200 animate-keen-wiggle"
                 >
                   Dubblett · +{pull.refund} mynt
@@ -385,12 +384,12 @@ export default function PackOpener({
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm">
               <div className="flex flex-col gap-0.5 text-slate-300">
                 {spent > 0 && (
-                  <span data-no-translate>
+                  <span>
                     Kostade <b className="text-red-300">−{spent}</b> mynt
                   </span>
                 )}
                 {refunded > 0 && (
-                  <span data-no-translate>
+                  <span>
                     Dubbletter gav tillbaka <b className="text-emerald-300">+{refunded}</b> mynt
                   </span>
                 )}

@@ -219,7 +219,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
           {live.dupes > 0 && (
             <div className="ml-2 hidden border-l border-white/10 pl-4 sm:block">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dubbletter värda</p>
-              <p data-no-translate className="text-sm font-extrabold text-amber-300">
+              <p className="text-sm font-extrabold text-amber-300">
                 {dupesWorth.toLocaleString("sv-SE")} mynt
               </p>
             </div>
@@ -248,11 +248,11 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
           <span className="flex items-center gap-2 text-xs font-bold text-slate-300">
             <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
             Nästa köp: <span className="text-white">{cheapestMissing.name}</span>
-            <span data-no-translate className="text-slate-500">
+            <span className="text-slate-500">
               · {priceOf(cheapestMissing)} mynt
             </span>
             {live.coins < priceOf(cheapestMissing) && (
-              <span data-no-translate className="text-slate-500">
+              <span className="text-slate-500">
                 · {priceOf(cheapestMissing) - live.coins} kvar att spara
               </span>
             )}
@@ -283,7 +283,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
               −{DEAL_OFF} %
             </span>
           </h2>
-          <span data-no-translate className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
             <Clock className="h-3.5 w-3.5 text-amber-400" /> nya deals om {resetIn === null ? "--:--:--" : clock(resetIn)}
           </span>
         </div>
@@ -311,7 +311,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
                     <span data-no-translate className="text-xs font-bold text-slate-500 line-through">
                       {marketPrice(deal.keen)}
                     </span>
-                    <span data-no-translate className="font-display text-lg font-extrabold text-amber-300">
+                    <span className="font-display text-lg font-extrabold text-amber-300">
                       {deal.price} mynt
                     </span>
                   </div>
@@ -449,7 +449,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
                           {marketPrice(keen)}
                         </span>
                       )}
-                      <span data-no-translate className={cn("text-xs font-extrabold", deal ? "text-amber-300" : "text-slate-300")}>
+                      <span className={cn("text-xs font-extrabold", deal ? "text-amber-300" : "text-slate-300")}>
                         {price} mynt
                       </span>
                     </div>

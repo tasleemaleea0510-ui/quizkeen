@@ -289,8 +289,11 @@ export default async function DashboardPage() {
           </span>
           <div>
             <p className="font-display text-base font-extrabold text-white">Dina Keens</p>
-            <p data-no-translate className="text-xs text-slate-400">
-              {keenCount}/{TOTAL_KEENS} samlade · köp paket med dina mynt och handla i marknaden
+            <p className="text-xs text-slate-400">
+              <span data-no-translate>
+                {keenCount}/{TOTAL_KEENS}
+              </span>{" "}
+              samlade · köp paket med dina mynt och handla i marknaden
             </p>
           </div>
         </div>

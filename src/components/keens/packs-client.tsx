@@ -149,7 +149,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
               </button>
             )}
             {!freeReady && !live.dailyBonusDisabled && (
-              <span data-no-translate className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400">
+              <span className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400">
                 <Timer className="h-3.5 w-3.5 text-emerald-400" />
                 {formatWait(wait)} kvar
               </span>
@@ -279,7 +279,7 @@ function PackTile({
                 </span>
               )}
             </p>
-            <span data-no-translate className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-extrabold text-amber-200">
+            <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-extrabold text-amber-200">
               {pack.price} mynt
             </span>
           </div>
@@ -300,7 +300,6 @@ function PackTile({
             {odds.map(({ rarity, chance }) => (
               <span
                 key={rarity}
-                data-no-translate
                 className="text-[9px] font-bold uppercase tracking-wide"
                 style={{ color: RARITY_META[rarity].from }}
               >
@@ -344,7 +343,6 @@ function PackTile({
               {chaseOwned ? chase.name : "???"}
             </p>
             <p
-              data-no-translate
               className={cn("text-[9px] font-bold uppercase tracking-wider", RARITY_META[chase.rarity].text)}
             >
               {RARITY_META[chase.rarity].label}{!chaseOwned && ` · ${String(rarityChance(pack.id, chase.rarity)).replace(".", ",")} %`}

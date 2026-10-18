@@ -98,7 +98,6 @@ export default function KeenCard({
         )}
         {worn && (
           <span
-            data-no-translate
             className="absolute -left-2 -top-2 rounded-full border border-emerald-400/50 bg-emerald-500/20 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wide text-emerald-200"
             title="Du bär den här Keen"
           >

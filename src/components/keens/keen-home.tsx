@@ -66,7 +66,7 @@ export function PackRail({ owned }: { owned: Record<string, number> }) {
                 />
               </div>
               <div className="mt-1.5 flex items-center justify-between">
-                <span data-no-translate className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-px text-[10px] font-extrabold text-amber-200">
+                <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-px text-[10px] font-extrabold text-amber-200">
                   {pack.price} mynt
                 </span>
                 <span className="text-[10px] font-bold text-indigo-300 opacity-0 transition-opacity group-hover:opacity-100">
@@ -119,7 +119,7 @@ export function NextSteps({ state }: { state: KeenState }) {
       key: "pack",
       kicker: "Närmast klart",
       title: `Fyll ${nearest.pack.name}`,
-      detail: `${nearest.have} av ${nearest.total} hittade — ${nearest.total - nearest.have} kvar.`,
+      detail: `${nearest.have}/${nearest.total} hittade — ${nearest.total - nearest.have} kvar.`,
       cta: "Öppna paket",
       href: "/keens/packs",
       percent: nearest.percent,
@@ -140,8 +140,8 @@ export function NextSteps({ state }: { state: KeenState }) {
     steps.push({
       key: "rare",
       kicker: "Sällsynthetsjakt",
-      title: `Hitta en ${RARITY_META[rarestMissing].label.toLowerCase()}`,
-      detail: `Du har ${have} av ${all.length} i den nivån.`,
+      title: `Hitta: ${RARITY_META[rarestMissing].label.toLowerCase()}`,
+      detail: `${have}/${all.length} i den nivån.`,
       cta: "Till marknaden",
       href: "/keens/market",
       percent: Math.round((have / Math.max(1, all.length)) * 100),
