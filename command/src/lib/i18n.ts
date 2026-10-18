@@ -324,6 +324,158 @@ const PAIRS: [string, string][] = [
   ["Kod", "Code"],
   ["Tips", "Tip"],
   ["Hjälp", "Help"],
+
+  // ── the rebuilt gate ─────────────────────────────────────────────────
+  // Added with the three-card gate: without these, switching to English left
+  // every new label, hint and description in Swedish.
+  ["Full kontroll", "Full control"],
+  ["Spelare & innehåll", "Players & content"],
+  ["Moderering", "Moderation"],
+  ["Lås upp Ägare", "Unlock Owner"],
+  ["Lås upp Admin", "Unlock Admin"],
+  ["Lås upp Säkerhet", "Unlock Security"],
+  [
+    "Låser upp Ägare-kontrollerna: allt Admin och Säkerhet kan göra, plus ägarverktygen.",
+    "Unlocks the Owner controls: everything Admin and Security can do, plus the owner tools.",
+  ],
+  [
+    "Låser upp Admin-kontrollerna: ban, XP, utskick, live och Admin-Keen.",
+    "Unlocks the Admin controls: bans, XP, broadcasts, live and the Admin Keen.",
+  ],
+  [
+    "Låser upp Säkerhets-kontrollerna: varningar, tystningar, chatt och loggar.",
+    "Unlocks the Security controls: warnings, mutes, chat and logs.",
+  ],
+  ["Åtta siffror krävs", "Eight digits required"],
+  ["Tryck Enter för att låsa upp", "Press Enter to unlock"],
+  ["Upplåst", "Unlocked"],
+  ["Upplåst!", "Unlocked!"],
+  ["Glöm sessionen", "Forget session"],
+  ["QuizKeen Command · åtkomst loggas med roll och tid", "QuizKeen Command · access is logged with role and time"],
+
+  // ── owner / admin / security consoles ────────────────────────────────
+  ["Alla koder måste vara exakt 8 siffror.", "All codes must be exactly 8 digits."],
+  [
+    "Allt ditt rike, i ett ögonkast. Endast för betrodda. Alla öppningar loggas.",
+    "Your whole realm at a glance. Trusted staff only. Every open is logged.",
+  ],
+  ["Antal XP (max 500, en gång per dag)", "XP amount (max 500, once a day)"],
+  ["Ban-begäranden från admins", "Ban requests from admins"],
+  ["Be om att få se personens skärm", "Ask to see this person's screen"],
+  ["Be om namnbyte (LÅSER sajten)", "Request a name change (LOCKS the site)"],
+  ["Begär längre", "Request longer"],
+  ["Begär namnbyte", "Request name change"],
+  [
+    "En admin vill banna längre än 1 dag? Här godkänner eller avslår du — och väljer EXAKT hur länge.",
+    "An admin wants a ban longer than 1 day? Approve or reject it here — and pick EXACTLY how long.",
+  ],
+  ["Frys mynt och Daglig bonus är", "Freeze coins and Daily bonus are"],
+  ["Fäst (högst upp på listan)", "Pin (top of the list)"],
+  ["För", "For"],
+  ["Ge en varning — tre varningar är gränsen", "Give a warning — three warnings is the limit"],
+  [
+    "Globala chattar, inkorg, stabs-kanaler, DM-förfrågningar. Allt loggas.",
+    "Global chats, inboxes, staff channels, DM requests. Everything is logged.",
+  ],
+  [
+    "Globala kanaler, inkorgar, staben och förfrågningar — samlade på ett ställe.",
+    "Global channels, inboxes, staff and requests — all in one place.",
+  ],
+  ["Inga användare matchade sökningen.", "No users matched the search."],
+  ["Inga väntande begäranden. Alla admins sköter sig!", "No pending requests. The admins are behaving!"],
+  [
+    "Inte aktiv än — ingen daglig bonus finns i QuizKeen",
+    "Not active yet — QuizKeen has no daily bonus",
+  ],
+  [
+    "Inte aktiv än — ingen mynt-utgift finns i QuizKeen",
+    "Not active yet — QuizKeen has no coin spend",
+  ],
+  ["inte aktiva än", "not active yet"],
+  ["LIVE-skärmdelning", "LIVE screen sharing"],
+  ["Lösenord & email", "Password & email"],
+  ["Minuter (0 = för alltid)", "Minutes (0 = forever)"],
+  ["Osäker på en knapp?", "Unsure about a button?"],
+  ["Personligt meddelande (popup för BARA denna användare)", "Personal message (popup for THIS user only)"],
+  ["Skriv något bara denna personen ser...", "Write something only this person sees..."],
+  ["Skugga (osynlig på topplistan)", "Shadow (invisible on the leaderboard)"],
+  ["Skyddad roll — inga åtgärder härifrån.", "Protected role — no actions from here."],
+  ["Stabskrafter (delas med admin/säkerhet)", "Staff powers (shared with admin/security)"],
+  ["Superpowers (endast ÄGARE)", "Superpowers (OWNER only)"],
+  ["Sänd till alla", "Send to everyone"],
+  ["Sändning & nödläge", "Broadcast & emergency"],
+  ["Sätt roll", "Set role"],
+  ["Tips: 2880 = 2 dagar · 10080 = 1 vecka · 0 = för alltid", "Tip: 2880 = 2 days · 10080 = 1 week · 0 = forever"],
+  [
+    "Varje grupp är märkt med vad den gör. Hjälp-fliken förklarar allt — och vad som loggas.",
+    "Every group is labelled with what it does. The Help tab explains it all — and what gets logged.",
+  ],
+  [
+    "Varna först, kyl ner sedan. Längre straff än en timme går alltid via admin eller ägare.",
+    "Warn first, cool down after. Punishments longer than an hour always go through admin or owner.",
+  ],
+  ["Vårda", "Care"],
+  [
+    "Välj grupp utifrån vad du vill göra: belöna, banna eller bevaka. Gröna knappar ger, röda tar bort.",
+    "Pick a group by what you want to do: reward, ban or watch. Green buttons give, red ones take away.",
+  ],
+  ["Växla osynlig närvaro", "Toggle invisible presence"],
+  ["XP & mynt & nivå", "XP & coins & level"],
+  ["Återställ", "Reset"],
+  ["Öppna", "Open"],
+  ["Öppna chatten igen", "Open the chat again"],
+  ["Övervakning & osynlig", "Surveillance & invisible"],
+  [
+    "Milda verktyg först, kyla ner längst ner. Varje knapp säger vad den gör innan du trycker.",
+    "Gentle tools first, cool-downs at the bottom. Every button says what it does before you press it.",
+  ],
+  ["Varje åtgärd i isvakten, med vem och när.", "Every action in ICE WATCH, with who and when."],
+  [
+    "Varje åtgärd i konsolen, med vem och när. Ägaren ser samma lista.",
+    "Every action in the console, with who and when. The owner sees the same list.",
+  ],
+  ["Bara personal. Eleven ser aldrig den här kanalen.", "Staff only. Students never see this channel."],
+  ["Bekräfta", "Confirm"],
+  [
+    "En Keen som inte finns i något paket. Dela ut den härifrån — den hamnar i samlingen direkt.",
+    "A Keen that is in no pack. Hand it out here — it lands in the collection right away.",
+  ],
+  [
+    "Alla inloggade ser detta som en gul banderoll högst upp. Ägaren ser i loggen vem som skickade.",
+    "Everyone signed in sees this as a yellow banner at the top. The owner sees in the log who sent it.",
+  ],
+  [
+    "Alla användare möts av underhållsskärmen tills du öppnar igen.",
+    "Every user hits the maintenance screen until you open it again.",
+  ],
+  ["användare", "users"],
+  ["max XP per gåva", "max XP per gift"],
+  ["— ägaren godkänner eller avslår.", "— the owner approves or rejects."],
+  ["Banna för alltid?", "Ban forever?"],
+  ["Kasta ut användaren?", "Kick the user out?"],
+  ["Radera användare?", "Delete user?"],
+  ["STÄNG", "CLOSE"],
+  ["STÄNG sajten?", "CLOSE the site?"],
+  ["STÄNGDE sajten", "CLOSED the site"],
+  ["Sajten är STÄNGD.", "The site is CLOSED."],
+  ["Sajten är öppen igen.", "The site is open again."],
+  ["rensade sändning", "cleared the broadcast"],
+  ["Användaren finns inte längre.", "That user no longer exists."],
+  ["Begäran avslogs.", "The request was rejected."],
+  ["3 varningar från säkerhet", "3 warnings from security"],
+
+  // Confirm dialogs build their body from a name plus one of these phrases, so
+  // the phrase itself has to be translatable even though the sentence is not.
+  ["blir bannad för alltid.", "is banned forever."],
+  ["måste logga in igen.", "must sign in again."],
+  ["XP, mynt och varningar nollställs för", "XP, coins and warnings are reset for"],
+  ["raderas för alltid, tillsammans med kontot.", "is deleted forever, along with the account."],
+
+  // Help-guide headings that were written in Swedish only.
+  ["Rolllistan + Sätt roll", "Role list + Set role"],
+  ["Tysta chatten — 1 tim / 1 dag / FÖR ALLTID", "Mute the chat — 1 hr / 1 day / FOREVER"],
+  ["STÄNG sajten / Öppna sajten", "CLOSE the site / Open the site"],
+  ["Ägarkod · Admin-kod · Säkerhetskod", "Owner code · Admin code · Security code"],
 ];
 
 // ── compiled lookup tables ───────────────────────────────────────────────
