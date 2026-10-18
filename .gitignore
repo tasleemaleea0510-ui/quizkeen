@@ -1,7 +1,8 @@
 node_modules
 .next
+# Real env files are secrets; only the template is tracked.
 .env
-.env.local
-.env*.local
+.env*
+!.env.example
 *.tsbuildinfo
 next-env.d.ts
