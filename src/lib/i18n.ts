@@ -1243,7 +1243,10 @@ function patchAttrs(el: Element, lang: Lang) {
   // everything inside it stays untouched.
   if (el.hasAttribute("data-no-translate") || el.hasAttribute("data-qk-i18n")) return;
   if (shouldSkip(el.parentElement)) return;
-  if (!isHydrated(el)) return;
+  // Art drawn with `dangerouslySetInnerHTML` has no React marker of its own —
+  // the owning component does — so an inline SVG is checked through its parent.
+  const owner = el.tagName === "svg" && el.parentElement ? el.parentElement : el;
+  if (!isHydrated(owner)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {
     const value = el.getAttribute(attr);

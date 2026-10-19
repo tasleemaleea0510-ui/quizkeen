@@ -621,7 +621,10 @@ function patchAttrs(el: Element, lang: Lang) {
   // picture and is safe to translate, while everything inside it stays.
   if (el.hasAttribute("data-no-translate") || el.hasAttribute("data-qk-i18n")) return;
   if (shouldSkip(el.parentElement)) return;
-  if (!isHydrated(el)) return;
+  // Markup injected with `dangerouslySetInnerHTML` carries no React marker of
+  // its own, so an inline SVG is checked through the component that owns it.
+  const owner = el.tagName === "svg" && el.parentElement ? el.parentElement : el;
+  if (!isHydrated(owner)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {
     const value = el.getAttribute(attr);
