@@ -563,7 +563,7 @@ export function translateText(text: string, lang: Lang): string {
 const SKIP_TAGS = new Set([
   "SCRIPT", "STYLE", "NOSCRIPT", "CODE", "PRE", "TEXTAREA", "SVG", "CANVAS", "IFRAME", "INPUT",
 ]);
-const ATTRS = ["placeholder", "title", "aria-label"] as const;
+const ATTRS = ["placeholder", "title", "aria-label", "alt"] as const;
 
 const ORIGINAL_TEXT = new WeakMap<Text, string>();
 const LAST_APPLIED = new WeakMap<Text, string>();
@@ -617,7 +617,10 @@ function patchText(node: Text, lang: Lang) {
 }
 
 function patchAttrs(el: Element, lang: Lang) {
-  if (shouldSkip(el)) return;
+  // Only ancestors decide the skip: an inline SVG's own `aria-label` names the
+  // picture and is safe to translate, while everything inside it stays.
+  if (el.hasAttribute("data-no-translate") || el.hasAttribute("data-qk-i18n")) return;
+  if (shouldSkip(el.parentElement)) return;
   if (!isHydrated(el)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {

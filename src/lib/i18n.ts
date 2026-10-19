@@ -877,6 +877,9 @@ const PAIRS: [string, string][] = [
   ["Ny Keen!", "New Keen!"],
   ["Närmast klart", "Closest to complete"],
   ["Närmast komplett", "Closest to complete"],
+  ["Toppen av paketet", "Top of the pack"],
+  ["Jaga", "Chase"],
+  ["Inga dubbletter", "No duplicates"],
   ["Köp för", "Buy for"],
   ["Köp nu", "Buy now"],
   ["Köp", "Buy"],
@@ -1176,7 +1179,7 @@ export function translateText(text: string, lang: Lang): string {
 const SKIP_TAGS = new Set([
   "SCRIPT", "STYLE", "NOSCRIPT", "CODE", "PRE", "TEXTAREA", "SVG", "CANVAS", "IFRAME", "INPUT",
 ]);
-const ATTRS = ["placeholder", "title", "aria-label"] as const;
+const ATTRS = ["placeholder", "title", "aria-label", "alt"] as const;
 
 const ORIGINAL_TEXT = new WeakMap<Text, string>();
 const LAST_APPLIED = new WeakMap<Text, string>();
@@ -1235,7 +1238,11 @@ function patchText(node: Text, lang: Lang) {
 }
 
 function patchAttrs(el: Element, lang: Lang) {
-  if (shouldSkip(el)) return;
+  // Only the ancestors decide the skip here: an inline SVG's own `aria-label`
+  // is the name of the picture ("Låst Keen") and is safe to translate, while
+  // everything inside it stays untouched.
+  if (el.hasAttribute("data-no-translate") || el.hasAttribute("data-qk-i18n")) return;
+  if (shouldSkip(el.parentElement)) return;
   if (!isHydrated(el)) return;
   let store = ORIGINAL_ATTRS.get(el);
   for (const attr of ATTRS) {
