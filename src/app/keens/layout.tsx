@@ -191,7 +191,7 @@ export default async function KeensLayout({ children }: { children: React.ReactN
         <Link href="/keens/packs" className="font-semibold text-indigo-300 hover:text-indigo-200">
           Öppna ett paket
         </Link>
-        · samla på dig poäng för att klättra från {rank.rank.label} till {rank.next?.label ?? "toppen"}.
+        · samla på dig poäng för att klättra från {rank.rank.label} → {rank.next?.label ?? "toppen"}.
       </p>
     </div>
   );

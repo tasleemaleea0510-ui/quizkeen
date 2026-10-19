@@ -876,6 +876,13 @@ const PAIRS: [string, string][] = [
   ["Min samling", "My collection"],
   ["Ny Keen!", "New Keen!"],
   ["Närmast klart", "Closest to complete"],
+  ["Närmast komplett", "Closest to complete"],
+  ["Köp för", "Buy for"],
+  ["Köp nu", "Buy now"],
+  ["Köp", "Buy"],
+  ["Köper…", "Buying…"],
+  ["Köper", "Buying"],
+  ["Ägda", "Owned"],
   ["Paket", "Packs"],
   ["Pakethyllan", "The pack shelf"],
   ["Samlade Keens", "Keens collected"],
@@ -996,6 +1003,9 @@ const PAIRS: [string, string][] = [
   ["mystisk", "mystical"],
   ["Dubblett", "Duplicate"],
   ["chans", "chance"],
+  // The Keens footer interpolates rank names, so only these fragments are text nodes.
+  ["samla på dig poäng för att klättra från", "collect points to climb from"],
+  ["toppen", "the top"],
   ["nya deals om", "new deals in"],
   ["Dagens Keen byts vid midnatt UTC", "Today's Keen changes at midnight UTC"],
   [
