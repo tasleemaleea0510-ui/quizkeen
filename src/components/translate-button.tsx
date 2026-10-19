@@ -27,17 +27,23 @@ export default function TranslateButton() {
     // rewriting first made hydration compare words it never rendered.
     const first = window.setTimeout(() => applyTranslations(lang), 120);
     const stop = observeTranslations(lang);
-    // The root layout renders `<html lang="sv">`, and hydration writes that
-    // attribute back after the engine has set it, so a reload in English used
-    // to leave the document claiming Swedish. Re-assert it once hydration has
-    // settled, and again whenever the route changes.
-    const frame = window.requestAnimationFrame(() => {
-      document.documentElement.lang = lang;
-    });
+    // The root layout renders `<html lang="sv">`, and React writes that
+    // attribute back every time it reconciles the document — after a soft
+    // navigation too, not just on hydration. A one-shot fix therefore lost the
+    // race and left an English page claiming `lang="sv"`. Watch the attribute
+    // and put our language back each time React resets it; setting it to a
+    // value it already has mutates nothing, so this cannot loop.
+    const html = document.documentElement;
+    const syncLang = () => {
+      if (html.lang !== lang) html.lang = lang;
+    };
+    syncLang();
+    const langWatch = new MutationObserver(syncLang);
+    langWatch.observe(html, { attributes: true, attributeFilter: ["lang"] });
     return () => {
       window.clearTimeout(first);
       stop();
-      window.cancelAnimationFrame(frame);
+      langWatch.disconnect();
     };
   }, [lang, mounted, pathname]);
 

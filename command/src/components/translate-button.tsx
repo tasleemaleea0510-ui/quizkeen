@@ -27,15 +27,20 @@ export default function TranslateButton() {
     // Let React finish hydrating the streamed page before touching its text.
     const first = window.setTimeout(() => applyTranslations(lang), 120);
     const stop = observeTranslations(lang);
-    // Hydration writes the layout's `lang` attribute back, so re-assert the
-    // chosen language once it has settled (and on every route change).
-    const frame = window.requestAnimationFrame(() => {
-      document.documentElement.lang = lang;
-    });
+    // The layout renders `<html lang="sv">` and React writes that back on every
+    // reconcile — hydration and soft navigations alike — so a one-shot fix loses
+    // the race. Watch the attribute and restore our language after each reset.
+    const html = document.documentElement;
+    const syncLang = () => {
+      if (html.lang !== lang) html.lang = lang;
+    };
+    syncLang();
+    const langWatch = new MutationObserver(syncLang);
+    langWatch.observe(html, { attributes: true, attributeFilter: ["lang"] });
     return () => {
       window.clearTimeout(first);
       stop();
-      window.cancelAnimationFrame(frame);
+      langWatch.disconnect();
     };
   }, [lang, mounted, pathname]);
 
