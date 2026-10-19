@@ -1271,11 +1271,17 @@ function customArt(
         body:
           `<path d="${spikes.join(" ")}Z" fill="#0b0612" stroke="#a855f7" stroke-width="2" stroke-linejoin="round"/>`,
         front:
-          // narrow angled eyes, then the saw-tooth grin
-          `<path d="M33 35l15-5-4 11-9 1Z" fill="#5cf53c"/>` +
-          `<path d="M67 35l-15-5 4 11 9 1Z" fill="#5cf53c"/>` +
-          `<path d="M25 52c9 5 41 5 50 0l-9 12-7-8-8 10-8-10-7 8Z" fill="#5cf53c"/>` +
-          `<path d="M35 56l4 6 3-5Z" fill="#0b0612"/><path d="M50 57l5 7 3-6Z" fill="#0b0612"/>`,
+          // Narrow angled eyes, then the saw-tooth grin. The teeth hang from a
+          // thin lip as separate fangs: a single zig-zag band read as a black
+          // bar across the face, because its gaps were the same black as the
+          // body behind it.
+          `<path d="M37 42l9-3-1.5 5-7 1.5Z" fill="#5cf53c"/>` +
+          `<path d="M63 42l-9-3 1.5 5 7 1.5Z" fill="#5cf53c"/>` +
+          `<path d="M36 55q14 5 28 0" stroke="#5cf53c" stroke-width="2.5" fill="none" stroke-linecap="round"/>` +
+          `<path d="M36.5 56.3l3 7.5 3-7.5Z" fill="#5cf53c"/>` +
+          `<path d="M43.5 57.4l3 7.5 3-7.5Z" fill="#5cf53c"/>` +
+          `<path d="M50.5 57.9l3 7.5 3-7.5Z" fill="#5cf53c"/>` +
+          `<path d="M57.5 56.6l3 7.5 3-7.5Z" fill="#5cf53c"/>`,
         face: null,
         ornament: true,
       };
