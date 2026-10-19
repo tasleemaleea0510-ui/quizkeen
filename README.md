@@ -149,6 +149,43 @@ commit within about twenty seconds. It previously built from the older
 `quizkeenOG` repository; if pushes ever stop deploying again, check that link
 first.
 
+### Render (`quizkeen.om.to`)
+
+`render.yaml` is the blueprint for a second, independent deployment of the
+student app on Render's free plan. The command console stays on Vercel.
+
+Setup, in this order — the DNS step cannot come first, because the record's
+target is the service's own hostname, which does not exist until the service does:
+
+1. On Render: **New → Blueprint**, pick this repository, apply. Render prompts
+   for the `sync: false` values from `.env.local`.
+2. Let the first build finish, open the service's `*.onrender.com` URL, and check
+   `/api/health` reports the commit with `environment: "render"`. If it does,
+   the app and Prisma are running on Render before any DNS is touched.
+3. Service → **Settings → Custom Domains → Add Custom Domain**: `quizkeen.om.to`.
+   Copy the target hostname Render shows (`quizkeen-abcd.onrender.com` or
+   similar) — that exact value is the DNS target, not a generic Render hostname.
+4. In Intent-DNS, open the `quizkeen.om.to` zone and add one record:
+
+   | Type | Name | Content | TTL |
+   | --- | --- | --- | --- |
+   | `ALIAS` | `@` | `quizkeen-abcd.onrender.com` | 3600 |
+
+   An apex domain cannot take a plain CNAME; the ALIAS record is what flattens
+   it, and this panel supports it. Do not add an `AAAA` record — Render serves
+   IPv4 only, and a stray AAAA makes the name resolve to nothing.
+5. Back in Render, press **Verify**. The certificate is issued only once the
+   record resolves, so a failed first attempt usually just means DNS has not
+   propagated. TTL is an hour, so budget that much.
+6. Before anyone signs in on the new origin, add it to Supabase → Authentication
+   → URL Configuration. Otherwise magic links and OAuth callbacks keep landing
+   on the Vercel deployment.
+
+Free instances sleep after 15 minutes without traffic and take about a minute to
+wake — the wrong trade for a quiz that starts on a bell. If this becomes the
+primary host, keep it warm with a five-minute ping: the 750 monthly free
+instance-hours cover exactly one always-on service (730), and nothing else.
+
 ### Build status
 
 `npm run build` succeeds and every route is listed as `ƒ (Dynamic)` — rendered
@@ -170,12 +207,13 @@ and see whether a push actually reached production rather than guessing from a
 
 | App | URL |
 | --- | --- |
-| Student app | https://quizkeen.vercel.app |
+| Student app (Vercel) | https://quizkeen.vercel.app |
+| Student app (Render) | https://quizkeen.om.to — until the custom domain verifies, use the service's `*.onrender.com` URL |
 | Command console | https://quizkeencommand.vercel.app |
 
-Both projects build from this repository on every push to `main`. `quizkeen.om.to`
-is retired — it is no longer part of the setup, so nothing should point at it or
-wait on it.
+Both Vercel projects build from this repository on every push to `main`.
+`quizkeen.om.to` is being moved onto the Render deployment described above; until
+that custom domain verifies, nothing should depend on it.
 
 Open `/api/health` on the student app to see the short commit hash, the
 environment and a timestamp for the running production build. Compare it with

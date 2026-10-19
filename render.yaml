@@ -1,0 +1,45 @@
+# Render blueprint for the student app.
+#
+# Create the service with Render's "New → Blueprint" flow, pointed at this repo.
+# Everything below is the whole deployment: a Node web service running the
+# normal `next start` server, on the free plan.
+#
+# Two details that are easy to get wrong:
+#
+#  * `npm ci --include=dev` — Prisma, TypeScript and Tailwind all live in
+#    devDependencies, so a production-only install cannot build or even run
+#    `prisma generate`. Render's build container is not guaranteed to leave
+#    NODE_ENV unset, and an explicit flag costs nothing.
+#
+#  * `sync: false` — the five values below are prompted for in the dashboard
+#    when the Blueprint is created, so no secret ever lands in git. The two
+#    NEXT_PUBLIC_* values are read at *build* time, so they must be set before
+#    the first deploy, not after.
+services:
+  - type: web
+    name: quizkeen
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npm start
+    # The app already answers /api/health with a commit hash, so Render's own
+    # health check and the "is production current?" question share one route.
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
