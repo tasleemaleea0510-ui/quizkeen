@@ -1062,7 +1062,27 @@ export async function ownerMassGrant(s: S, role: MassRole, xp: number, coins: nu
     const data: any = {};
     if (x) data.xp = { increment: x };
     if (c) data.coins = { increment: c };
-    const res = await prisma.profile.updateMany({ where: massWhere(role), data });
+    const where = massWhere(role);
+    // Who is about to receive coins, read before the update. The coin ledger is
+    // what "mynt ut idag" and the admin's ledger view count, so a mass wave has
+    // to leave the same trace a single gift does.
+    const targets = c
+      ? await prisma.profile.findMany({ where, select: { id: true, username: true }, take: 1000 })
+      : [];
+    const res = await prisma.profile.updateMany({ where, data });
+    if (c && targets.length) {
+      await prisma.coinGrant
+        .createMany({
+          data: targets.map((t) => ({
+            staffId: "console:OWNER",
+            staffName: "OWNER",
+            targetId: t.id,
+            targetName: t.username,
+            amount: c,
+          })),
+        })
+        .catch(() => {});
+    }
 
     const bits = [x ? `${x > 0 ? "+" : ""}${x} XP` : "", c ? `${c > 0 ? "+" : ""}${c} mynt` : ""]
       .filter(Boolean)
