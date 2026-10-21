@@ -1,29 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Never cached: this endpoint exists to answer two questions in one request —
-// "is the live site up?" and "which build is it?".
+// Never cached: this endpoint exists to answer three questions in one request —
+// "is the live site up?", "which build is it?", and "can it reach what it needs?"
 export const dynamic = "force-dynamic";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
+type Probe = {
+  state: "ok" | "down" | "not-configured";
+  /** Why it failed: a Prisma code (P1001), a socket code (ENOTFOUND), or null. */
+  code: string | null;
+};
+
 /**
  * Wait for a dependency, but never forever. A health check that hangs on a dead
  * database is useless precisely when it matters most.
+ *
+ * The code is reported because "down" alone sends you hunting: `P1001` means the
+ * host is unreachable (usually an IPv6-only Supabase host called from a network
+ * without IPv6), `P1000` means it was reached and the credentials were refused,
+ * and `ENOTFOUND` means the name does not resolve at all.
  */
-async function probe(run: () => Promise<unknown>, timeoutMs = 4000): Promise<"ok" | "down"> {
+async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Probe> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       run(),
       new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error("timeout")), timeoutMs);
+        timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "TIMEOUT" })), timeoutMs);
       }),
     ]);
-    return "ok";
-  } catch {
-    return "down";
+    return { state: "ok", code: null };
+  } catch (e: any) {
+    const code = e?.code ?? e?.cause?.code ?? e?.cause?.errno ?? e?.name ?? null;
+    return { state: "down", code: code ? String(code).slice(0, 40) : null };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -32,19 +44,22 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 4000): Promise<"ok
 /**
  * Which build is serving, and whether the two services behind it answer.
  *
- * The extra two fields exist because "Failed to fetch" on the login form is
- * otherwise impossible to diagnose from a browser: it means the auth service is
- * unreachable, but the page looks perfectly healthy. `db` answers the same
- * question for everything else on the site (profiles, quizzes, broadcasts).
+ * The extra fields exist because "Failed to fetch" on the login form and an
+ * empty page are otherwise impossible to diagnose from a browser: both look
+ * like the site is fine. `db` covers everything data-driven (profiles, quizzes,
+ * broadcasts); `auth` covers signing in.
  *
  * It always answers 200 — a failing dependency is data for a human, not a
  * reason for the host to restart a process that is running fine.
  */
 export async function GET() {
-  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  // Render and Vercel expose the deployed commit under different names.
+  const sha = process.env.RENDER_GIT_COMMIT ?? process.env.VERCEL_GIT_COMMIT_SHA;
 
   const [db, auth] = await Promise.all([
-    probe(() => prisma.$queryRaw`SELECT 1`),
+    process.env.DATABASE_URL
+      ? probe(() => prisma.$queryRaw`SELECT 1`)
+      : Promise.resolve<Probe>({ state: "not-configured", code: null }),
     SUPABASE_URL
       ? probe(async () => {
           // Any HTTP answer proves the auth service is reachable, so this does
@@ -54,24 +69,26 @@ export async function GET() {
           await fetch(`${SUPABASE_URL}/auth/v1/health`, {
             cache: "no-store",
             headers: SUPABASE_ANON_KEY ? { apikey: SUPABASE_ANON_KEY } : {},
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(6000),
           });
         })
-      : Promise.resolve("down" as const),
+      : Promise.resolve<Probe>({ state: "not-configured", code: null }),
   ]);
 
   return NextResponse.json({
-    // `ok` now means "the app and its database both answer", which is the
-    // question someone checking a deploy actually has.
-    ok: db === "ok",
+    // `ok` means "the app and its database both answer", which is the question
+    // someone checking a deploy actually has.
+    ok: db.state === "ok",
     app: "QuizKeen",
     // Short commit of the deployment serving this request. Comparing it with
     // `git rev-parse HEAD` proves whether a push actually reached production.
     commit: sha ? sha.slice(0, 7) : "local",
-    environment: process.env.VERCEL_ENV ?? (process.env.RENDER ? "render" : "local"),
-    region: process.env.VERCEL_REGION ?? process.env.RENDER_REGION ?? "local",
-    db,
-    auth: SUPABASE_URL ? auth : "not-configured",
+    environment: process.env.RENDER ? "render" : (process.env.VERCEL_ENV ?? "local"),
+    region: process.env.RENDER_REGION ?? process.env.VERCEL_REGION ?? "local",
+    db: db.state,
+    dbCode: db.code,
+    auth: auth.state,
+    authCode: auth.code,
     time: new Date().toISOString(),
   });
 }
