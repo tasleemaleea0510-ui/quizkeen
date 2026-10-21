@@ -14,7 +14,25 @@ type Probe = {
   code: string | null;
   /** One line of plain advice for that code, so the answer is actionable. */
   hint: string | null;
+  /** The library's own words, with any credentials stripped out. */
+  detail: string | null;
 };
+
+/**
+ * Keep the useful half of an error message and drop the dangerous half.
+ *
+ * A connection error names its host, which is harmless (it is in DNS anyway),
+ * but a malformed DATABASE_URL is echoed back in full — password included — so
+ * anything between "//" and "@" is replaced before this ever leaves the server.
+ */
+function scrub(message: unknown): string | null {
+  if (!message) return null;
+  const text = String(message)
+    .replace(/\/\/[^@\s]+@/g, "//***@")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? text.slice(0, 180) : null;
+}
 
 const HINTS: Record<string, string> = {
   P1000: "Databasen svarar men avvisar inloggningen — kontrollera användare och lösenord i DATABASE_URL.",
@@ -45,13 +63,18 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Pro
         timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "TIMEOUT" })), timeoutMs);
       }),
     ]);
-    return { state: "ok", code: null, hint: null };
+    return { state: "ok", code: null, hint: null, detail: null };
   } catch (e: any) {
     // Prisma puts its own code on `errorCode` (P1001), plain sockets on `code`
     // (ENOTFOUND), and fetch buries the real cause one level down.
     const raw = e?.errorCode ?? e?.code ?? e?.cause?.code ?? e?.cause?.errno ?? e?.name ?? null;
     const code = raw ? String(raw).slice(0, 40) : null;
-    return { state: "down", code, hint: code ? (HINTS[code] ?? null) : null };
+    return {
+      state: "down",
+      code,
+      hint: code ? (HINTS[code] ?? null) : null,
+      detail: scrub(e?.message ?? e?.cause?.message),
+    };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -75,7 +98,12 @@ export async function GET() {
   const [db, auth] = await Promise.all([
     process.env.DATABASE_URL
       ? probe(() => prisma.$queryRaw`SELECT 1`)
-      : Promise.resolve<Probe>({ state: "not-configured", code: null, hint: "DATABASE_URL saknas i den här tjänsten." }),
+      : Promise.resolve<Probe>({
+          state: "not-configured",
+          code: null,
+          hint: "DATABASE_URL saknas i den här tjänsten.",
+          detail: null,
+        }),
     SUPABASE_URL
       ? probe(async () => {
           // Any HTTP answer proves the auth service is reachable, so this does
@@ -88,7 +116,12 @@ export async function GET() {
             signal: AbortSignal.timeout(6000),
           });
         })
-      : Promise.resolve<Probe>({ state: "not-configured", code: null, hint: "NEXT_PUBLIC_SUPABASE_URL saknas i den här tjänsten." }),
+      : Promise.resolve<Probe>({
+          state: "not-configured",
+          code: null,
+          hint: "NEXT_PUBLIC_SUPABASE_URL saknas i den här tjänsten.",
+          detail: null,
+        }),
   ]);
 
   return NextResponse.json({
@@ -104,9 +137,11 @@ export async function GET() {
     db: db.state,
     dbCode: db.code,
     dbHint: db.hint,
+    dbDetail: db.detail,
     auth: auth.state,
     authCode: auth.code,
     authHint: auth.hint,
+    authDetail: auth.detail,
     time: new Date().toISOString(),
   });
 }
