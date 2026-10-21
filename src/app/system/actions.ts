@@ -1,7 +1,12 @@
 "use server";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { isBroadcastLive, readBroadcast } from "@/lib/broadcast";
+import { clientIp, resolveGeo } from "@/lib/geo";
+
+/** How long a resolved country is trusted before it is looked up again. */
+const GEO_TTL_MS = 6 * 60 * 60 * 1000;
 
 export async function clearPasswordNote() {
   const supabase = await createClient();
@@ -143,11 +148,57 @@ export async function acceptRename(newName: string) {
   await prisma.profile.update({ where: { id: user.id }, data: { username: n, renameRequested: false } });
   return { ok: true, info: "Nytt namn har sparats!" };
 }
+/**
+ * Heartbeat + location, once every 15 seconds per open tab.
+ *
+ * The heartbeat is what makes "online now" work. It is also the only place
+ * that knows the caller's address, so it records that too — but only when the
+ * address changed or the answer is old, so the geo lookup runs a handful of
+ * times a day instead of on every tick.
+ *
+ * It writes PageVisit on a page change as well: the owner's "time machine"
+ * reads that table, and until now nothing in the student app ever filled it,
+ * which is why every lookup came back empty.
+ */
 export async function pingPresence(path: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false };
-  await prisma.profile.update({ where: { id: user.id }, data: { lastSeenAt: new Date(), livePath: path } });
+
+  const now = new Date();
+  const before = await prisma.profile
+    .findUnique({
+      where: { id: user.id },
+      select: { username: true, livePath: true, lastIp: true, ipAt: true },
+    })
+    .catch(() => null);
+
+  if (before && before.livePath !== path) {
+    const p = path && path.startsWith("/") ? path.slice(0, 200) : "/";
+    await prisma.pageVisit.create({ data: { username: before.username, path: p } }).catch(() => {});
+  }
+
+  let location: { lastIp?: string; ipAt?: Date; ipCountry?: string | null; ipCountryCode?: string | null; ipCity?: string | null } = {};
+  try {
+    const h = headers();
+    const ip = clientIp(h);
+    const stale = !before?.ipAt || now.getTime() - before.ipAt.getTime() > GEO_TTL_MS;
+    if (ip && (ip !== before?.lastIp || stale)) {
+      const geo = await resolveGeo(h, ip);
+      location = {
+        lastIp: ip,
+        ipAt: now,
+        ...(geo ? { ipCountry: geo.country, ipCountryCode: geo.countryCode, ipCity: geo.city } : {}),
+      };
+    }
+  } catch {
+    // No headers (or no network): the heartbeat still has to land.
+  }
+
+  await prisma.profile.update({
+    where: { id: user.id },
+    data: { lastSeenAt: now, livePath: path, ...location },
+  });
   return { ok: true };
 }
 export async function getLiveState() {
