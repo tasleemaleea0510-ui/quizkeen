@@ -486,11 +486,10 @@ export async function modTogglePin(targetId: string): Promise<Result> {
 
 type Switch = "freeze" | "shadow" | "ghost" | "relogin";
 
-const SWITCH_COPY: Record<Switch, { field: "coinsFrozen" | "shadowed" | "ghostMode"; on: string; off: string }> = {
+const SWITCH_COPY: Record<"freeze" | "shadow" | "ghost", { field: "coinsFrozen" | "shadowed" | "ghostMode"; on: string; off: string }> = {
   freeze: { field: "coinsFrozen", on: "mynten är frysta", off: "mynten är upplåsta" },
   shadow: { field: "shadowed", on: "osynlig på topplistan", off: "synlig på topplistan igen" },
   ghost: { field: "ghostMode", on: "meddelanden dolda i gemensamma chattar", off: "synlig i chatten igen" },
-  relogin: { field: "forceRelogin", on: "", off: "" },
 };
 
 export async function modToggle(targetId: string, which: Switch): Promise<Result> {

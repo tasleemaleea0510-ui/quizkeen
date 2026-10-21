@@ -17,7 +17,7 @@ export function maskIp(ip: string | null | undefined): string {
 export function flagFor(code: string | null | undefined): string {
   const cc = (code || "").trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(cc)) return "🌍";
-  return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+  return String.fromCodePoint(...cc.split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }
 
 export function countryName(code: string | null | undefined, fallback?: string | null): string {

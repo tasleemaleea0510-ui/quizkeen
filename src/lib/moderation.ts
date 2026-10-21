@@ -186,7 +186,10 @@ export function normalizeColor(input: string | null | undefined): string | null 
   const raw = (input || "").trim();
   const short = /^#([0-9a-f]{3})$/i.exec(raw);
   if (short) {
-    const [r, g, b] = short[1];
+    const hex = short[1];
+    const r = hex[0];
+    const g = hex[1];
+    const b = hex[2];
     return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
   if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
