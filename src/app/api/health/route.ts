@@ -73,7 +73,9 @@ const HINTS: Record<string, string> = {
   P2021: "Tabellerna saknas — schemat är inte uppladdat till den här databasen.",
   P2022: "En kolumn saknas — schemat är äldre än koden, kör prisma db push.",
   ENOTFOUND: "Namnet finns inte i DNS från servern — starta om tjänsten; kvarstår det, kontrollera projektets URL.",
-  TENANT: "Fel region i DATABASE_URL: pooler-adressen tillhör en annan region. Kopiera \"Session pooler\"-strängen från Supabase → Project Settings → Database.",
+  // The host can be right and this still happens when the server cannot reach
+  // Supabase at all — the pooler then reports it cannot find the project.
+  TENANT: "Poolern hittar inte projektet härifrån. Kontrollera att DATABASE_URL är Supabase \"Session pooler\" och att servern kan nå *.supabase.co (DNS/utgående nätverk).",
   TIMEOUT: "Svarade inte inom 6 sekunder.",
   UND_ERR_CONNECT_TIMEOUT: "Anslutningen tog för lång tid.",
 };
