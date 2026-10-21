@@ -54,7 +54,11 @@ type Info = { text: string; ok: boolean } | null;
 
 function remaining(iso: string | null): string {
   if (!iso) return "";
-  return humanRemaining(new Date(iso).getTime() - Date.now());
+  const at = new Date(iso);
+  // "För alltid" is stored as 2099; printing "28369 d 9 tim" for it is worse
+  // than useless to whoever is reading the row.
+  if (at.getUTCFullYear() >= 2090) return "för alltid";
+  return humanRemaining(at.getTime() - Date.now());
 }
 
 function ago(iso: string | null): string {
@@ -276,7 +280,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
                   setReason={(v) => setReasons((r) => ({ ...r, [p.id]: v }))}
                   customMinutes={customMin[p.id] ?? ""}
                   setCustomMinutes={(v) => setCustomMin((r) => ({ ...r, [p.id]: v }))}
-                  coins={coinAmt[p.id] ?? ""}
+                  coins={coinAmt[p.id] ?? "100"}
                   setCoins={(v) => setCoinAmt((r) => ({ ...r, [p.id]: v }))}
                   budget={data?.coinsBudget ?? ADMIN_COIN_DAILY_CAP}
                 />
@@ -356,6 +360,8 @@ function PlayerRow({
   const protectedOwner = p.role === "OWNER";
   const staffTarget = p.role === "ADMIN" || p.role === "SECURITY";
   const canPunish = !self && !protectedOwner && (staffRole === "OWNER" || !staffTarget);
+  // Pins and colours are decoration, not discipline: same ladder, plus yourself.
+  const canDecorate = self || (!protectedOwner && (staffRole === "OWNER" || !staffTarget));
   const canOwnerSwitch = staffRole === "OWNER" && (self || !protectedOwner);
   const canCoins = staffRole !== "SECURITY" && (self || !protectedOwner);
   const coinsLeft = Math.max(0, budget - p.coinsGivenToday);
@@ -421,6 +427,7 @@ function PlayerRow({
             </p>
           )}
 
+          {(canPunish || canCoins || canDecorate) && (
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Orsak (valfri)</p>
             <input
@@ -431,6 +438,7 @@ function PlayerRow({
               className="w-full rounded-lg border border-white/10 bg-slate-950/70 px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:border-indigo-400/60 focus:outline-none"
             />
           </div>
+          )}
 
           {canPunish && (
             <section className="space-y-1.5">
@@ -506,15 +514,17 @@ function PlayerRow({
                 Rensa varningar
               </ActionChip>
             )}
-            <ActionChip
-              tone={p.pinned ? "amber" : "slate"}
-              icon={Pin}
-              disabled={!!busy}
-              loading={busy === key("pin")}
-              onClick={() => run(key("pin"), () => modTogglePin(p.id))}
-            >
-              {p.pinned ? "Avfäst" : "Fäst"}
-            </ActionChip>
+            {canDecorate && (
+              <ActionChip
+                tone={p.pinned ? "amber" : "slate"}
+                icon={Pin}
+                disabled={!!busy}
+                loading={busy === key("pin")}
+                onClick={() => run(key("pin"), () => modTogglePin(p.id))}
+              >
+                {p.pinned ? "Avfäst" : "Fäst"}
+              </ActionChip>
+            )}
           </div>
 
           {canPunish && (
@@ -581,7 +591,7 @@ function PlayerRow({
             </section>
           )}
 
-          {(staffRole === "OWNER" || (!staffTarget && !protectedOwner)) && (
+          {canDecorate && (
             <section className="space-y-1.5">
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-fuchsia-300/80">
                 <Palette className="h-3 w-3" /> Namnfärg
