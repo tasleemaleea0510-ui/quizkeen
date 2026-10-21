@@ -94,6 +94,39 @@ function startOfDay(): Date {
 
 const ADMIN_COIN_DAILY_CAP = 1000;
 
+/**
+ * Who a staff code may act on.
+ *
+ * The old actions took a username and never looked at the target's role, so a
+ * security code could ban an admin and an admin could ban a colleague. The
+ * in-app moderation panel already refuses that; this makes both tools agree.
+ * Only the owner reaches staff accounts, and nobody reaches the owner.
+ */
+async function targetGuard(
+  actorRole: string,
+  username: string
+): Promise<{ ok: true; id: string; username: string; role: string } | { ok: false; info: string }> {
+  const t = await prisma.profile.findUnique({
+    where: { username },
+    select: { id: true, username: true, role: true },
+  });
+  if (!t) return { ok: false, info: "Användaren finns inte." };
+  if (t.role === "OWNER") return { ok: false, info: "Ägarens konto är skyddat." };
+  if (actorRole !== "OWNER" && (t.role === "ADMIN" || t.role === "SECURITY")) {
+    return { ok: false, info: "Bara ägaren kan göra det mot personal." };
+  }
+  return { ok: true, ...t };
+}
+
+/** Security may only lift short sanctions; a day-long ban is someone else's call. */
+function secCanUndo(until: Date | null): { ok: true } | { ok: false; info: string } {
+  if (!until) return { ok: true };
+  if (until.getTime() - Date.now() > 60 * 60_000) {
+    return { ok: false, info: "Bara admin eller ägaren kan häva den bannen." };
+  }
+  return { ok: true };
+}
+
 // ─── unlock ──────────────────────────────────────────────────────────────
 
 export async function unlock(code: string, kind: "OWNER" | "ADMIN" | "SECURITY") {
@@ -645,6 +678,8 @@ function maxMuteMinutes(role: string): number {
 
 export async function muteChat(s: S, id: string, username: string, minutes: number) {
   return withAuth("STAFF", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     let mins = whole(minutes, 0);
     const cap = maxMuteMinutes(s.role);
     // Every staff console could ask for a permanent mute here, while the
@@ -682,6 +717,8 @@ export async function togglePin(s: S, id: string, username: string) {
 
 export async function toggleGhost(s: S, id: string, username: string) {
   return withAuth("SECURITY", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     const u = await prisma.profile.findUnique({ where: { id } });
     if (!u) return { ok: false, info: GENERIC_FAILURE };
     const next = !u.ghostMode;
@@ -700,6 +737,8 @@ export async function toggleGhost(s: S, id: string, username: string) {
 
 export async function adminBan(s: S, username: string, minutes: number, reason: string) {
   return withAuth("ADMIN", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     const mins = whole(minutes, 10);
     if (mins <= 0) return { ok: false, info: "Bara ägaren kan banna för alltid." };
     if (mins > 1440) return { ok: false, info: "Max 1 dag — be ägaren om mer!" };
@@ -712,6 +751,8 @@ export async function adminBan(s: S, username: string, minutes: number, reason: 
 
 export async function adminUnban(s: S, username: string) {
   return withAuth("ADMIN", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     await prisma.profile.update({ where: { username }, data: { bannedUntil: null, banMessage: null } });
     await log("[ADMIN]", `unbannade ${username}`);
     return { ok: true, info: `${username} är fri!` };
@@ -787,6 +828,8 @@ export async function secWarn(s: S, id: string, username: string) {
 
 export async function secBan(s: S, username: string, minutes: number) {
   return withAuth("SECURITY", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     const mins = whole(minutes, 10);
     if (mins <= 0) return { ok: false, info: "Bara ägaren kan banna för alltid." };
     if (mins > 60) return { ok: false, info: "Max 1 timme — be ägaren!" };
@@ -831,6 +874,14 @@ export async function adminGiveCoins(s: S, id: string, username: string, amt: nu
 /** Was returning ok:false even on success, so the UI always claimed failure. */
 export async function secUnban(s: S, username: string) {
   return withAuth("SECURITY", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
+    const target = await prisma.profile.findUnique({
+      where: { username },
+      select: { bannedUntil: true },
+    });
+    const allowed = secCanUndo(target?.bannedUntil ?? null);
+    if (!allowed.ok) return allowed;
     await prisma.profile.update({ where: { username }, data: { bannedUntil: null, banMessage: null } });
     await log("[SECURITY]", `unbannade ${username}`);
     return { ok: true, info: `${username} är fri!` };
