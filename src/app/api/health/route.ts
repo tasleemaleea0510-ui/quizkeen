@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { lookup } from "node:dns/promises";
 import { prisma } from "@/lib/prisma";
 
 // Never cached: this endpoint exists to answer three questions in one request —
@@ -34,6 +35,37 @@ function scrub(message: unknown): string | null {
   return text ? text.slice(0, 180) : null;
 }
 
+/** Host and port of a URL, without credentials. Safe to publish. */
+function endpoint(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    return `${u.hostname}${u.port ? `:${u.port}` : ""}`;
+  } catch {
+    return "(ogiltig URL)";
+  }
+}
+
+/**
+ * What the resolver on THIS server says about the auth host.
+ *
+ * The difference between "the browser cannot reach Supabase" and "this box
+ * cannot resolve Supabase" decides which side to fix, and a plain ENOTFOUND
+ * cannot tell them apart.
+ */
+async function resolveHost(host: string | null): Promise<string | null> {
+  if (!host || host === "(ogiltig URL)") return null;
+  try {
+    const addrs = await Promise.race([
+      lookup(host, { all: true }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 3000)),
+    ]);
+    return (addrs as { address: string }[]).map((a) => a.address).slice(0, 4).join(", ") || "inga svar";
+  } catch (e: any) {
+    return `fel: ${String(e?.code ?? e?.message ?? "okänt").slice(0, 40)}`;
+  }
+}
+
 const HINTS: Record<string, string> = {
   P1000: "Databasen svarar men avvisar inloggningen — kontrollera användare och lösenord i DATABASE_URL.",
   P1001: "Databasen går inte att nå härifrån — använd pooler-adressen från Supabase (IPv4) i DATABASE_URL.",
@@ -41,6 +73,7 @@ const HINTS: Record<string, string> = {
   P2021: "Tabellerna saknas — schemat är inte uppladdat till den här databasen.",
   P2022: "En kolumn saknas — schemat är äldre än koden, kör prisma db push.",
   ENOTFOUND: "Namnet finns inte i DNS från servern — starta om tjänsten; kvarstår det, kontrollera projektets URL.",
+  TENANT: "Fel region i DATABASE_URL: pooler-adressen tillhör en annan region. Kopiera \"Session pooler\"-strängen från Supabase → Project Settings → Database.",
   TIMEOUT: "Svarade inte inom 6 sekunder.",
   UND_ERR_CONNECT_TIMEOUT: "Anslutningen tog för lång tid.",
 };
@@ -68,7 +101,12 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Pro
     // Prisma puts its own code on `errorCode` (P1001), plain sockets on `code`
     // (ENOTFOUND), and fetch buries the real cause one level down.
     const raw = e?.errorCode ?? e?.code ?? e?.cause?.code ?? e?.cause?.errno ?? e?.name ?? null;
-    const code = raw ? String(raw).slice(0, 40) : null;
+    const message = String(e?.message ?? e?.cause?.message ?? "");
+    // Supabase's pooler says this when the hostname is in a different region
+    // than the project. It is a configuration error, not an outage, so it gets
+    // its own code instead of hiding inside the library's words.
+    const tenantMismatch = /tenant\/user .* not found/i.test(message);
+    const code = tenantMismatch ? "TENANT" : raw ? String(raw).slice(0, 40) : null;
     return {
       state: "down",
       code,
@@ -94,6 +132,10 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Pro
 export async function GET() {
   // Render and Vercel expose the deployed commit under different names.
   const sha = process.env.RENDER_GIT_COMMIT ?? process.env.VERCEL_GIT_COMMIT_SHA;
+
+  const dbEndpoint = endpoint(process.env.DATABASE_URL);
+  const authEndpoint = endpoint(SUPABASE_URL);
+  const authDns = await resolveHost(authEndpoint?.split(":")[0] ?? null);
 
   const [db, auth] = await Promise.all([
     process.env.DATABASE_URL
@@ -138,10 +180,15 @@ export async function GET() {
     dbCode: db.code,
     dbHint: db.hint,
     dbDetail: db.detail,
+    // Hostnames only — never the credentials that sit beside them.
+    dbHost: dbEndpoint?.split(":")[0] ?? null,
+    dbPort: dbEndpoint?.split(":")[1] ?? null,
     auth: auth.state,
     authCode: auth.code,
     authHint: auth.hint,
     authDetail: auth.detail,
+    supabaseHost: authEndpoint ?? null,
+    supabaseDns: authDns,
     time: new Date().toISOString(),
   });
 }
