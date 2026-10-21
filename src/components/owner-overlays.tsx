@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { clearPasswordNote, getOverlayState, getBanStatus, acceptRename } from "@/app/system/actions";
-import { Wrench, ShieldAlert, Megaphone, Mail, Bell, Key, Edit3, X } from "lucide-react";
+import { Wrench, ShieldAlert, Megaphone, Mail, Bell, Edit3, X, Clock } from "lucide-react";
 
 export function MaintenanceScreen() {
   return (
@@ -98,8 +98,28 @@ function TickerUnit({ text }: { text: string }) {
 // across the bar in half a minute, which is what made it feel broken.
 const TICKER_SPEED = 110;
 
-export function Overlays({ broadcast, passwordNote }: { broadcast: string | null; passwordNote: string | null }) {
+/** "4:12" — the time left on a timed notice, rounded up so it never shows 0:00 while still up. */
+function timeLeft(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+export function Overlays({
+  broadcast,
+  broadcastUntil,
+  passwordNote,
+  signedIn,
+}: {
+  broadcast: string | null;
+  broadcastUntil: string | null;
+  passwordNote: string | null;
+  signedIn: boolean;
+}) {
   const [bc, setBc] = useState(broadcast);
+  const [until, setUntil] = useState<string | null>(broadcastUntil);
+  const [now, setNow] = useState(() => Date.now());
   const [note, setNote] = useState(passwordNote);
   const [showNote, setShowNote] = useState(!!passwordNote);
   const [renameReq, setRenameReq] = useState(false);
@@ -141,8 +161,49 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
   const reps = unitWidth > 0 && barWidth > 0 ? Math.max(1, Math.ceil(barWidth / unitWidth)) : 1;
   const tickerSeconds = unitWidth > 0 ? (unitWidth * reps) / TICKER_SPEED : 22;
 
+  useEffect(() => setMounted(true), []);
+
+  // The banner comes from a public route, not a server action, for two reasons:
+  // it has to reach visitors who are signed out, and it must keep working when
+  // the auth service is slow or down. A server action that begins with a
+  // Supabase call fails for everyone at once when auth has a bad day, which is
+  // exactly why some people saw the notice and others did not.
   useEffect(() => {
-    setMounted(true);
+    let alive = true;
+    const pull = async () => {
+      try {
+        const res = await fetch("/api/broadcast", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { broadcast: { text: string; until: string | null } | null };
+        if (!alive) return;
+        setBc(data?.broadcast?.text ?? null);
+        setUntil(data?.broadcast?.until ?? null);
+      } catch {
+        // Network flap: keep showing the last notice we knew about.
+      }
+    };
+    pull();
+    const iv = setInterval(pull, 12000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
+
+  // One clock for the "stops in" counter. Ticking only while a timed notice is
+  // on screen keeps the whole app from re-rendering every second for nothing.
+  useEffect(() => {
+    if (!until) return;
+    setNow(Date.now());
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [until]);
+
+  // The session-dependent overlays (a personal note, a forced rename, a forced
+  // sign-out) only make sense for someone who is signed in, so signed-out
+  // visitors never pay for the auth round-trip behind them.
+  useEffect(() => {
+    if (!signedIn) return;
     const iv = setInterval(async () => {
       const s = await getOverlayState().catch(() => null);
       if (!s) return;
@@ -153,19 +214,23 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
         window.location.href = "/login";
         return;
       }
-      const { passwordNote: n, broadcast: b, renameRequested: rr } = s;
+      const { passwordNote: n, renameRequested: rr } = s;
       if (n) { setNote(n); setShowNote(true); }
-      setBc(b);
       setRenameReq(!!rr);
-    }, 4000);
+    }, 5000);
     return () => clearInterval(iv);
-  }, []);
+  }, [signedIn]);
 
   if (!mounted || typeof document === "undefined") return null;
 
+  // A timed notice disappears the second its clock runs out, without waiting
+  // for the next poll to notice.
+  const msLeft = until ? new Date(until).getTime() - now : null;
+  const live = !!bc && (msLeft === null || msLeft > 0);
+
   return createPortal(
     <>
-      {bc && (
+      {live && bc && (
         <div className="fixed left-0 right-0 top-16 z-30 flex items-stretch overflow-hidden border-b border-amber-500/40 bg-gradient-to-r from-amber-600/20 via-amber-400/10 to-amber-600/20 backdrop-blur">
           <span className="flex shrink-0 items-center gap-1.5 border-r border-amber-500/30 bg-amber-500/25 px-3 text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
             <Megaphone className="h-4 w-4" />
@@ -195,6 +260,17 @@ export function Overlays({ broadcast, passwordNote }: { broadcast: string | null
               )}
             </div>
           </div>
+          {/* Only a timed notice gets a clock, so a permanent one is not
+              dressed up with a fake expiry. */}
+          {msLeft !== null && (
+            <span
+              className="flex shrink-0 items-center gap-1.5 border-l border-amber-500/30 bg-amber-500/15 px-3 text-[11px] font-bold tabular-nums text-amber-200/90"
+              title="Tid kvar på sändningen"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {timeLeft(msLeft)}
+            </span>
+          )}
         </div>
       )}
       {showNote && note && !renameReq && (

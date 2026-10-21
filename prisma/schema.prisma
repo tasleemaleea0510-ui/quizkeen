@@ -95,6 +95,10 @@ model AdminSettings {
   adminCode    String
   securityCode String
   broadcast    String?
+  // When the broadcast expires. Null means "until somebody stops it"; a time
+  // in the past is treated as no broadcast at all, so a forgotten sändning
+  // cannot sit on top of the site for a week.
+  broadcastUntil DateTime?
   shutdown     Boolean @default(false)
 }
 

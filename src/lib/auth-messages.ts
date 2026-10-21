@@ -6,6 +6,19 @@
  */
 export function authErrorSv(message: string): string {
   const m = (message || "").toLowerCase();
+  // Every browser words a dead request differently: Chrome "Failed to fetch",
+  // Safari "Load failed", Firefox "NetworkError". None of them tell a student
+  // anything, and the cause is never their password — so say what it means.
+  if (
+    m.includes("failed to fetch") ||
+    m.includes("load failed") ||
+    m.includes("networkerror") ||
+    m.includes("network error") ||
+    m.includes("fetch failed") ||
+    m.includes("network request failed")
+  ) {
+    return "Kunde inte nå servern. Kontrollera din internetuppkoppling och försök igen om en stund — funkar det fortfarande inte är QuizKeen tillfälligt nere.";
+  }
   if (m.includes("already registered") || m.includes("already been registered") || m.includes("user already exists")) {
     return "Den här e-postadressen har redan ett konto — logga in i stället.";
   }

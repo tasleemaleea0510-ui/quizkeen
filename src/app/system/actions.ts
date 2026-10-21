@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { isBroadcastLive, readBroadcast } from "@/lib/broadcast";
 
 export async function clearPasswordNote() {
   const supabase = await createClient();
@@ -54,9 +55,9 @@ export async function getNavUser(): Promise<{ username: string; role: string } |
   const p = await prisma.profile.findUnique({ where: { id: user.id }, select: { username: true, role: true } });
   return p ? { username: p.username, role: p.role } : null;
 }
+/** The live notice, or null once its time is up. No auth needed. */
 export async function getBroadcast() {
-  const s = await prisma.adminSettings.findUnique({ where: { id: 1 } });
-  return s?.broadcast ?? null;
+  return (await readBroadcast())?.text ?? null;
 }
 export async function studentSendChat(targetRole: string, text: string) {
   const supabase = await createClient();
@@ -90,7 +91,7 @@ export async function getOverlayState() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const [settings, profile] = await Promise.all([
-    prisma.adminSettings.findUnique({ where: { id: 1 }, select: { broadcast: true } }),
+    prisma.adminSettings.findUnique({ where: { id: 1 }, select: { broadcast: true, broadcastUntil: true } }),
     user
       ? prisma.profile.findUnique({
           where: { id: user.id },
@@ -103,14 +104,21 @@ export async function getOverlayState() {
   // runs as a server action on a timer for every signed-in user, so it is where
   // the flag can actually end the session: clear it first (so a failure can't
   // lock someone in a sign-out loop) and then drop the auth cookies.
+  // Expiry is applied on every read: once `broadcastUntil` has passed the
+  // notice is simply gone, whether or not anybody remembered to clear it.
+  const live = isBroadcastLive(settings?.broadcast, settings?.broadcastUntil);
+  const broadcast = live ? settings!.broadcast!.trim() : null;
+  const broadcastUntil = live && settings?.broadcastUntil ? settings.broadcastUntil.toISOString() : null;
+
   if (profile?.forceRelogin && user) {
     await prisma.profile.update({ where: { id: user.id }, data: { forceRelogin: false } }).catch(() => {});
     await supabase.auth.signOut().catch(() => {});
-    return { broadcast: settings?.broadcast ?? null, passwordNote: null, renameRequested: false, signedOut: true };
+    return { broadcast, broadcastUntil, passwordNote: null, renameRequested: false, signedOut: true };
   }
 
   return {
-    broadcast: settings?.broadcast ?? null,
+    broadcast,
+    broadcastUntil,
     passwordNote: profile?.passwordNote ?? null,
     renameRequested: !!profile?.renameRequested,
     signedOut: false,

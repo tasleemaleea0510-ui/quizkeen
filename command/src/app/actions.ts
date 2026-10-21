@@ -106,7 +106,25 @@ export async function getOwnerData(s: S) {
     const totCoins = users.reduce((a, u) => a + u.coins, 0);
     return {
       users: users.map(userShape).sort(byPinnedFirst),
-      settings: settings || { ownerCode: "", adminCode: "", securityCode: "", broadcast: "", shutdown: false },
+      // Explicit shape, with dates as ISO strings: the console needs to know
+      // *when* the notice ends, not just the text.
+      settings: settings
+        ? {
+            ownerCode: settings.ownerCode,
+            adminCode: settings.adminCode,
+            securityCode: settings.securityCode,
+            broadcast: settings.broadcast ?? "",
+            broadcastUntil: settings.broadcastUntil ? settings.broadcastUntil.toISOString() : null,
+            shutdown: settings.shutdown,
+          }
+        : {
+            ownerCode: "",
+            adminCode: "",
+            securityCode: "",
+            broadcast: "",
+            broadcastUntil: null,
+            shutdown: false,
+          },
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
       stats: { users: users.length, teachers, quizzes, decks, games, totXP, totCoins },
     };
@@ -118,12 +136,21 @@ export async function getOwnerData(s: S) {
 export async function getAdminData(s: S) {
   try {
     if (!(await ok(s, "ADMIN"))) return null;
-    const [users, logRows] = await Promise.all([
+    const [users, logRows, settings] = await Promise.all([
       prisma.profile.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+      prisma.adminSettings.findFirst({ select: { broadcast: true, broadcastUntil: true } }),
     ]);
+    const until = settings?.broadcastUntil ?? null;
+    const live = !!settings?.broadcast?.trim() && (!until || until.getTime() > Date.now());
     return {
       users: users.map(userShape).sort(byPinnedFirst),
+      // The banner tab needs to show what is already on screen — otherwise an
+      // admin opens it, sees an empty box, and assumes nothing is running.
+      settings: {
+        broadcast: live ? settings!.broadcast : "",
+        broadcastUntil: live && until ? until.toISOString() : null,
+      },
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
     };
   } catch {
@@ -303,14 +330,73 @@ export async function deleteUser(s: S, id: string, username: string) {
   });
 }
 
-export async function setBroadcast(s: S, text: string) {
-  return withAuth("OWNER", s, async () => {
-    const existing = await prisma.adminSettings.findFirst();
-    if (existing) await prisma.adminSettings.update({ where: { id: existing.id }, data: { broadcast: text } });
-    await log("[OWNER]", text ? `sändning: "${text.slice(0, 50)}..."` : "rensade sändning");
-    return { ok: true, info: text ? "Sänt!" : "Rensat!" };
-  });
+// ─── broadcast ───────────────────────────────────────────────────────────
+
+/** Longest a timed sändning may run: a day. Anything longer is "tills vidare". */
+const MAX_BROADCAST_MINUTES = 1440;
+
+/**
+ * Turn a chosen duration into the moment the notice stops.
+ *
+ * `null` (or a nonsense value) means "until someone stops it". Clamping here,
+ * on the server, is what makes the duration real: the browser could post any
+ * number, and an unchecked one would either expire instantly or run for a year.
+ */
+function broadcastEndsAt(minutes: number | null | undefined): Date | null {
+  if (minutes === null || minutes === undefined) return null;
+  const m = Math.round(Number(minutes));
+  if (!Number.isFinite(m) || m <= 0) return null;
+  return new Date(Date.now() + Math.min(m, MAX_BROADCAST_MINUTES) * 60_000);
 }
+
+/** "tills vidare" or "10 min", for the log line. */
+function describeDuration(minutes: number | null | undefined, until: Date | null): string {
+  return until && minutes ? `${minutes} min` : "tills vidare";
+}
+
+/**
+ * The one place a broadcast is written and cleared, shared by the owner and
+ * admin actions so the two consoles can never disagree about what an empty
+ * message or a duration means.
+ */
+async function applyBroadcast(tag: string, text: string, minutes: number | null | undefined): Promise<Res> {
+  const existing = await prisma.adminSettings.findFirst();
+  if (!existing) return { ok: false, info: GENERIC_FAILURE };
+
+  const clean = (text ?? "").trim();
+
+  // Empty text means "stop it", the same as pressing the stop button. That is
+  // what the old clear button posted, and a half-typed message should never
+  // turn into a blank banner nobody can dismiss.
+  if (!clean) {
+    await prisma.adminSettings.update({
+      where: { id: existing.id },
+      data: { broadcast: null, broadcastUntil: null },
+    });
+    await log(tag, "stoppade sändningen");
+    return { ok: true, info: "Sändningen är stoppad." };
+  }
+
+  const until = broadcastEndsAt(minutes);
+  await prisma.adminSettings.update({
+    where: { id: existing.id },
+    data: { broadcast: clean, broadcastUntil: until },
+  });
+  await log(tag, `sändning (${describeDuration(minutes, until)}): "${clean.slice(0, 50)}"`);
+  return {
+    ok: true,
+    info: until ? `Sänt! Slutar om ${minutes} min.` : "Sänt! Den ligger kvar tills du stoppar den.",
+  };
+}
+
+export async function setBroadcast(s: S, text: string, minutes: number | null = null) {
+  return withAuth("OWNER", s, () => applyBroadcast("[OWNER]", text, minutes));
+}
+
+export async function stopBroadcast(s: S) {
+  return withAuth("OWNER", s, () => applyBroadcast("[OWNER]", "", null));
+}
+
 
 export async function setShutdown(s: S, on: boolean) {
   return withAuth("OWNER", s, async () => {
@@ -596,14 +682,12 @@ export async function adminRequestBan(s: S, target: string, minutes: number, rea
   });
 }
 
-export async function adminSetBroadcast(s: S, text: string) {
-  return withAuth("ADMIN", s, async () => {
-    const existing = await prisma.adminSettings.findFirst();
-    if (!existing) return { ok: false, info: GENERIC_FAILURE };
-    await prisma.adminSettings.update({ where: { id: existing.id }, data: { broadcast: text } });
-    await log("[ADMIN]", text ? `sändning: "${text.slice(0, 50)}..."` : "rensade sändning");
-    return { ok: true, info: text ? "Sänt!" : "Rensat!" };
-  });
+export async function adminSetBroadcast(s: S, text: string, minutes: number | null = null) {
+  return withAuth("ADMIN", s, () => applyBroadcast("[ADMIN]", text, minutes));
+}
+
+export async function adminStopBroadcast(s: S) {
+  return withAuth("ADMIN", s, () => applyBroadcast("[ADMIN]", "", null));
 }
 
 // ─── security powers ─────────────────────────────────────────────────────

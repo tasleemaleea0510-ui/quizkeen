@@ -7,6 +7,7 @@ import Footer from "@/components/footer";
 import LiveStats from "@/components/live-stats";
 import ClassBanner from "@/components/class-banner";
 import { getViewer, getAdminSettings } from "@/lib/viewer";
+import { isBroadcastLive } from "@/lib/broadcast";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
 import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
@@ -53,6 +54,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const banned = !!(profile?.bannedUntil && profile.bannedUntil > new Date());
 
+  // Resolved on the server so a notice that has already run out is never part
+  // of the first paint, and signed-out visitors get it in the HTML itself.
+  const notice = isBroadcastLive(settings?.broadcast, settings?.broadcastUntil)
+    ? {
+        text: settings!.broadcast!.trim(),
+        until: settings?.broadcastUntil ? settings.broadcastUntil.toISOString() : null,
+      }
+    : null;
+
   return (
     <html lang="sv" className={`${sans.variable} ${display.variable}`}>
       <body className="min-h-screen font-sans antialiased selection:bg-indigo-500/30">
@@ -92,7 +102,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PresencePing />
               <LiveShareClient />
               <TranslateButton />
-              <Overlays broadcast={settings?.broadcast ?? null} passwordNote={profile?.passwordNote ?? null} />
+              <Overlays
+                broadcast={notice?.text ?? null}
+                broadcastUntil={notice?.until ?? null}
+                passwordNote={profile?.passwordNote ?? null}
+                signedIn={!!user}
+              />
             </>
           )}
         </Providers>

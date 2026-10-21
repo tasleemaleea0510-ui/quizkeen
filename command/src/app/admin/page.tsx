@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getAdminData,
@@ -9,6 +9,7 @@ import {
   adminRequestBan,
   adminGiveXP,
   adminSetBroadcast,
+  adminStopBroadcast,
   adminGiveAdminKeen,
   adminKeenHoldersList,
   requestLive,
@@ -39,7 +40,6 @@ import {
   Pray,
   Inbox,
   Handshake,
-  Eraser,
   Dot,
   Clock,
   Help,
@@ -50,6 +50,20 @@ import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } f
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "log" | "help";
+
+/** How long a sändning may run. `null` = until somebody stops it. */
+const BROADCAST_DURATIONS: { label: string; minutes: number | null }[] = [
+  { label: "5 min", minutes: 5 },
+  { label: "10 min", minutes: 10 },
+  { label: "20 min", minutes: 20 },
+  { label: "Tills vidare", minutes: null },
+];
+
+/** "12:04" — time left on a timed broadcast. */
+function timeLeftLabel(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
+}
 
 const QUICK = [
   { label: "5 min", min: 5 },
@@ -64,6 +78,11 @@ export default function AdminPage() {
   const [info, setInfo] = useState("");
   const [liveFor, setLiveFor] = useState<any>(null);
   const [bc, setBc] = useState("");
+  const [bcMin, setBcMin] = useState<number | null>(10);
+  // The section re-reads everything every 20 s; this keeps that refresh from
+  // wiping a half-written sändning.
+  const bcDirty = useRef(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [section, setSection] = useState<NavId>("users");
   const [chats, setChats] = useState<any>(null);
   const [q, setQ] = useState("");
@@ -98,8 +117,10 @@ export default function AdminPage() {
       try {
         const d = await getAdminData(sess!);
         if (!alive) return;
-        if (d) setData(d);
-        else router.replace("/");
+        if (d) {
+          setData(d);
+          if (!bcDirty.current) setBc(d.settings?.broadcast ?? "");
+        } else router.replace("/");
       } catch {
         if (alive) setInfo("Kunde inte läsa in data. Försök igen.");
       }
@@ -116,6 +137,12 @@ export default function AdminPage() {
     if (section !== "chats" || !s) return;
     spyOnChats(s).then(setChats).catch(() => setChats(null));
   }, [section, s]);
+
+  // One-second clock for the countdown on a timed sändning.
+  useEffect(() => {
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Loaded when the section is opened, and again after every grant, so the
   // badges never claim someone is missing a Keen they were just given.
@@ -178,6 +205,13 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  // What is live right now. A notice whose time has passed counts as gone,
+  // even if this console has not re-read the settings yet.
+  const liveText: string = data.settings?.broadcast ?? "";
+  const liveUntil: string | null = data.settings?.broadcastUntil ?? null;
+  const liveMs = liveUntil ? new Date(liveUntil).getTime() - nowTick : null;
+  const isLive = !!liveText.trim() && (liveMs === null || liveMs > 0);
 
   const banned = data.users.filter((u: any) => u.bannedUntil).length;
   const online = data.users.filter(
@@ -480,33 +514,94 @@ export default function AdminPage() {
                   Icon={Megaphone}
                   tone="red"
                   title="Global sändning"
-                  note="Alla inloggade ser detta som en gul banderoll högst upp. Ägaren ser i loggen vem som skickade."
+                  note="Den gula banderollen syns för ALLA som besöker sajten, även de som inte har loggat in. Ägaren ser i loggen vem som skickade."
                 />
+
+                <div
+                  className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+                    isLive
+                      ? "border-amber-400/40 bg-amber-500/10 text-amber-200"
+                      : "border-white/10 bg-slate-950/40 text-slate-400"
+                  }`}
+                >
+                  {isLive ? (
+                    <>
+                      <p className="flex flex-wrap items-center gap-2 font-bold">
+                        <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+                        LIVE
+                        {liveMs !== null && (
+                          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold tabular-nums">
+                            {timeLeftLabel(liveMs)} kvar
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-1 break-words text-amber-100/80">“{liveText}”</p>
+                    </>
+                  ) : (
+                    <p>Ingen sändning just nu.</p>
+                  )}
+                </div>
+
                 <textarea
                   value={bc}
-                  onChange={(e) => setBc(e.target.value)}
+                  onChange={(e) => {
+                    bcDirty.current = true;
+                    setBc(e.target.value);
+                  }}
                   rows={4}
+                  maxLength={300}
                   placeholder="Skriv ett meddelande till HELA sajten…"
                   className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-red-400/70 focus:outline-none"
                 />
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-slate-400">
+                    <Clock className="h-4 w-4 text-red-400" /> Längd:
+                  </span>
+                  {BROADCAST_DURATIONS.map((d) => (
+                    <button
+                      key={d.label}
+                      type="button"
+                      onClick={() => setBcMin(d.minutes)}
+                      aria-pressed={bcMin === d.minutes}
+                      className={`rounded-xl px-3 py-1.5 text-sm font-bold transition-colors ${
+                        bcMin === d.minutes
+                          ? "bg-red-600 text-white shadow-lg shadow-red-900/40"
+                          : "bg-white/5 text-slate-300 hover:bg-white/10"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <ToolButton
                     label="Sänd till alla"
                     Icon={Megaphone}
                     tone="red"
                     variant="solid"
-                    onClick={() => run(adminSetBroadcast(s, bc), "Sänt!")}
+                    onClick={() => {
+                      bcDirty.current = false;
+                      run(adminSetBroadcast(s, bc, bcMin), "Sänt!");
+                    }}
                   />
                   <ToolButton
-                    label="Rensa banderollen"
-                    Icon={Eraser}
+                    label="Stoppa sändning"
+                    Icon={Ban}
                     tone="slate"
                     onClick={() => {
+                      bcDirty.current = false;
                       setBc("");
-                      run(adminSetBroadcast(s, ""), "Rensat!");
+                      run(adminStopBroadcast(s), "Stoppad!");
                     }}
                   />
                 </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  {bcMin === null
+                    ? "Ligger kvar tills någon trycker på Stoppa sändning."
+                    : `Försvinner av sig själv efter ${bcMin} min.`}
+                </p>
               </div>
             )}
 

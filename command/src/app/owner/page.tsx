@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffChat from "../../components/staff-chat";
 import LiveViewer from "../../components/live-viewer";
@@ -18,6 +18,7 @@ import {
   getEmail,
   deleteUser,
   setBroadcast,
+  stopBroadcast,
   setShutdown,
   changeCodes,
   getOwnerExtra,
@@ -105,6 +106,20 @@ type User = {
 
 type TabId = "stats" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log" | "help";
 
+/** How long a sändning may run. `null` = until somebody stops it. */
+const DURATIONS: { label: string; minutes: number | null }[] = [
+  { label: "5 min", minutes: 5 },
+  { label: "10 min", minutes: 10 },
+  { label: "20 min", minutes: 20 },
+  { label: "Tills vidare", minutes: null },
+];
+
+/** "12:04" — time left on a timed broadcast. */
+function timeLeftLabel(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
+}
+
 const TABS: { id: TabId; Icon: typeof Crown; label: string }[] = [
   { id: "stats", Icon: Chart, label: "Översikt" },
   { id: "requests", Icon: Pray, label: "Ban-begäranden" },
@@ -147,6 +162,13 @@ export default function OwnerPage() {
   const [notify, setNotify] = useState(true);
   const [customPw, setCustomPw] = useState("");
   const [bc, setBc] = useState("");
+  const [bcMin, setBcMin] = useState<number | null>(10);
+  // The console re-reads everything every 20 s. Without these two flags that
+  // refresh overwrote whatever was being typed — a long sändning vanished
+  // mid-sentence, which is the "it just erases" behaviour.
+  const bcDirty = useRef(false);
+  const codesDirty = useRef(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [codes, setCodes] = useState({ o: "", a: "", sec: "" });
   const [approveMin, setApproveMin] = useState<Record<string, string>>({});
   const [lvl, setLvl] = useState("1");
@@ -179,6 +201,12 @@ export default function OwnerPage() {
     spyOnChats(session).then(setChats).catch(() => setChats(null));
   }, [tab, session]);
 
+  // A one-second clock, used only to count down a timed sändning.
+  useEffect(() => {
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
   async function load(s: any) {
     if (!s) return;
     try {
@@ -194,12 +222,14 @@ export default function OwnerPage() {
       }
       setData(d);
       setExtra(ex);
-      setBc(d.settings?.broadcast ?? "");
-      setCodes({
-        o: d.settings?.ownerCode ?? "",
-        a: d.settings?.adminCode ?? "",
-        sec: d.settings?.securityCode ?? "",
-      });
+      // Only adopt the stored text while the owner is not editing it.
+      if (!bcDirty.current) setBc(d.settings?.broadcast ?? "");
+      if (!codesDirty.current)
+        setCodes({
+          o: d.settings?.ownerCode ?? "",
+          a: d.settings?.adminCode ?? "",
+          sec: d.settings?.securityCode ?? "",
+        });
     } catch {
       setInfo("Kunde inte läsa in data. Försök igen.");
     }
@@ -232,6 +262,13 @@ export default function OwnerPage() {
       </div>
     );
   }
+
+  // What is on screen right now, and how long it has left. A notice whose time
+  // has passed counts as gone even if the console has not reloaded yet.
+  const liveText: string = data.settings?.broadcast ?? "";
+  const liveUntil: string | null = data.settings?.broadcastUntil ?? null;
+  const liveMs = liveUntil ? new Date(liveUntil).getTime() - nowTick : null;
+  const isLive = !!liveText.trim() && (liveMs === null || liveMs > 0);
 
   const filtered = data.users.filter((u: User) => u.username.toLowerCase().includes(q.toLowerCase()));
   const pending = (extra?.requests ?? []).filter((r: any) => r.status === "PENDING");
@@ -1039,32 +1076,95 @@ export default function OwnerPage() {
             <h1 className="gold-title flex items-center gap-2 text-2xl font-extrabold text-amber-300">
               <Megaphone className="h-6 w-6" /> Sändning & nödläge
             </h1>
+
+            {/* What is on screen right now. Without this the box below looked
+                empty even while a notice was live. */}
+            <div
+              className={`mt-4 max-w-xl rounded-xl border px-4 py-3 text-sm ${
+                isLive
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                  : "border-slate-700 bg-slate-900/60 text-slate-400"
+              }`}
+            >
+              {isLive ? (
+                <>
+                  <p className="flex flex-wrap items-center gap-2 font-bold">
+                    <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+                    LIVE — syns för alla, även de som inte är inloggade
+                    {liveMs !== null && (
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold tabular-nums text-amber-200">
+                        {timeLeftLabel(liveMs)} kvar
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-1 break-words text-amber-100/80">“{liveText}”</p>
+                </>
+              ) : (
+                <p>Ingen sändning just nu — den gula banderollen är tom.</p>
+              )}
+            </div>
+
             <textarea
               value={bc}
-              onChange={(e) => setBc(e.target.value)}
+              onChange={(e) => {
+                bcDirty.current = true;
+                setBc(e.target.value);
+              }}
               rows={3}
-              placeholder="Skriv ett meddelande som ALLA användare ser..."
+              maxLength={300}
+              placeholder="Skriv ett meddelande som ALLA ser — även de som inte är inloggade..."
               className="mt-4 w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
             />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5 text-sm font-bold text-slate-400">
+                <Clock className="h-4 w-4 text-amber-400" /> Längd:
+              </span>
+              {DURATIONS.map((d) => (
+                <button
+                  key={d.label}
+                  type="button"
+                  onClick={() => setBcMin(d.minutes)}
+                  aria-pressed={bcMin === d.minutes}
+                  className={`rounded-xl px-3 py-1.5 text-sm font-bold transition-colors ${
+                    bcMin === d.minutes
+                      ? "bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/40"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => run(setBroadcast(session, bc))}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-5 py-2 font-bold text-white hover:bg-amber-500"
+                disabled={!bc.trim() || busy}
+                onClick={() => {
+                  bcDirty.current = false;
+                  run(setBroadcast(session, bc, bcMin));
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-5 py-2 font-bold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Megaphone className="h-4 w-4" /> Sänd
               </button>
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => {
+                  bcDirty.current = false;
                   setBc("");
-                  run(setBroadcast(session, ""));
+                  run(stopBroadcast(session));
                 }}
-                className="flex items-center gap-1.5 rounded-xl bg-slate-700 px-5 py-2 font-bold text-white hover:bg-slate-600"
+                className="flex items-center gap-1.5 rounded-xl bg-red-600 px-5 py-2 font-bold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Eraser className="h-4 w-4" /> Rensa
+                <Ban className="h-4 w-4" /> Stoppa sändning
               </button>
             </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {bcMin === null
+                ? "Ligger kvar högst upp tills du trycker på Stoppa sändning."
+                : `Försvinner av sig själv efter ${bcMin} min — även om du stänger konsolen.`}
+            </p>
 
             <div className="mt-8 rounded-2xl border border-red-500/40 bg-red-500/5 p-6">
               <p className="flex items-center gap-1.5 font-bold text-red-400">
@@ -1111,9 +1211,10 @@ export default function OwnerPage() {
                   <input
                     value={(codes as any)[k]}
                     maxLength={8}
-                    onChange={(e) =>
-                      setCodes((c) => ({ ...c, [k]: e.target.value.replace(/\D/g, "").slice(0, 8) }))
-                    }
+                    onChange={(e) => {
+                      codesDirty.current = true;
+                      setCodes((c) => ({ ...c, [k]: e.target.value.replace(/\D/g, "").slice(0, 8) }));
+                    }}
                     className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 tracking-[0.3em] text-white focus:border-amber-400 focus:outline-none"
                   />
                 </div>
@@ -1132,6 +1233,8 @@ export default function OwnerPage() {
                     setInfo("Nätverksfel — försök igen.");
                     return;
                   }
+                  // Saved: let the next refresh adopt the stored codes again.
+                  codesDirty.current = false;
                   await load(session);
                   setInfo("Koderna är sparade.");
                 }}
