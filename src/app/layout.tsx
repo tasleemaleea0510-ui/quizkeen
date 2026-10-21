@@ -11,6 +11,8 @@ import { isBroadcastLive } from "@/lib/broadcast";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
 import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
+import StaffPanel from "@/components/staff-panel";
+import { isStaffRole } from "@/lib/moderation";
 import LiveShareClient from "@/components/live-share-client";
 import TranslateButton from "@/components/translate-button";
 import Aurora from "@/components/motion/aurora";
@@ -100,6 +102,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <>
               <StudentChatBubble />
               <PresencePing />
+              {/* The moderation button lives in the student app itself, not only
+                  in the separate command console. */}
+              {profile && isStaffRole(profile.role) && <StaffPanel role={profile.role} />}
               <LiveShareClient />
               <TranslateButton />
               <Overlays
