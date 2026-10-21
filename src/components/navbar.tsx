@@ -6,10 +6,23 @@ import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import TutorialWidget from "@/components/tutorial";
 import WornKeen from "@/components/keens/worn-keen";
+import KeenAvatar from "@/components/keens/keen-avatar";
+import { KEEN_BY_ID } from "@/lib/keens";
 import { getNavUser } from "@/app/system/actions";
 import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-import { School, BarChart3, Layers, Sparkles, Settings, LogOut, Zap } from "lucide-react";
+import { School, BarChart3, Layers, Sparkles, Settings, LogOut } from "lucide-react";
+
+/**
+ * The face of QuizKeen.
+ *
+ * The logo used to be a lightning glyph, which said "quiz" but nothing about
+ * the thing you actually collect. Keenungen is the first Keen every account owns
+ * — it is already the mascot of the starter set — so the brand mark is now the
+ * mascot itself, drawn by the same renderer as the collection. One fewer icon to
+ * keep in sync with the art, and the tab icon is the same drawing.
+ */
+const MASCOT = KEEN_BY_ID["keenungen"];
 
 export default function Navbar() {
   const { supabase, session } = useSupabase();
@@ -52,9 +65,11 @@ export default function Navbar() {
           href="/"
           className="group flex items-center gap-2.5 transition-opacity hover:opacity-90"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm">
-            <Zap className="h-4 w-4 text-white" strokeWidth={2.5} />
-          </span>
+          <KeenAvatar
+            keen={MASCOT}
+            size={36}
+            className="rounded-xl shadow-glow-sm transition-transform duration-300 group-hover:-rotate-6"
+          />
           <span className="font-display text-xl font-extrabold tracking-tight text-white">
             Quiz<span className="text-gradient">Keen</span>
           </span>

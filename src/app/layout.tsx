@@ -37,6 +37,10 @@ export const metadata: Metadata = {
   // route survived a build-cache hit and kept serving the old artwork.
   icons: {
     icon: [
+      // The mascot as an SVG first: browsers that understand it get a sharp tab
+      // icon at any size, and the PNGs below cover the rest. Generated from the
+      // same Keen artwork as the navbar, so the two can never disagree.
+      { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/icons/icon-16.png", sizes: "16x16", type: "image/png" },
       { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/icon-256.png", sizes: "256x256", type: "image/png" },
