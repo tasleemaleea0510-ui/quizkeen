@@ -23,7 +23,8 @@ import {
   adminCoinLedger,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
-import { omeisaurusSvg } from "../../lib/keen-art";
+import { keenArtSvg } from "../../lib/keen-art";
+import { KEEN_BY_ID } from "../../lib/keen-catalogue";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
 import { HelpButton, HelpPanel } from "../../components/help-guide";
@@ -71,6 +72,19 @@ function timeLeftLabel(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
+
+// The Admin Keen, drawn by the same renderer the player site uses. The fallback
+// is the catalogue row itself, so a removed id still shows the dragon rather
+// than an empty box.
+const ADMIN_KEEN =
+  KEEN_BY_ID["omeisaurus"] ?? {
+    id: "omeisaurus",
+    name: "Omeisaurus",
+    rarity: "MYSTISK",
+    pack: "admin",
+    hue: 30,
+    emoji: "🐉",
+  };
 
 const QUICK = [
   { label: "5 min", min: 5 },
@@ -665,7 +679,7 @@ export default function AdminPage() {
                   {/* The drawing the receiver will actually see, not a placeholder. */}
                   <span
                     className="shrink-0 drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
-                    dangerouslySetInnerHTML={{ __html: omeisaurusSvg(96) }}
+                    dangerouslySetInnerHTML={{ __html: keenArtSvg(ADMIN_KEEN, { size: 96 }) }}
                   />
                   <p className="max-w-md text-sm text-slate-400">
                     <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — den

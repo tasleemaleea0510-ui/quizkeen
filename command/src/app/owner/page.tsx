@@ -63,6 +63,7 @@ import {
   ownerTakeKeen,
 } from "../actions";
 import { KEEN_CATALOGUE, KEEN_SHELVES, RARITY_LABEL } from "../../lib/keen-catalogue";
+import { keenArtSvg } from "../../lib/keen-art";
 import {
   Crown,
   Chart,
@@ -170,6 +171,18 @@ const RARITY_TONE: Record<string, string> = {
 /** The starter set is given to every account automatically — nothing to hand out. */
 const VAULT_KEENS = KEEN_CATALOGUE.filter((k) => k.pack !== "start");
 const VAULT_SHELVES = KEEN_SHELVES.filter((s) => s.id !== "start");
+
+/**
+ * The drawings, built once.
+ *
+ * The vault filters as you type, and rebuilding sixty-odd SVGs on every
+ * keystroke would be visible. These are the same strings the player site renders
+ * — `lib/keen-art.ts` is a verbatim copy of its renderer — so what you pick here
+ * is exactly what lands in the collection.
+ */
+const VAULT_ART: Record<string, string> = Object.fromEntries(
+  VAULT_KEENS.map((k) => [k.id, keenArtSvg({ id: k.id, hue: k.hue, name: k.name }, { size: 36 })])
+);
 
 type Confirm = {
   title: string;
@@ -1610,9 +1623,11 @@ export default function OwnerPage() {
                             key={k.id}
                             className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-slate-950/50 px-2 py-1.5"
                           >
-                            <span aria-hidden className="text-base leading-none">
-                              {k.emoji}
-                            </span>
+                            <span
+                              aria-hidden
+                              className="h-9 w-9 shrink-0 overflow-hidden rounded-lg"
+                              dangerouslySetInnerHTML={{ __html: VAULT_ART[k.id] ?? "" }}
+                            />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-xs font-bold text-white" data-no-translate>
                                 {k.name}
