@@ -42,6 +42,17 @@ model Profile {
   liveRequested Boolean  @default(false)
   livePeerId    String?
   lastGiftAt  DateTime?
+  // Custom name colour, chosen by the player in Inställningar or handed out by
+  // staff. Hex string; null means "use the role colour".
+  accentColor String?
+  // Last seen network identity, captured by the presence ping. The full address
+  // is kept server-side so the owner can tell two accounts on one connection
+  // apart; the console only ever prints a masked form plus the country.
+  lastIp        String?
+  ipCountry     String?
+  ipCountryCode String?
+  ipCity        String?
+  ipAt          DateTime?
   // When the free daily Keen pack was last opened (see src/lib/keens.ts).
   lastFreePackAt DateTime?
   createdAt   DateTime  @default(now())
@@ -282,6 +293,22 @@ model BanRequest {
   createdAt     DateTime @default(now())
 
   @@index([status])
+}
+
+// One row per "ge mynt" from the moderation panel. The panel reads it back to
+// enforce the daily ceiling (an admin may hand out 1000 coins per person per
+// day, themselves included) and the owner console reads it as an audit trail.
+model CoinGrant {
+  id        String   @id @default(uuid())
+  staffId   String
+  staffName String
+  targetId  String
+  targetName String
+  amount    Int
+  createdAt DateTime @default(now())
+
+  @@index([staffId, targetId, createdAt])
+  @@index([createdAt])
 }
 
 model StaffChat {
