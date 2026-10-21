@@ -92,10 +92,22 @@ export const MATRIX: HelpRow[] = [
     security: NO,
   },
   {
-    what: "Varna (3 = permanent ban)||Warn (3 = permanent ban)",
+    what: "Massverktyg (våg, amnesti, sanering)||Mass tools (wave, amnesty, purge)",
+    owner: "Allt, till hela grupper||Everything, to whole groups",
+    admin: "Bara belöningsvågen, en gång per dag||Only the reward wave, once a day",
+    security: NO,
+  },
+  {
+    what: "Nollställa varningar||Clear warnings",
+    owner: "Alla på en gång||Everyone at once",
+    admin: NO,
+    security: "En person i taget||One person at a time",
+  },
+  {
+    what: "Varna (3 = 24 tim ban)||Warn (3 = 24 h ban)",
     owner: "Nej, men kan nollställa varningar||No, but can clear warnings",
     admin: NO,
-    security: YES,
+    security: "Ja, och kan ta tillbaka en varning||Yes, and can take one back",
   },
   {
     what: "Tysta chatten||Mute the chat",
@@ -502,6 +514,129 @@ const OWNER: HelpDoc = {
       ],
     },
     {
+      id: "powers",
+      title: "Superkrafter — massverktyg||Superpowers — mass tools",
+      lead:
+        "Fliken Superkrafter rör många konton samtidigt. Därför är den bara din — och därför säger varje svar hur många konton det gällde. Ägarkontot är alltid undantaget.||" +
+        "The Superpowers tab touches many accounts at once. That's why it's yours alone — and why every answer says how many accounts it reached. The owner account is always excluded.",
+      groups: [
+        {
+          title: "Rikets puls||The realm's pulse",
+          items: [
+            {
+              name: "De åtta korten||The eight cards",
+              what: "Nya idag, online nu, bannade, tystade, skuggade, frysta mynt, mynt ut idag och besök idag.||New today, online now, banned, muted, shadowed, frozen coins, coins handed out today and visits today.",
+              how: "De är din kvittens: efter en massvåg ska \"mynt ut idag\" ha rört sig.||They're your receipt: after a wave, \"coins today\" should have moved.",
+            },
+          ],
+        },
+        {
+          title: "Massvåg||Mass wave",
+          items: [
+            {
+              name: "Skicka vågen",
+              what: "Ger (eller tar) XP och mynt till alla i den valda gruppen.||Gives (or takes) XP and coins to everyone in the chosen group.",
+              how: "Välj Elever, Lärare, Admins, Säkerhet eller Alla. Skriv t.ex. 50 XP och 100 mynt. Max ±10 000 per person och gång.||Pick students, teachers, admins, security or everyone. Type e.g. 50 XP and 100 coins. Max ±10,000 per person per press.",
+              warn: "Negativa tal tar bort. Loggen skriver ut exakt vad som delades ut och till hur många.||Negative numbers take away. The log prints exactly what was handed out and to how many.",
+            },
+            {
+              name: "Nollställ XP · mynt · varningar · Reset ALLT||Reset XP · coins · warnings · Reset EVERYTHING",
+              what: "Sätter räknarna till noll för hela gruppen. Reset ALLT tar även bort tystnad, skugga och osynlighet.||Sets the counters to zero for the whole group. Reset EVERYTHING also clears mute, shadow and ghost.",
+              warn: "Frågar först och går inte att ångra. Ägarkontot nollställs aldrig.||Asks first and cannot be undone. The owner account is never reset.",
+            },
+          ],
+        },
+        {
+          title: "Nödbroms & amnesti||Panic & amnesty",
+          items: [
+            {
+              name: "NÖDBROMS",
+              what: "Stoppar sändningen, stänger alla LIVE-sessioner och kastar ut alla utom dig till inloggningen.||Stops the broadcast, closes every live session and throws everyone but you out to the login.",
+              how: "Frågar först. Bannar och tystar ingen — det är fortfarande ett beslut, inte en reflex.||Asks first. It bans and mutes nobody — that stays a decision, not a reflex.",
+            },
+            {
+              name: "Släpp in alla igen",
+              what: "Tar bort alla utkastningar och avslutar alla LIVE-förfrågningar.||Clears every forced logout and ends all live requests.",
+            },
+            {
+              name: "Unbanna alla",
+              what: "Tar bort VARJE bannlysning, även de som gällde för alltid.||Removes EVERY ban, including the permanent ones.",
+              warn: "Frågar först. Ingen ångra-knapp — bannade konton kommer tillbaka direkt.||Asks first. No undo — banned accounts are back instantly.",
+            },
+            {
+              name: "Nollställ alla varningar",
+              what: "Sätter alla varningsräknare till 0/3.||Sets every warning counter to 0/3.",
+              how: "Bra efter en städning där många fick varningar för samma sak.||Good after a clean-up where many got warnings for the same thing.",
+            },
+            {
+              name: "Tvinga alla att logga in",
+              what: "Kastar ut alla utom dig, utan att röra sändningen.||Throws everyone but you out without touching the broadcast.",
+            },
+          ],
+        },
+        {
+          title: "Chat-sanering||Chat clean-up",
+          items: [
+            {
+              name: "Global / Klass · Inkorg · Stabs-kanalen · ALLT",
+              what: "Raderar meddelandena i den valda lådan på riktigt.||Deletes the messages in the chosen box for real.",
+              warn: "Frågar först och går inte att ångra. Välj låda med flit — ALLT tömmer alla tre.||Asks first and cannot be undone. Pick the box deliberately — ALL wipes all three.",
+            },
+            {
+              name: "Rensa person",
+              what: "Raderar bara en persons meddelanden i de gemensamma chattarna.||Deletes only one person's messages in the shared chats.",
+              how: "Skriv namnet exakt och tryck Rensa person. Resten av chatten är kvar.||Type the name exactly and press Purge person. The rest of the chat stays.",
+            },
+          ],
+        },
+        {
+          title: "Popup till en grupp||Popup to a group",
+          items: [
+            {
+              name: "Skicka popup",
+              what: "Samma popup som ett personligt meddelande, men till alla i gruppen.||The same popup as a personal message, but to everyone in the group.",
+              how: "Välj grupp, skriv max 300 tecken, tryck Skicka. Personal kan också väljas.||Pick a group, write up to 300 characters, press Send. Staff can be picked too.",
+              warn: "Popuppen ligger kvar tills någon rensar den — den försvinner inte av sig själv.||The popup stays until someone clears it — it doesn't expire.",
+            },
+          ],
+        },
+        {
+          title: "Logg & besökshistorik||Log & visit history",
+          items: [
+            {
+              name: "Städa loggen · Städa besök",
+              what: "Raderar loggrader respektive sidbesök som är äldre än antalet dagar du skriver.||Deletes log rows or page visits older than the number of days you type.",
+              how: "30 dagar är en bra standard. Nyare rader rörs inte.||30 days is a good default. Newer rows are untouched.",
+            },
+          ],
+        },
+        {
+          title: "Alt-detektor||Alt detector",
+          items: [
+            {
+              name: "Samma uppkoppling",
+              what: "Listar konton som setts från samma adress, med antal och namn.||Lists accounts seen from the same address, with count and names.",
+              warn: "En ledtråd, inte bevis — syskon och skolans nät delar adress. Titta, prata, banna sedan om det behövs.||A hint, not proof — siblings and the school network share an address. Look, talk, then ban if needed.",
+            },
+            {
+              name: "Kasta ut alla",
+              what: "Kastar ut alla konton i klustret till inloggningen.||Throws every account in the cluster back to the login.",
+            },
+          ],
+        },
+        {
+          title: "Alla flaggor på ett ställe||Every flag in one place",
+          items: [
+            {
+              name: "skugga av · osynlig av · tina mynt · avfäst · öppna chat",
+              what: "Visar alla som har en flagga och tar bort den med ett tryck.||Shows everyone carrying a flag and removes it in one press.",
+              how: "Samma sak som knapparna under Användare, men utan att leta upp personen först.||The same as the buttons under Users, without hunting the person down first.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: "codes",
       title: "Koder||Codes",
       lead: "De tre nycklarna till de tre konsolerna.||The three keys to the three consoles.",
@@ -700,6 +835,46 @@ const ADMIN: HelpDoc = {
       ],
     },
     {
+      id: "tools",
+      title: "Verktyg||Tools",
+      lead:
+        "Tre mindre verktyg. De stora — nollställningar, saneringar och nödbromsen — är ägarens, och det är med flit.||" +
+        "Three smaller tools. The big ones — resets, purges and the panic button — are the owner's, deliberately.",
+      groups: [
+        {
+          title: "Belöningsvåg||Reward wave",
+          items: [
+            {
+              name: "Skicka dagens våg",
+              what: "Ger +25 XP till alla elever som inte är bannade.||Gives +25 XP to every student who isn't banned.",
+              how: "En gång per dag, oavsett vem som trycker först. Andra trycket samma dag säger att vågen redan är skickad.||Once a day, whoever presses first. A second press the same day says the wave is already sent.",
+              warn: "Fast summa, bara elever — inte samma sak som ägarens massvåg, som kan ge vilken summa som helst till vilken grupp som helst.||A fixed amount, students only — not the owner's mass wave, which can give any amount to any group.",
+            },
+          ],
+        },
+        {
+          title: "Popup till en grupp||Popup to a group",
+          items: [
+            {
+              name: "Skicka popup",
+              what: "Ett meddelande som alla elever eller alla lärare ser nästa gång de är inne.||A message every student or every teacher sees next time they're on.",
+              warn: "Bara elever och lärare. Personalens popup skickar ägaren.||Students and teachers only. Staff popups are sent by the owner.",
+            },
+          ],
+        },
+        {
+          title: "Myntliggaren idag||Today's coin ledger",
+          items: [
+            {
+              name: "Myntliggaren",
+              what: "Varje myntutdelning idag, med mottagare och vem som gav — både från appen och från konsolen.||Every coin grant today, with recipient and giver — from the app and from the console.",
+              how: "Läsläge. Använd den för att se hur mycket som redan delats ut innan du ger mer.||Read-only. Use it to see how much has already gone out before giving more.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: "log",
       title: "Logg||Log",
       lead: "De senaste 100 händelserna, nyast överst.||The last 100 events, newest first.",
@@ -751,7 +926,7 @@ const SECURITY: HelpDoc = {
     "You're the one who sees what's happening and stops trouble before it grows. Every button, every limit and what you mustn't touch.",
   rules: [
     "Du bannar i max 1 timme. Vill du mer: be en admin eller ägaren.||You ban for max 1 hour. Want more? Ask an admin or the owner.",
-    "3 varningar ger automatisk permanent ban. Varna sparsamt och rättvist — varningar försvinner inte av sig själva.||3 warnings cause an automatic permanent ban. Warn sparingly and fairly — warnings don't disappear on their own.",
+    "3 varningar ger automatisk ban i 24 timmar. Varna sparsamt och rättvist — varningar försvinner inte av sig själva, men du kan nollställa dem med Amnesti.||3 warnings cause an automatic 24-hour ban. Warn sparingly and fairly — warnings don't disappear on their own, but you can clear them with Amnesty.",
     "Tysta chatten är oftast bättre än att banna. Börja där.||A mute is usually better than a ban. Start there.",
     LOG_TIP,
     TIME_TIP,
@@ -793,7 +968,13 @@ const SECURITY: HelpDoc = {
             {
               name: "Varna (gul triangel)||Warn (gold triangle)",
               what: "Ger en varning. Räknaren under namnet går ett steg uppåt.||Gives one warning. The counter under the name goes up one step.",
-              warn: "Vid 3/3 bannas personen FÖR ALLTID, automatiskt, direkt. En varning går inte att ta tillbaka — bara ägaren kan nollställa räknaren.||At 3/3 the person is banned FOREVER, automatically, right away. A warning cannot be taken back — only the owner can clear the counter.",
+              warn: "Vid 3/3 bannas personen automatiskt i 24 timmar. En varning går inte att ta tillbaka — men du kan nollställa räknaren med Amnesti.||At 3/3 the person is banned automatically for 24 hours. A warning cannot be taken back — but you can clear the counter with Amnesty.",
+            },
+            {
+              name: "Amnesti (grön bock)||Amnesty (green check)",
+              what: "Nollställer personens varningar till 0/3.||Resets that person's warnings to 0/3.",
+              how: "Knappen är grå tills personen faktiskt har en varning. En person i taget — hela grupper är ägarens verktyg.||The button is grey until the person actually has a warning. One person at a time — whole groups are the owner's tool.",
+              warn: "Syns i loggen som [SECURITY]. Ta tillbaka en varning bara när personen förtjänat det, inte för att slippa en obekväm konversation.||Shows in the log as [SECURITY]. Take a warning back only when the person earned it, not to avoid an awkward conversation.",
             },
             {
               name: "5min · 1h (blå)||5min · 1h (blue)",
