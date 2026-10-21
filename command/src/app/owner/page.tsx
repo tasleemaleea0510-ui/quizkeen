@@ -58,7 +58,11 @@ import {
   ownerWarnAmnesty,
   ownerPruneLog,
   ownerPruneVisits,
+  ownerKeenVault,
+  ownerGiveKeen,
+  ownerTakeKeen,
 } from "../actions";
+import { KEEN_CATALOGUE, KEEN_SHELVES, RARITY_LABEL } from "../../lib/keen-catalogue";
 import {
   Crown,
   Chart,
@@ -151,6 +155,22 @@ const TABS: { id: TabId; Icon: typeof Crown; label: string }[] = [
 
 const ROLES = ["STUDENT", "TEACHER", "ADMIN", "OWNER", "SECURITY"];
 
+/** Rarity chips for the Keen vault; the colours match the game's ladder. */
+const RARITY_TONE: Record<string, string> = {
+  VANLIG: "bg-slate-500/20 text-slate-200",
+  OVANLIG: "bg-emerald-500/20 text-emerald-200",
+  SALLSYNT: "bg-sky-500/20 text-sky-200",
+  EPISK: "bg-violet-500/20 text-violet-200",
+  LEGENDARISK: "bg-amber-500/20 text-amber-200",
+  HEMLIG: "bg-fuchsia-500/20 text-fuchsia-200",
+  KROMA: "bg-rose-500/20 text-rose-200",
+  MYSTISK: "bg-indigo-500/20 text-indigo-200",
+};
+
+/** The starter set is given to every account automatically — nothing to hand out. */
+const VAULT_KEENS = KEEN_CATALOGUE.filter((k) => k.pack !== "start");
+const VAULT_SHELVES = KEEN_SHELVES.filter((s) => s.id !== "start");
+
 type Confirm = {
   title: string;
   body: string;
@@ -203,6 +223,10 @@ export default function OwnerPage() {
   const [noteText, setNoteText] = useState("");
   const [pruneDays, setPruneDays] = useState("30");
   const [purgeWho, setPurgeWho] = useState("");
+  // Keen-valvet: what the selected person owns, and the vault's own filters.
+  const [vault, setVault] = useState<{ keenId: string; count: number }[]>([]);
+  const [vaultQ, setVaultQ] = useState("");
+  const [vaultShelf, setVaultShelf] = useState("all");
 
   useEffect(() => {
     let sess: any = null;
@@ -232,6 +256,37 @@ export default function OwnerPage() {
     const iv = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(iv);
   }, []);
+
+  // Which Keens the selected person already owns. Re-read whenever the owner
+  // picks another person, so the badges never describe the previous one.
+  useEffect(() => {
+    if (!session || !sel?.id) {
+      setVault([]);
+      return;
+    }
+    let alive = true;
+    ownerKeenVault(session, sel.id)
+      .then((r) => {
+        if (alive) setVault(r?.owned ?? []);
+      })
+      .catch(() => {
+        if (alive) setVault([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session, sel?.id]);
+
+  /** After a gift or a take-back, re-read just the vault. */
+  async function refreshVault() {
+    if (!session || !sel?.id) return;
+    try {
+      const r = await ownerKeenVault(session, sel.id);
+      setVault(r?.owned ?? []);
+    } catch {
+      /* keep the last known badges */
+    }
+  }
 
   async function load(s: any) {
     if (!s) return;
@@ -1504,6 +1559,112 @@ export default function OwnerPage() {
                       >
                         Spara
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Keen-valvet */}
+                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/[0.05] p-4 lg:col-span-2">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-violet-300">
+                      <Sparkles className="h-4 w-4" /> Keen-valvet (endast ägare)
+                      <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] font-bold text-slate-300 tabular-nums">
+                        {vault.length} / {VAULT_KEENS.length} ägda
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Alla Keens som går att samla. <b className="text-slate-300">Ge</b> lägger en i samlingen direkt (en till
+                      blir en dublett), <b className="text-slate-300">Ta bort</b> tar en kopia. Startpaketet hoppas över — det
+                      har alla redan.
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <input
+                        value={vaultQ}
+                        onChange={(e) => setVaultQ(e.target.value)}
+                        placeholder="Sök Keen…"
+                        className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-violet-400 focus:outline-none"
+                      />
+                      <select
+                        value={vaultShelf}
+                        onChange={(e) => setVaultShelf(e.target.value)}
+                        className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-violet-400 focus:outline-none"
+                      >
+                        <option value="all">Alla paket</option>
+                        {VAULT_SHELVES.map((sh) => (
+                          <option key={sh.id} value={sh.id}>
+                            {sh.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="mt-3 grid max-h-72 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 2xl:grid-cols-3">
+                      {VAULT_KEENS.filter(
+                        (k) =>
+                          (vaultShelf === "all" || k.pack === vaultShelf) &&
+                          (!vaultQ.trim() ||
+                            `${k.name} ${k.id}`.toLowerCase().includes(vaultQ.trim().toLowerCase()))
+                      ).map((k) => {
+                        const owned = vault.find((v) => v.keenId === k.id)?.count ?? 0;
+                        return (
+                          <div
+                            key={k.id}
+                            className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-slate-950/50 px-2 py-1.5"
+                          >
+                            <span aria-hidden className="text-base leading-none">
+                              {k.emoji}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs font-bold text-white" data-no-translate>
+                                {k.name}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                    RARITY_TONE[k.rarity] ?? "bg-white/10 text-slate-300"
+                                  }`}
+                                >
+                                  {RARITY_LABEL[k.rarity] ?? k.rarity}
+                                </span>
+                                {owned > 0 && (
+                                  <span className="text-[10px] font-bold text-emerald-300 tabular-nums">har ×{owned}</span>
+                                )}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={async () => {
+                                await run(ownerGiveKeen(session, sel.id, sel.username, k.id));
+                                await refreshVault();
+                              }}
+                              className="rounded bg-violet-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-violet-500 disabled:opacity-40"
+                            >
+                              Ge
+                            </button>
+                            {owned > 0 && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={async () => {
+                                  await run(ownerTakeKeen(session, sel.id, sel.username, k.id));
+                                  await refreshVault();
+                                }}
+                                className="rounded bg-slate-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-slate-600 disabled:opacity-40"
+                              >
+                                Ta bort
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {VAULT_KEENS.filter(
+                        (k) =>
+                          (vaultShelf === "all" || k.pack === vaultShelf) &&
+                          (!vaultQ.trim() ||
+                            `${k.name} ${k.id}`.toLowerCase().includes(vaultQ.trim().toLowerCase()))
+                      ).length === 0 && (
+                        <p className="text-sm text-slate-500">Ingen Keen matchade sökningen.</p>
+                      )}
                     </div>
                   </div>
 

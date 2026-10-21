@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
-import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen } from "@/lib/keen-grant";
+import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from "@/lib/keen-grant";
+import { KEEN_BY_ID } from "@/lib/keen-catalogue";
 import { describeLocation, maskIp } from "@/lib/geo";
 
 const supabaseAdmin = createClient(
@@ -12,7 +13,15 @@ const supabaseAdmin = createClient(
 
 type S = { role: string; code: string };
 type Level = "STAFF" | "SECURITY" | "ADMIN" | "OWNER";
-type Res = { ok: boolean; info?: string; newOwner?: string; role?: string; code?: string; holders?: string[] };
+type Res = {
+  ok: boolean;
+  info?: string;
+  newOwner?: string;
+  role?: string;
+  code?: string;
+  holders?: string[];
+  owned?: { keenId: string; count: number }[];
+};
 
 const GENERIC_FAILURE = "Något gick fel. Försök igen.";
 
@@ -1271,6 +1280,61 @@ export async function ownerPruneVisits(s: S, days: number) {
     const res = await prisma.pageVisit.deleteMany({ where: { createdAt: { lt: before } } });
     await log("[OWNER]", `städade besökshistoriken: ${res.count} rader äldre än ${d} dagar`);
     return { ok: true, info: `${res.count} besök äldre än ${d} dagar är borta.` };
+  });
+}
+
+// ─── the Keen vault ─────────────────────────────────────────────────────
+//
+// The Admin-Keen button is a single trophy; the vault is the whole catalogue.
+// Both go through `lib/keen-grant.ts`, which writes straight into the shared
+// database, so a Keen handed out here is in the collection before the person
+// refreshes the page.
+
+export async function ownerKeenVault(s: S, profileId: string) {
+  return withAuth("OWNER", s, async () => ({ ok: true, info: "", owned: await ownedKeens(profileId) }));
+}
+
+/**
+ * Give one Keen to one person.
+ *
+ * A second copy stacks (the collection counts duplicates, and a spare is what
+ * the market sells), which is the difference between this and the one-per-person
+ * Admin-Keen button. Only ids from the generated catalogue are accepted, so a
+ * typo cannot write a row the game will never show.
+ */
+export async function ownerGiveKeen(s: S, profileId: string, username: string, keenId: string) {
+  return withAuth("OWNER", s, async () => {
+    const entry = KEEN_BY_ID[keenId];
+    if (!entry) return { ok: false, info: "Den Keenen finns inte i katalogen." };
+    const res = await giveKeen(profileId, username, entry.id, entry.rarity);
+    if (!res.ok) {
+      return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };
+    }
+    await log("[OWNER]", `gav ${entry.name} till ${username}${res.alreadyOwned ? " (dublett)" : ""}`);
+    return {
+      ok: true,
+      info: res.alreadyOwned
+        ? `${username} har nu ${res.count} × ${entry.name}.`
+        : `${username} fick ${entry.name} ${entry.emoji}!`,
+    };
+  });
+}
+
+/** Take one copy back. The pull history is kept — the log should still show it. */
+export async function ownerTakeKeen(s: S, profileId: string, username: string, keenId: string) {
+  return withAuth("OWNER", s, async () => {
+    const entry = KEEN_BY_ID[keenId];
+    if (!entry) return { ok: false, info: "Den Keenen finns inte i katalogen." };
+    const res = await takeKeen(profileId, username, entry.id);
+    if (!res.ok) {
+      if (res.error === "notowned") return { ok: false, info: `${username} har inte ${entry.name}.` };
+      return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };
+    }
+    await log("[OWNER]", `tog ${entry.name} från ${username}${res.removed ? " (sista kopian)" : ""}`);
+    return {
+      ok: true,
+      info: res.removed ? `${entry.name} borta från ${username}.` : `${username} har ${res.count} × ${entry.name} kvar.`,
+    };
   });
 }
 
