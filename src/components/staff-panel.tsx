@@ -427,7 +427,7 @@ function PlayerRow({
             </p>
           )}
 
-          {(canPunish || canCoins || canDecorate) && (
+          {canPunish && (
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Orsak (valfri)</p>
             <input
