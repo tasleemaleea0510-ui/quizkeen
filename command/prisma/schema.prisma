@@ -277,6 +277,21 @@ model Participant {
   @@unique([gameSessionId, studentId])
 }
 
+// Written by both consoles (the in-app moderation panel and this one). It is
+// what makes "1000 mynt per person per day" enforceable from either place.
+model CoinGrant {
+  id         String   @id @default(uuid())
+  staffId    String
+  staffName  String
+  targetId   String
+  targetName String
+  amount     Int
+  createdAt  DateTime @default(now())
+
+  @@index([staffId, targetId, createdAt])
+  @@index([createdAt])
+}
+
 model BanRequest {
   id            String   @id @default(uuid())
   adminUsername String
