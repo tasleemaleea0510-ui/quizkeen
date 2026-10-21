@@ -262,6 +262,12 @@ export async function modUnban(targetId: string): Promise<Result> {
     const perm = canModerate(me, target);
     if (!perm.ok) return { ok: false, info: perm.reason };
     if (!target.bannedUntil) return { ok: false, info: `${target.username} är inte bannad.` };
+    // Security may only undo short sanctions. Otherwise it could quietly lift a
+    // day-long admin ban — or the owner's permanent one — and the person who
+    // handed it out would never know.
+    if (me.role === "SECURITY" && target.bannedUntil.getTime() - Date.now() > 60 * 60_000) {
+      return { ok: false, info: "Bara admin eller ägaren kan häva den bannen." };
+    }
     await prisma.profile.update({ where: { id: target.id }, data: { bannedUntil: null, banMessage: null } });
     await log(me, `unbannade ${target.username}`);
     return { ok: true, info: `${target.username} är fri igen.` };

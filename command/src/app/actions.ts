@@ -806,6 +806,8 @@ export async function adminStopBroadcast(s: S) {
 
 export async function secWarn(s: S, id: string, username: string) {
   return withAuth("SECURITY", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
     const u = await prisma.profile.findUnique({ where: { id } });
     if (!u) return { ok: false, info: GENERIC_FAILURE };
     const next = (u.warnings || 0) + 1;
