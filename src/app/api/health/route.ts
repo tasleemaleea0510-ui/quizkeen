@@ -12,6 +12,19 @@ type Probe = {
   state: "ok" | "down" | "not-configured";
   /** Why it failed: a Prisma code (P1001), a socket code (ENOTFOUND), or null. */
   code: string | null;
+  /** One line of plain advice for that code, so the answer is actionable. */
+  hint: string | null;
+};
+
+const HINTS: Record<string, string> = {
+  P1000: "Databasen svarar men avvisar inloggningen — kontrollera användare och lösenord i DATABASE_URL.",
+  P1001: "Databasen går inte att nå härifrån — använd pooler-adressen från Supabase (IPv4) i DATABASE_URL.",
+  P1003: "Databasen finns inte på den adressen — kontrollera databasnamnet.",
+  P2021: "Tabellerna saknas — schemat är inte uppladdat till den här databasen.",
+  P2022: "En kolumn saknas — schemat är äldre än koden, kör prisma db push.",
+  ENOTFOUND: "Namnet finns inte i DNS från servern — starta om tjänsten; kvarstår det, kontrollera projektets URL.",
+  TIMEOUT: "Svarade inte inom 6 sekunder.",
+  UND_ERR_CONNECT_TIMEOUT: "Anslutningen tog för lång tid.",
 };
 
 /**
@@ -32,10 +45,13 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Pro
         timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "TIMEOUT" })), timeoutMs);
       }),
     ]);
-    return { state: "ok", code: null };
+    return { state: "ok", code: null, hint: null };
   } catch (e: any) {
-    const code = e?.code ?? e?.cause?.code ?? e?.cause?.errno ?? e?.name ?? null;
-    return { state: "down", code: code ? String(code).slice(0, 40) : null };
+    // Prisma puts its own code on `errorCode` (P1001), plain sockets on `code`
+    // (ENOTFOUND), and fetch buries the real cause one level down.
+    const raw = e?.errorCode ?? e?.code ?? e?.cause?.code ?? e?.cause?.errno ?? e?.name ?? null;
+    const code = raw ? String(raw).slice(0, 40) : null;
+    return { state: "down", code, hint: code ? (HINTS[code] ?? null) : null };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -59,7 +75,7 @@ export async function GET() {
   const [db, auth] = await Promise.all([
     process.env.DATABASE_URL
       ? probe(() => prisma.$queryRaw`SELECT 1`)
-      : Promise.resolve<Probe>({ state: "not-configured", code: null }),
+      : Promise.resolve<Probe>({ state: "not-configured", code: null, hint: "DATABASE_URL saknas i den här tjänsten." }),
     SUPABASE_URL
       ? probe(async () => {
           // Any HTTP answer proves the auth service is reachable, so this does
@@ -72,7 +88,7 @@ export async function GET() {
             signal: AbortSignal.timeout(6000),
           });
         })
-      : Promise.resolve<Probe>({ state: "not-configured", code: null }),
+      : Promise.resolve<Probe>({ state: "not-configured", code: null, hint: "NEXT_PUBLIC_SUPABASE_URL saknas i den här tjänsten." }),
   ]);
 
   return NextResponse.json({
@@ -87,8 +103,10 @@ export async function GET() {
     region: process.env.RENDER_REGION ?? process.env.VERCEL_REGION ?? "local",
     db: db.state,
     dbCode: db.code,
+    dbHint: db.hint,
     auth: auth.state,
     authCode: auth.code,
+    authHint: auth.hint,
     time: new Date().toISOString(),
   });
 }
