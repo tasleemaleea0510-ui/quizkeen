@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen } from "@/lib/keen-grant";
+import { describeLocation } from "@/lib/geo";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -70,6 +71,28 @@ const userShape = (u: any) => ({
 const byPinnedFirst = (a: { pinned: boolean }, b: { pinned: boolean }) => Number(b.pinned) - Number(a.pinned);
 
 const time = (d: Date | null) => (d ? d.toISOString() : null);
+
+/**
+ * Whole numbers only, and never NaN.
+ *
+ * Every duration in this console arrives as a string from a modal. `NaN` used
+ * to go straight into `new Date(...)`, which Prisma rejected, so the user saw
+ * "Något gick fel" instead of a ban. Clamping at the edge is what keeps those
+ * actions honest.
+ */
+const whole = (value: unknown, fallback = 0): number => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? n : fallback;
+};
+
+/** Minutes already used today by the shared console budget. */
+function startOfDay(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+const ADMIN_COIN_DAILY_CAP = 1000;
 
 // ─── unlock ──────────────────────────────────────────────────────────────
 
@@ -252,9 +275,10 @@ export async function sendChat(s: S, channel: string, text: string) {
 
 export async function banUser(s: S, username: string, minutes: number, msg: string) {
   return withAuth("OWNER", s, async () => {
-    const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
+    const mins = whole(minutes, 0);
+    const until = mins <= 0 ? new Date("2099-01-01") : new Date(Date.now() + mins * 60000);
     await prisma.profile.update({ where: { username }, data: { bannedUntil: until, banMessage: msg || null } });
-    await log("[OWNER]", `bannade ${username} (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})`);
+    await log("[OWNER]", `bannade ${username} (${mins <= 0 ? "FÖR ALLTID" : mins + " min"})`);
     return { ok: true, info: `${username} bannad!` };
   });
 }
@@ -269,17 +293,26 @@ export async function unbanUser(s: S, username: string) {
 
 export async function giveXP(s: S, id: string, username: string, amt: number) {
   return withAuth("OWNER", s, async () => {
-    await prisma.profile.update({ where: { id }, data: { xp: { increment: amt } } });
-    await log("[OWNER]", `gav ${amt} XP till ${username}`);
-    return { ok: true, info: `${amt > 0 ? "+" : ""}${amt} XP till ${username}` };
+    const n = whole(amt, 0);
+    if (!n) return { ok: false, info: "Skriv ett antal XP." };
+    if (Math.abs(n) > 1_000_000) return { ok: false, info: "Max ±1 000 000 XP per gång." };
+    await prisma.profile.update({ where: { id }, data: { xp: { increment: n } } });
+    await log("[OWNER]", `gav ${n} XP till ${username}`);
+    return { ok: true, info: `${n > 0 ? "+" : ""}${n} XP till ${username}` };
   });
 }
 
 export async function giveCoins(s: S, id: string, username: string, amt: number) {
   return withAuth("OWNER", s, async () => {
-    await prisma.profile.update({ where: { id }, data: { coins: { increment: amt } } });
-    await log("[OWNER]", `gav ${amt} mynt till ${username}`);
-    return { ok: true, info: `${amt > 0 ? "+" : ""}${amt} mynt till ${username}` };
+    const n = whole(amt, 0);
+    if (!n) return { ok: false, info: "Skriv ett antal mynt." };
+    if (Math.abs(n) > 1_000_000) return { ok: false, info: "Max ±1 000 000 mynt per gång." };
+    await prisma.profile.update({ where: { id }, data: { coins: { increment: n } } });
+    await prisma.coinGrant.create({
+      data: { staffId: "console:OWNER", staffName: "OWNER", targetId: id, targetName: username, amount: n },
+    }).catch(() => {});
+    await log("[OWNER]", `gav ${n} mynt till ${username}`);
+    return { ok: true, info: `${n > 0 ? "+" : ""}${n} mynt till ${username}` };
   });
 }
 
@@ -297,6 +330,12 @@ export async function setRole(s: S, id: string, username: string, role: string) 
   return withAuth("OWNER", s, async () => {
     const allowed = ["STUDENT", "TEACHER", "ADMIN", "OWNER", "SECURITY"];
     if (!allowed.includes(role)) return { ok: false, info: "Ogiltig roll." };
+    // There is exactly one owner. Without this guard a second click could mint
+    // a second account that no one — not even the first owner — can discipline.
+    if (role === "OWNER") {
+      const others = await prisma.profile.count({ where: { role: "OWNER", NOT: { id } } });
+      if (others > 0) return { ok: false, info: "Det finns redan en ägare." };
+    }
     await prisma.profile.update({ where: { id }, data: { role: role as any } });
     await log("[OWNER]", `satte roll ${role} på ${username}`);
     return { ok: true, info: `${username} är nu ${role}.` };
@@ -306,7 +345,10 @@ export async function setRole(s: S, id: string, username: string, role: string) 
 export async function resetPassword(s: S, id: string, username: string, notify: boolean, customPw: string) {
   return withAuth("OWNER", s, async () => {
     const newPw = customPw.trim() || Math.random().toString(36).slice(-8);
-    await supabaseAdmin.auth.admin.updateUserById(id, { password: newPw });
+    if (newPw.length < 6) return { ok: false, info: "Lösenordet måste vara minst 6 tecken." };
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: newPw });
+    // The old code reported success no matter what Supabase answered.
+    if (error) return { ok: false, info: `Kunde inte byta lösenord: ${error.message}` };
     if (notify) await prisma.profile.update({ where: { id }, data: { passwordNote: newPw } });
     await log("[OWNER]", `återställde lösenord på ${username}`);
     return { ok: true, info: `Nytt lösenord: ${newPw}` };
@@ -323,7 +365,8 @@ export async function getEmail(s: S, id: string, username: string) {
 
 export async function deleteUser(s: S, id: string, username: string) {
   return withAuth("OWNER", s, async () => {
-    await supabaseAdmin.auth.admin.deleteUser(id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) return { ok: false, info: `Kunde inte radera: ${error.message}` };
     await prisma.profile.delete({ where: { id } });
     await log("[OWNER]", `RADERADE ${username}`);
     return { ok: true, info: `${username} raderad.` };
@@ -426,10 +469,11 @@ export async function approveBanRequest(s: S, id: string, minutes: number) {
   return withAuth("OWNER", s, async () => {
     const req = await prisma.banRequest.findUnique({ where: { id } });
     if (!req) return { ok: false, info: "Begäran finns inte längre." };
-    const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
+    const mins = whole(minutes, 0);
+    const until = mins <= 0 ? new Date("2099-01-01") : new Date(Date.now() + mins * 60000);
     await prisma.profile.update({ where: { username: req.targetUsername }, data: { bannedUntil: until } });
     await prisma.banRequest.update({ where: { id }, data: { status: "APPROVED" } });
-    await log("[OWNER]", `godkände ban-request för ${req.targetUsername} (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})`);
+    await log("[OWNER]", `godkände ban-request för ${req.targetUsername} (${mins <= 0 ? "FÖR ALLTID" : mins + " min"})`);
     return { ok: true, info: `${req.targetUsername} bannad.` };
   });
 }
@@ -564,13 +608,18 @@ export async function getTimeMachine(s: S, username: string, minutesAgo: number)
 
 export async function peekIP(s: S, id: string, username: string) {
   return withAuth("OWNER", s, async () => {
-    const { data } = await supabaseAdmin.auth.admin.getUserById(id);
-    const ip = data?.user?.user_metadata?.ip || "okänd";
-    await log("[OWNER]", `IP-peek på ${username}`);
-    return {
-      ok: true,
-      info: `${username} IP-fragment: ${String(ip).split(".").slice(0, 2).join(".")}.x.x (full IP loggas aldrig)`,
-    };
+    // Used to read `user_metadata.ip`, which nothing ever wrote, so every
+    // answer was "okänd". The student app's presence ping now records the
+    // address, the country and the city; this only formats them.
+    const p = await prisma.profile.findUnique({
+      where: { id },
+      select: { lastIp: true, ipCountry: true, ipCountryCode: true, ipCity: true, ipAt: true, lastSeenAt: true },
+    });
+    if (!p) return { ok: false, info: "Användaren finns inte längre." };
+    const where = describeLocation(p);
+    const when = p.ipAt ? ` · uppdaterad ${new Date(p.ipAt).toLocaleString("sv-SE")}` : "";
+    await log("[OWNER]", `plats-peek på ${username}`);
+    return { ok: true, info: `${username}: ${where}${when}` };
   });
 }
 
@@ -587,12 +636,28 @@ export async function toggleDailyBonus(s: S, id: string, username: string) {
 
 // ─── staff powers ────────────────────────────────────────────────────────
 
+/** The same ladder as bans: security an hour, admin a day, owner forever. */
+function maxMuteMinutes(role: string): number {
+  if (role === "OWNER") return 0;
+  if (role === "ADMIN") return 1440;
+  return 60;
+}
+
 export async function muteChat(s: S, id: string, username: string, minutes: number) {
   return withAuth("STAFF", s, async () => {
-    const until = minutes <= 0 ? new Date("2099-01-01") : new Date(Date.now() + minutes * 60000);
+    let mins = whole(minutes, 0);
+    const cap = maxMuteMinutes(s.role);
+    // Every staff console could ask for a permanent mute here, while the
+    // in-app panel refuses it for anyone but the owner. One rule now.
+    if (mins <= 0 && s.role !== "OWNER") return { ok: false, info: "Bara ägaren kan tysta för alltid." };
+    if (cap > 0 && mins > cap) {
+      if (mins === 0) return { ok: false, info: "Bara ägaren kan tysta för alltid." };
+      mins = cap;
+    }
+    const until = mins <= 0 ? new Date("2099-01-01") : new Date(Date.now() + mins * 60000);
     await prisma.profile.update({ where: { id }, data: { chatMutedUntil: until } });
-    await log(`[${s.role}]`, `mute chat på ${username} (${minutes <= 0 ? "FOREVER" : minutes + " min"})`);
-    return { ok: true, info: `${username}: chat tystad (${minutes <= 0 ? "FÖR ALLTID" : minutes + " min"})!` };
+    await log(`[${s.role}]`, `mute chat på ${username} (${mins <= 0 ? "FOREVER" : mins + " min"})`);
+    return { ok: true, info: `${username}: chat tystad (${mins <= 0 ? "FÖR ALLTID" : mins + " min"})!` };
   });
 }
 
@@ -635,11 +700,13 @@ export async function toggleGhost(s: S, id: string, username: string) {
 
 export async function adminBan(s: S, username: string, minutes: number, reason: string) {
   return withAuth("ADMIN", s, async () => {
-    if (minutes > 1440) return { ok: false, info: "Max 1 dag — be ägaren om mer!" };
-    const until = new Date(Date.now() + Math.max(1, minutes) * 60000);
+    const mins = whole(minutes, 10);
+    if (mins <= 0) return { ok: false, info: "Bara ägaren kan banna för alltid." };
+    if (mins > 1440) return { ok: false, info: "Max 1 dag — be ägaren om mer!" };
+    const until = new Date(Date.now() + mins * 60000);
     await prisma.profile.update({ where: { username }, data: { bannedUntil: until, banMessage: reason || null } });
-    await log("[ADMIN]", `bannade ${username} (${minutes} min)`);
-    return { ok: true, info: `${username} bannad ${minutes} min!` };
+    await log("[ADMIN]", `bannade ${username} (${mins} min)`);
+    return { ok: true, info: `${username} bannad ${mins} min!` };
   });
 }
 
@@ -653,27 +720,31 @@ export async function adminUnban(s: S, username: string) {
 
 export async function adminGiveXP(s: S, id: string, username: string, amt: number) {
   return withAuth("ADMIN", s, async () => {
-    if (amt > 500 || amt < -500) return { ok: false, info: "Max ±500 XP!" };
+    const amtClean = whole(amt, 0);
+    if (!amtClean) return { ok: false, info: "Skriv ett antal XP." };
+    if (amtClean > 500 || amtClean < -500) return { ok: false, info: "Max ±500 XP!" };
     const u = await prisma.profile.findUnique({ where: { id } });
     if (!u) return { ok: false, info: GENERIC_FAILURE };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (u.lastGiftAt && new Date(u.lastGiftAt) > today) return { ok: false, info: "Redan belönad idag!" };
-    await prisma.profile.update({ where: { id }, data: { xp: { increment: amt }, lastGiftAt: new Date() } });
-    await log("[ADMIN]", `gav ${amt} XP till ${username}`);
-    return { ok: true, info: `+${amt} XP till ${username}!` };
+    await prisma.profile.update({ where: { id }, data: { xp: { increment: amtClean }, lastGiftAt: new Date() } });
+    await log("[ADMIN]", `gav ${amtClean} XP till ${username}`);
+    return { ok: true, info: `+${amtClean} XP till ${username}!` };
   });
 }
 
 export async function adminRequestBan(s: S, target: string, minutes: number, reason: string) {
   return withAuth("ADMIN", s, async () => {
     if (!target.trim()) return { ok: false, info: "Välj en användare först." };
-    const admin = await prisma.profile.findFirst({ where: { role: "ADMIN" } });
+    // This used to pick `findFirst({ role: "ADMIN" })` — i.e. whichever admin
+    // happened to be first in the table — and attribute the request to them.
+    const adminLabel = s.role === "OWNER" ? "OWNER" : "ADMIN";
     await prisma.banRequest.create({
       data: {
         targetUsername: target,
-        adminUsername: admin?.username || s.role || "admin",
-        minutes: Math.max(0, Math.floor(minutes) || 0),
+        adminUsername: adminLabel,
+        minutes: Math.max(0, whole(minutes, 0)),
         reason: reason || null,
       },
     });
@@ -698,12 +769,15 @@ export async function secWarn(s: S, id: string, username: string) {
     if (!u) return { ok: false, info: GENERIC_FAILURE };
     const next = (u.warnings || 0) + 1;
     if (next >= 3) {
+      // Three warnings used to mean a permanent ban, handed out by the lowest
+      // staff role and impossible to undo from the student app. A day is
+      // enough to make the point; the owner can still ban for life.
       await prisma.profile.update({
         where: { id },
-        data: { warnings: next, bannedUntil: new Date("2099-01-01"), banMessage: "3 varningar från säkerhet" },
+        data: { warnings: next, bannedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), banMessage: "3 varningar" },
       });
-      await log("[SECURITY]", `varnade ${username} (3/3 — bannad)`);
-      return { ok: true, info: `${username} har 3 varningar — BANNAD FÖR ALLTID!` };
+      await log("[SECURITY]", `varnade ${username} (3/3 — bannad 24 tim)`);
+      return { ok: true, info: `${username} har 3 varningar — bannad i 24 timmar.` };
     }
     await prisma.profile.update({ where: { id }, data: { warnings: next } });
     await log("[SECURITY]", `varnade ${username} (nu ${next}/3)`);
@@ -713,11 +787,44 @@ export async function secWarn(s: S, id: string, username: string) {
 
 export async function secBan(s: S, username: string, minutes: number) {
   return withAuth("SECURITY", s, async () => {
-    if (minutes > 60) return { ok: false, info: "Max 1 timme — be ägaren!" };
-    const until = new Date(Date.now() + Math.max(1, minutes) * 60000);
+    const mins = whole(minutes, 10);
+    if (mins <= 0) return { ok: false, info: "Bara ägaren kan banna för alltid." };
+    if (mins > 60) return { ok: false, info: "Max 1 timme — be ägaren!" };
+    const until = new Date(Date.now() + mins * 60000);
     await prisma.profile.update({ where: { username }, data: { bannedUntil: until } });
-    await log("[SECURITY]", `bannade ${username} (${minutes} min)`);
-    return { ok: true, info: `${username} bannad ${minutes} min!` };
+    await log("[SECURITY]", `bannade ${username} (${mins} min)`);
+    return { ok: true, info: `${username} bannad ${mins} min!` };
+  });
+}
+
+/**
+ * Coins from the console.
+ *
+ * The console cannot tell one admin from another (it only holds a shared code),
+ * so every console grant shares one 1000/day budget per target. The in-app
+ * panel, which knows exactly who is clicking, keeps a per-admin budget.
+ */
+export async function adminGiveCoins(s: S, id: string, username: string, amt: number) {
+  return withAuth("ADMIN", s, async () => {
+    const amount = whole(amt, 0);
+    if (amount <= 0) return { ok: false, info: "Skriv ett antal mynt, minst 1." };
+    if (amount > ADMIN_COIN_DAILY_CAP) return { ok: false, info: `Max ${ADMIN_COIN_DAILY_CAP} mynt per person och dag.` };
+
+    const used = await prisma.coinGrant.aggregate({
+      where: { staffId: "console:ADMIN", targetId: id, createdAt: { gte: startOfDay() } },
+      _sum: { amount: true },
+    });
+    const given = used._sum.amount ?? 0;
+    const left = ADMIN_COIN_DAILY_CAP - given;
+    if (left <= 0) return { ok: false, info: `${username} har redan fått ${ADMIN_COIN_DAILY_CAP} mynt idag.` };
+    if (amount > left) return { ok: false, info: `Bara ${left} mynt kvar till ${username} idag.` };
+
+    await prisma.profile.update({ where: { id }, data: { coins: { increment: amount } } });
+    await prisma.coinGrant.create({
+      data: { staffId: "console:ADMIN", staffName: "ADMIN", targetId: id, targetName: username, amount },
+    });
+    await log("[ADMIN]", `gav ${amount} mynt till ${username}`);
+    return { ok: true, info: `+${amount} mynt till ${username}. ${left - amount} kvar idag.` };
   });
 }
 

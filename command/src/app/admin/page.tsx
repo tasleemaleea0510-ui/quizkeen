@@ -8,6 +8,7 @@ import {
   adminUnban,
   adminRequestBan,
   adminGiveXP,
+  adminGiveCoins,
   adminSetBroadcast,
   adminStopBroadcast,
   adminGiveAdminKeen,
@@ -95,6 +96,7 @@ export default function AdminPage() {
   // styled replacements for window.prompt()
   const [gift, setGift] = useState<{ user: any; amount: string } | null>(null);
   const [mute, setMute] = useState<{ user: any; minutes: string } | null>(null);
+  const [coinGift, setCoinGift] = useState<{ user: any; amount: string } | null>(null);
   const [note, setNote] = useState<{ user: any; text: string } | null>(null);
   const [askFor, setAskFor] = useState<string | null>(null);
   const [askMin, setAskMin] = useState("2880");
@@ -369,6 +371,21 @@ export default function AdminPage() {
                                 Icon={Gift}
                                 tone="emerald"
                                 onClick={() => setGift({ user: u, amount: "100" })}
+                              />
+                              {/* Coins are capped at 1000 per person per day,
+                                  enforced from the CoinGrant ledger. */}
+                              <ToolButton
+                                label="+1000 mynt"
+                                Icon={Gift}
+                                tone="amber"
+                                title="Ge 1000 mynt (dagstak per person)"
+                                onClick={() => run(adminGiveCoins(s, u.id, u.username, 1000))}
+                              />
+                              <ToolButton
+                                label="Egen myntsumma"
+                                Icon={Gift}
+                                tone="amber"
+                                onClick={() => setCoinGift({ user: u, amount: "500" })}
                               />
                             </ToolGroup>
 
@@ -756,6 +773,23 @@ export default function AdminPage() {
           }}
           tone="red"
           submitLabel="Ge XP"
+        />
+      )}
+
+      {coinGift && (
+        <PromptModal
+          title={`Ge mynt till ${coinGift.user.username}`}
+          label="Antal mynt (max 1000 per person och dag)"
+          value={coinGift.amount}
+          onChange={(v) => setCoinGift({ ...coinGift, amount: v })}
+          onCancel={() => setCoinGift(null)}
+          onSubmit={async () => {
+            const amt = parseInt(coinGift.amount, 10) || 0;
+            setCoinGift(null);
+            await run(adminGiveCoins(s, coinGift.user.id, coinGift.user.username, amt));
+          }}
+          tone="amber"
+          submitLabel="Ge mynt"
         />
       )}
 
