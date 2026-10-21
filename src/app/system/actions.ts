@@ -53,12 +53,15 @@ export async function logActivity(username: string, action: string) {
  * learned it was dealing with a teacher. The server has the session cookie, so it
  * can answer this without loosening a policy.
  */
-export async function getNavUser(): Promise<{ username: string; role: string } | null> {
+export async function getNavUser(): Promise<{ username: string; role: string; accentColor: string | null } | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const p = await prisma.profile.findUnique({ where: { id: user.id }, select: { username: true, role: true } });
-  return p ? { username: p.username, role: p.role } : null;
+  const p = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { username: true, role: true, accentColor: true },
+  });
+  return p ? { username: p.username, role: p.role, accentColor: p.accentColor } : null;
 }
 /** The live notice, or null once its time is up. No auth needed. */
 export async function getBroadcast() {

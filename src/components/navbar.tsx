@@ -14,7 +14,7 @@ import { School, BarChart3, Layers, Sparkles, Settings, LogOut, Zap } from "luci
 export default function Navbar() {
   const { supabase, session } = useSupabase();
   const pathname = usePathname();
-  const [me, setMe] = useState<{ username: string; role: string } | null>(null);
+  const [me, setMe] = useState<{ username: string; role: string; accentColor: string | null } | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -77,7 +77,9 @@ export default function Navbar() {
                   <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-slate-400">
                     {theme.badge}
                   </span>
-                  <span>{me.username}</span>
+                  {/* A chosen name colour wins over the role colour; the role
+                      badge next to it already says what you are. */}
+                  <span style={me.accentColor ? { color: me.accentColor } : undefined}>{me.username}</span>
                 </span>
               )}
               <TutorialWidget />

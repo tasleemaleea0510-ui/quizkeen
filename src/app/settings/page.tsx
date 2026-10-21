@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updateUsername, updatePassword } from "./actions";
-import { Settings, User, BarChart3, Key, Edit3, Save, Coins, Zap, Award } from "lucide-react";
+import ColorForm from "./color-form";
+import { ROLE_THEME } from "@/lib/roles";
+import { Settings, User, BarChart3, Key, Edit3, Save, Coins, Zap, Award, Palette } from "lucide-react";
 
 const MESSAGES: Record<string, { text: string; ok: boolean }> = {
   taken: { text: "Användarnamnet är redan upptaget. Välj ett annat.", ok: false },
@@ -13,6 +15,9 @@ const MESSAGES: Record<string, { text: string; ok: boolean }> = {
   passshort: { text: "Lösenordet måste vara minst 6 tecken.", ok: false },
   passsaved: { text: "Lösenordet har ändrats.", ok: true },
   passerr: { text: "Kunde inte byta lösenord just nu. Försök igen om en stund.", ok: false },
+  colorsaved: { text: "Din färg är sparad.", ok: true },
+  colorcleared: { text: "Du använder rollens färg igen.", ok: true },
+  colorbad: { text: "Den färgen gick inte att läsa. Välj en i listan.", ok: false },
 };
 
 export default async function SettingsPage({
@@ -68,7 +73,12 @@ export default async function SettingsPage({
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p><span className="text-slate-400">Användarnamn:</span> <b className="text-white">{profile.username}</b></p>
-          <p><span className="text-slate-400">Roll:</span> <b className="text-white">{profile.role === "TEACHER" ? "Lärare" : "Elev"}</b></p>
+          <p>
+            <span className="text-slate-400">Roll:</span>{" "}
+            <b className={ROLE_THEME[profile.role]?.color ?? "text-white"}>
+              {ROLE_THEME[profile.role]?.label ?? profile.role}
+            </b>
+          </p>
           <p><span className="text-slate-400">Registrerad:</span> <b className="text-white">{profile.createdAt.toLocaleDateString("sv-SE")}</b></p>
         </CardContent>
       </Card>
@@ -93,6 +103,18 @@ export default async function SettingsPage({
             <Coins className="h-5 w-5" />
             <span>{profile.coins} mynt</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Palette className="h-4 w-4 text-indigo-400" />
+            <span>Din färg</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ColorForm initial={profile.accentColor} />
         </CardContent>
       </Card>
 
