@@ -21,8 +21,18 @@ export function clientIp(h: Headers): string | null {
   const forwarded = h.get("x-forwarded-for");
   const first = forwarded?.split(",")[0]?.trim();
   const raw = first || h.get("x-real-ip") || h.get("cf-connecting-ip") || "";
-  const ip = raw.replace(/^\[|\]$/g, "").replace(/:\d+$/, "");
-  if (!ip || ip === "::1" || ip === "unknown") return null;
+  if (!raw) return null;
+
+  // "[2a02::1]:443" keeps the port inside brackets; "95.1.2.3:443" does not.
+  // Stripping `:\d+$` blindly turned "::1" into ":" and then happily stored a
+  // one-character "address".
+  let ip = raw;
+  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(ip);
+  if (bracketed) ip = bracketed[1];
+  else if (/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/.test(ip)) ip = ip.replace(/:\d+$/, "");
+
+  if (!ip || ip === "unknown") return null;
+  if (ip === "::1" || ip.startsWith("127.")) return null;
   return ip;
 }
 
