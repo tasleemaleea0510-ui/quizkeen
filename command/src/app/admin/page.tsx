@@ -796,7 +796,7 @@ export default function AdminPage() {
       {mute && (
         <PromptModal
           title={`Tysta chatten för ${mute.user.username}`}
-          label="Minuter (0 = för alltid)"
+          label="Minuter (max 1440 — bara ägaren tystar för alltid)"
           value={mute.minutes}
           onChange={(v) => setMute({ ...mute, minutes: v })}
           onCancel={() => setMute(null)}
