@@ -36,6 +36,7 @@ import {
   unmuteChat,
   toggleShadow,
   toggleFreezeCoins,
+  toggleGhost,
   setSecretNote,
   forceRelogin,
   getTimeMachine,
@@ -201,6 +202,7 @@ export default function OwnerPage() {
   const [noteRole, setNoteRole] = useState("STUDENT");
   const [noteText, setNoteText] = useState("");
   const [pruneDays, setPruneDays] = useState("30");
+  const [purgeWho, setPurgeWho] = useState("");
 
   useEffect(() => {
     let sess: any = null;

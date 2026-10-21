@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   getSecurityData,
   secWarn,
+  secClearWarnings,
   secBan,
   secUnban,
   requestRename,
@@ -288,6 +289,14 @@ export default function SecurityPage() {
                                 Icon={Pencil}
                                 tone="indigo"
                                 onClick={() => run(requestRename(s, u.id, u.username))}
+                              />
+                              <ToolButton
+                                label="Amnesti"
+                                Icon={Check}
+                                tone="emerald"
+                                title="Nollställ personens varningar (0/3)"
+                                disabled={busy || !u.warnings}
+                                onClick={() => run(secClearWarnings(s, u.id, u.username))}
                               />
                             </ToolGroup>
 

@@ -18,6 +18,9 @@ import {
   togglePin,
   setSecretNote,
   spyOnChats,
+  adminRewardWave,
+  adminRoleNote,
+  adminCoinLedger,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
 import { omeisaurusSvg } from "../../lib/keen-art";
@@ -45,12 +48,15 @@ import {
   Clock,
   Help,
   Cross,
+  Sparkles,
+  Send,
+  Coins,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
 import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
 
 type S = { role: string; code: string };
-type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "log" | "help";
+type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "tools" | "log" | "help";
 
 /** How long a sändning may run. `null` = until somebody stops it. */
 const BROADCAST_DURATIONS: { label: string; minutes: number | null }[] = [
@@ -101,6 +107,11 @@ export default function AdminPage() {
   const [askFor, setAskFor] = useState<string | null>(null);
   const [askMin, setAskMin] = useState("2880");
   const [askReason, setAskReason] = useState("");
+  // Verktyg: the small extras an admin has — one wave a day, a group popup and
+  // a read-only view of today's coin ledger.
+  const [noteRole, setNoteRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
+  const [noteText, setNoteText] = useState("");
+  const [ledger, setLedger] = useState<any>(null);
 
   useEffect(() => {
     let sess: S | null = null;
@@ -138,6 +149,11 @@ export default function AdminPage() {
   useEffect(() => {
     if (section !== "chats" || !s) return;
     spyOnChats(s).then(setChats).catch(() => setChats(null));
+  }, [section, s]);
+
+  useEffect(() => {
+    if (section !== "tools" || !s) return;
+    adminCoinLedger(s).then(setLedger).catch(() => setLedger(null));
   }, [section, s]);
 
   // One-second clock for the countdown on a timed sändning.
@@ -227,6 +243,7 @@ export default function AdminPage() {
     { id: "broadcast", Icon: Megaphone, label: "Sändning" },
     { id: "chat", Icon: ChatIcon, label: "Stabs-chatt" },
     { id: "keen", Icon: Gift, label: "Admin-Keen" },
+    { id: "tools", Icon: Sparkles, label: "Verktyg" },
     { id: "log", Icon: Scroll, label: "Logg" },
     { id: "help", Icon: Help, label: "Hjälp" },
   ];
@@ -721,6 +738,121 @@ export default function AdminPage() {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {section === "tools" && (
+              <div>
+                <SectionHead
+                  Icon={Sparkles}
+                  tone="red"
+                  title="Verktyg"
+                  note="Tre mindre saker som gör vardagen lättare. De stora — nollställningar, saneringar och nödbroms — är ägarens."
+                />
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-red-500/25 bg-red-500/[0.05] p-4">
+                    <p className="flex items-center gap-1.5 text-sm font-bold text-red-300">
+                      <Gift className="h-4 w-4" /> Belöningsvåg — en gång per dag
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Ger <b className="text-slate-300">+25 XP</b> till alla elever som inte är bannade. En våg per dag,
+                      oavsett vem som trycker först — resten av dagen är knappen stängd.
+                    </p>
+                    <ToolButton
+                      label="Skicka dagens våg"
+                      Icon={Gift}
+                      tone="emerald"
+                      variant="solid"
+                      disabled={busy}
+                      className="mt-3"
+                      onClick={() => run(adminRewardWave(s))}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4">
+                    <p className="flex items-center gap-1.5 text-sm font-bold text-slate-200">
+                      <Send className="h-4 w-4 text-sky-300" /> Popup till en grupp
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Elever eller lärare. Personal får sina meddelanden från ägaren.
+                    </p>
+                    <select
+                      value={noteRole}
+                      onChange={(e) => setNoteRole(e.target.value === "TEACHER" ? "TEACHER" : "STUDENT")}
+                      className="mt-3 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:border-red-400/70 focus:outline-none"
+                    >
+                      <option value="STUDENT">Elever</option>
+                      <option value="TEACHER">Lärare</option>
+                    </select>
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      rows={2}
+                      maxLength={300}
+                      placeholder="Skriv något gruppen ser nästa gång de är inne…"
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-red-400/70 focus:outline-none"
+                    />
+                    <ToolButton
+                      label="Skicka popup"
+                      Icon={Send}
+                      tone="sky"
+                      disabled={busy || !noteText.trim()}
+                      className="mt-2"
+                      onClick={async () => {
+                        const text = noteText;
+                        setNoteText("");
+                        await run(adminRoleNote(s, noteRole, text));
+                      }}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-white/[0.07] bg-slate-950/50 p-4 lg:col-span-2">
+                    <SectionHead
+                      Icon={Coins}
+                      tone="amber"
+                      title="Myntliggaren idag"
+                      note="Varje utdelning från både konsolen och appen, med vem som gav. Läsläge — inget kan ändras härifrån."
+                      right={
+                        <ToolButton
+                          label="Uppdatera"
+                          Icon={Clock}
+                          tone="red"
+                          onClick={() => adminCoinLedger(s).then(setLedger).catch(() => setLedger(null))}
+                        />
+                      }
+                    />
+                    {!ledger && <p className="mt-3 text-sm text-slate-500">Kunde inte läsa liggaren.</p>}
+                    {ledger && (
+                      <>
+                        <p className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-400">
+                          <span className="rounded-full bg-amber-500/15 px-3 py-1 text-amber-200">
+                            {ledger.total} mynt ut idag
+                          </span>
+                          <span className="rounded-full bg-white/[0.06] px-3 py-1 text-slate-300">
+                            {ledger.count} utdelningar
+                          </span>
+                          {ledger.byStaff.map((s2: any) => (
+                            <span key={s2.name} className="rounded-full bg-white/[0.06] px-3 py-1 text-slate-300">
+                              <span data-no-translate>{s2.name}</span>: {s2.sum}
+                            </span>
+                          ))}
+                        </p>
+                        <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1 text-xs">
+                          {ledger.rows.map((r: any) => (
+                            <p key={r.id} className="rounded-lg bg-slate-900/70 px-3 py-1.5 text-slate-300" data-no-translate>
+                              <b className="text-white">{r.target}</b> fick {r.amount} · av {r.staff}
+                              <span className="ml-1 text-slate-600">
+                                · {r.at ? new Date(r.at).toLocaleTimeString("sv-SE") : ""}
+                              </span>
+                            </p>
+                          ))}
+                          {ledger.rows.length === 0 && <p className="text-slate-600">Inga mynt utdelade idag.</p>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
