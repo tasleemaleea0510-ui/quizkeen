@@ -204,7 +204,7 @@ const OWNER: HelpDoc = {
       lead: "Fem steg och du är hemma.||Five steps and you're at home.",
       steps: [
         "Lås upp med ägarkoden på startsidan.||Unlock with the owner code on the start page.",
-        "Menyn till vänster byter flik: Översikt · Ban-begäranden · Chatspaning · Stabs-chatt · Användare · Sändning · Koder · Logg.||The menu on the left switches tabs: Overview · Ban requests · Chat Spy · Staff chat · Users · Broadcast · Codes · Log.",
+        "Menyn till vänster byter flik: Översikt · Superkrafter · Ban-begäranden · Chatspaning · Stabs-chatt · Användare · Sändning · Koder · Logg.||The menu on the left switches tabs: Overview · Superpowers · Ban requests · Chat Spy · Staff chat · Users · Broadcast · Codes · Log.",
         "Ska du göra något med en person? Fliken Användare → sök → klicka på personen, så öppnas kontrollpanelen med alla knappar.||Want to act on someone? Users tab → search → click the person and the control panel with every button opens.",
         "Den gula raden högst upp säger vad som hände senast, t.ex. \"+100 XP till Kalle\". Krysset stänger den.||The yellow bar at the top says what just happened, e.g. \"+100 XP to Kalle\". The X closes it.",
         "Laddar något för länge? Den gula \"Jobbar...\"-brickan nere till höger betyder att en åtgärd körs.||Loading forever? The yellow \"Working...\" chip in the bottom-right means an action is still running.",
@@ -697,7 +697,7 @@ const ADMIN: HelpDoc = {
       lead: "Fem steg.||Five steps.",
       steps: [
         "Lås upp med admin-koden på startsidan.||Unlock with the admin code on the start page.",
-        "Flikarna till vänster: Användare · Chatspaning · Sändning · Stabs-chatt · Logg.||The tabs on the left: Users · Chat Spy · Broadcast · Staff chat · Log.",
+        "Flikarna till vänster: Användare · Chatspaning · Sändning · Stabs-chatt · Admin-Keen · Verktyg · Logg.||The tabs on the left: Users · Chat Spy · Broadcast · Staff chat · Admin-Keen · Tools · Log.",
         "Sök upp personen i rutan uppe till höger och titta på knappraden som hör till raden.||Search for the person in the box top right and look at the button row belonging to that row.",
         "Röda knappar är ingrepp (banna), gröna ger XP, lila tystar, rosa fäster, gul är en anteckning.||Red buttons intervene (ban), green give XP, purple mutes, pink pins, gold is a note.",
         "Den röda \"Jobbar...\"-brickan nere till höger betyder att åtgärden körs — vänta tills den försvinner.||The red \"Working...\" chip bottom-right means the action is running — wait for it to go.",

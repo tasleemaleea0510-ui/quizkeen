@@ -999,7 +999,7 @@ export async function getOwnerPowers(s: S) {
       list.push(p);
       byIp.set(p.lastIp, list);
     }
-    const alts = [...byIp.entries()]
+    const alts = Array.from(byIp.entries())
       .filter(([, list]) => list.length > 1)
       .map(([ip, list]) => ({
         ip: maskIp(ip),
@@ -1309,7 +1309,7 @@ export async function adminCoinLedger(s: S) {
     return {
       total,
       count: rows.length,
-      byStaff: [...byStaff.entries()]
+      byStaff: Array.from(byStaff.entries())
         .map(([name, sum]) => ({ name, sum }))
         .sort((a, b) => b.sum - a.sum),
       rows: rows.slice(0, 40).map((r) => ({
