@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen } from "@/lib/keen-grant";
-import { describeLocation } from "@/lib/geo";
+import { describeLocation, maskIp } from "@/lib/geo";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -920,4 +920,426 @@ export async function adminGiveAdminKeen(s: S, profileId: string, username: stri
 /** Profile ids that already own the Admin Keen, for the picker's badges. */
 export async function adminKeenHoldersList(s: S) {
   return withAuth("ADMIN", s, async () => ({ ok: true, info: "", holders: await adminKeenHolders() }));
+}
+
+// ─── superpowers (owner) ─────────────────────────────────────────────────
+//
+// The tools in this block act on *many* people at once, which is why they sit
+// behind the owner code and nowhere else. Two rules run through all of them:
+//
+//   1. the owner's own account is never in the set — a mass reset can be
+//      pressed by mistake, and locking the last owner out of the console
+//      would need a database edit to undo;
+//   2. every action logs how many people it touched, not just that it ran.
+//      "23 konton" in the log is the difference between a tool that worked
+//      and a tool that quietly matched nobody.
+
+/** Who a mass action reaches. `ALL` means everyone except the owner. */
+type MassRole = "ALL" | "STUDENT" | "TEACHER" | "ADMIN" | "SECURITY";
+
+const MASS_ROLES: MassRole[] = ["ALL", "STUDENT", "TEACHER", "ADMIN", "SECURITY"];
+
+/** A Prisma filter for "everyone in this group", with a safe fallback. */
+function massWhere(role: MassRole) {
+  const clean = MASS_ROLES.includes(role) ? role : "STUDENT";
+  if (clean === "ALL") return { role: { not: "OWNER" as const } };
+  return { role: clean as any };
+}
+
+/** "23 konton", "1 konto" — plural matters when the number is read aloud. */
+const people = (n: number) => `${n} ${n === 1 ? "konto" : "konton"}`;
+
+/**
+ * Everything the superpower tab shows, in one round trip.
+ *
+ * The alt detector groups the stored (masked-at-display) addresses: two
+ * accounts that keep appearing from the same connection are worth a look, but
+ * it is a hint, not proof — siblings share a home network.
+ */
+export async function getOwnerPowers(s: S) {
+  try {
+    if (!(await ok(s, "OWNER"))) return null;
+    const dayStart = startOfDay();
+    const now = new Date();
+    const onlineSince = new Date(now.getTime() - 120_000);
+
+    const [total, newToday, online, banned, muted, ghosted, frozen, shadowed, coinsToday, grantsToday, visitsToday] =
+      await Promise.all([
+        prisma.profile.count(),
+        prisma.profile.count({ where: { createdAt: { gte: dayStart } } }),
+        prisma.profile.count({ where: { lastSeenAt: { gte: onlineSince } } }),
+        prisma.profile.count({ where: { bannedUntil: { gt: now } } }),
+        prisma.profile.count({ where: { chatMutedUntil: { gt: now } } }),
+        prisma.profile.count({ where: { ghostMode: true } }),
+        prisma.profile.count({ where: { coinsFrozen: true } }),
+        prisma.profile.count({ where: { shadowed: true } }),
+        prisma.coinGrant.aggregate({ where: { createdAt: { gte: dayStart } }, _sum: { amount: true } }),
+        prisma.coinGrant.count({ where: { createdAt: { gte: dayStart } } }),
+        prisma.pageVisit.count({ where: { createdAt: { gte: dayStart } } }),
+      ]);
+
+    const [flagRows, visitRows, assigned] = await Promise.all([
+      prisma.profile.findMany({
+        where: { OR: [{ shadowed: true }, { ghostMode: true }, { coinsFrozen: true }, { pinned: true }, { chatMutedUntil: { gt: now } }] },
+        select: { id: true, username: true, shadowed: true, ghostMode: true, coinsFrozen: true, pinned: true, chatMutedUntil: true },
+        orderBy: { username: "asc" },
+        take: 300,
+      }),
+      prisma.pageVisit.findMany({ orderBy: { createdAt: "desc" }, take: 40 }),
+      prisma.profile.findMany({
+        where: { lastIp: { not: null } },
+        select: { id: true, username: true, role: true, lastIp: true, lastSeenAt: true, bannedUntil: true },
+      }),
+    ]);
+
+    const byIp = new Map<string, typeof assigned>();
+    for (const p of assigned) {
+      if (!p.lastIp) continue;
+      const list = byIp.get(p.lastIp) ?? [];
+      list.push(p);
+      byIp.set(p.lastIp, list);
+    }
+    const alts = [...byIp.entries()]
+      .filter(([, list]) => list.length > 1)
+      .map(([ip, list]) => ({
+        ip: maskIp(ip),
+        ids: list.map((p) => p.id),
+        count: list.length,
+        users: list.map((p) => ({
+          id: p.id,
+          username: p.username,
+          role: p.role,
+          banned: Boolean(p.bannedUntil && p.bannedUntil > now),
+          lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
+        })),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12);
+
+    return {
+      pulse: {
+        total,
+        newToday,
+        online,
+        banned,
+        muted,
+        ghosted,
+        frozen,
+        shadowed,
+        coinsToday: coinsToday._sum.amount ?? 0,
+        grantsToday,
+        visitsToday,
+      },
+      flags: flagRows.map((p) => ({
+        id: p.id,
+        username: p.username,
+        shadowed: p.shadowed,
+        ghostMode: p.ghostMode,
+        coinsFrozen: p.coinsFrozen,
+        pinned: p.pinned,
+        mutedUntil: p.chatMutedUntil ? p.chatMutedUntil.toISOString() : null,
+      })),
+      visits: visitRows.map((v) => ({ id: v.id, username: v.username, path: v.path, at: time(v.createdAt) })),
+      alts,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One wave of XP and/or coins to a whole group.
+ *
+ * Each value is clamped per person: a mass tool is for "everyone gets a
+ * reward", not for writing a million into an account by accident.
+ */
+export async function ownerMassGrant(s: S, role: MassRole, xp: number, coins: number) {
+  return withAuth("OWNER", s, async () => {
+    const x = Math.max(-10_000, Math.min(10_000, whole(xp, 0)));
+    const c = Math.max(-10_000, Math.min(10_000, whole(coins, 0)));
+    if (!x && !c) return { ok: false, info: "Skriv XP eller mynt först." };
+
+    const data: any = {};
+    if (x) data.xp = { increment: x };
+    if (c) data.coins = { increment: c };
+    const res = await prisma.profile.updateMany({ where: massWhere(role), data });
+
+    const bits = [x ? `${x > 0 ? "+" : ""}${x} XP` : "", c ? `${c > 0 ? "+" : ""}${c} mynt` : ""]
+      .filter(Boolean)
+      .join(" och ");
+    await log("[OWNER]", `massvåg ${role}: ${bits} till ${people(res.count)}`);
+    return { ok: true, info: `${bits} till ${people(res.count)}.` };
+  });
+}
+
+/** Wipe a counter for a whole group. The owner's own row is never included. */
+export async function ownerMassReset(s: S, role: MassRole, what: "XP" | "MYNT" | "VARNINGAR" | "ALLT") {
+  return withAuth("OWNER", s, async () => {
+    const data: any =
+      what === "XP"
+        ? { xp: 0 }
+        : what === "MYNT"
+          ? { coins: 0 }
+          : what === "VARNINGAR"
+            ? { warnings: 0 }
+            : { xp: 0, coins: 0, warnings: 0, chatMutedUntil: null, shadowed: false, ghostMode: false };
+    const res = await prisma.profile.updateMany({ where: massWhere(role), data });
+    await log("[OWNER]", `mass-reset ${what.toLowerCase()} för ${role} (${people(res.count)})`);
+    return { ok: true, info: `${what} nollställt för ${people(res.count)}.` };
+  });
+}
+
+/**
+ * The panic button.
+ *
+ * Stops whatever is on the banner, ends every live session and throws everyone
+ * out to the login — the three things you want in one press when something is
+ * spreading. It deliberately does not ban or mute anybody: that stays a
+ * decision, not a reflex.
+ */
+export async function ownerPanic(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const existing = await prisma.adminSettings.findFirst();
+    if (existing) {
+      await prisma.adminSettings.update({
+        where: { id: existing.id },
+        data: { broadcast: null, broadcastUntil: null },
+      });
+    }
+    const res = await prisma.profile.updateMany({
+      where: { role: { not: "OWNER" } },
+      data: { forceRelogin: true, liveRequested: false, livePeerId: null, livePath: null },
+    });
+    await log("[OWNER]", `NÖDBROMS: kastade ut ${people(res.count)} och stoppade sändningen`);
+    return { ok: true, info: `NÖDBROMS: ${people(res.count)} kastades ut, sändningen är stoppad.` };
+  });
+}
+
+/** Undo the panic: let everyone back in and end the live requests. */
+export async function ownerAllClear(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const res = await prisma.profile.updateMany({
+      where: {},
+      data: { forceRelogin: false, liveRequested: false, livePeerId: null },
+    });
+    await log("[OWNER]", `släppte in alla igen (${people(res.count)})`);
+    return { ok: true, info: `${people(res.count)} är insläppta igen och alla LIVE-förfrågningar är avslutade.` };
+  });
+}
+
+/** End every live session without touching anyone's access. */
+export async function ownerKickLive(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const res = await prisma.profile.updateMany({
+      where: {},
+      data: { liveRequested: false, livePeerId: null, livePath: null },
+    });
+    await log("[OWNER]", `stängde alla LIVE-sessioner (${people(res.count)})`);
+    return { ok: true, info: `Alla LIVE-sessioner är stängda.` };
+  });
+}
+
+/**
+ * Empty one chat store.
+ *
+ * Split into named boxes on purpose: clearing the staff channel by accident
+ * while trying to empty the global one is the kind of mistake that cannot be
+ * undone, so each box has to be chosen by name.
+ */
+export async function ownerPurgeChat(s: S, scope: "global" | "inbox" | "staff" | "all") {
+  return withAuth("OWNER", s, async () => {
+    const gone: string[] = [];
+    let total = 0;
+    if (scope === "global" || scope === "all") {
+      const r = await prisma.chatMessage.deleteMany({});
+      total += r.count;
+      gone.push(`${r.count} globala`);
+    }
+    if (scope === "inbox" || scope === "all") {
+      const r = await prisma.ownerMessage.deleteMany({});
+      total += r.count;
+      gone.push(`${r.count} inkorg`);
+    }
+    if (scope === "staff" || scope === "all") {
+      const r = await prisma.staffChat.deleteMany({});
+      total += r.count;
+      gone.push(`${r.count} stabs`);
+    }
+    if (!gone.length) return { ok: false, info: "" };
+    await log("[OWNER]", `RENSADE chatt (${gone.join(" · ")})`);
+    return { ok: true, info: `${total} meddelanden borta (${gone.join(" · ")}).` };
+  });
+}
+
+/** Remove one person's messages from the shared chats, keeping the rest. */
+export async function ownerPurgeChatFrom(s: S, username: string) {
+  return withAuth("OWNER", s, async () => {
+    const r = await prisma.chatMessage.deleteMany({ where: { name: username } });
+    await log("[OWNER]", `rensade ${r.count} meddelanden från ${username}`);
+    return { ok: true, info: `${r.count} meddelanden från ${username} borta.` };
+  });
+}
+
+/** Throw a whole group out to the login. */
+export async function ownerKick(s: S, ids: string[]) {
+  return withAuth("OWNER", s, async () => {
+    const clean = (ids || []).filter((id) => typeof id === "string").slice(0, 200);
+    if (!clean.length) return { ok: false, info: "Ingen att kasta ut." };
+    const res = await prisma.profile.updateMany({
+      where: { id: { in: clean }, role: { not: "OWNER" } },
+      data: { forceRelogin: true, liveRequested: false, livePeerId: null },
+    });
+    await log("[OWNER]", `kastade ut ${people(res.count)}`);
+    return { ok: true, info: `${people(res.count)} måste logga in igen.` };
+  });
+}
+
+/**
+ * A popup to everyone in one group, written in one go.
+ *
+ * Same field as the personal popup, so it lands exactly where the person
+ * already looks. Sent to staff too if that is the group chosen — the owner's
+ * own account is the only one left out.
+ */
+export async function ownerRoleNote(s: S, role: MassRole, text: string) {
+  return withAuth("OWNER", s, async () => {
+    const body = (text || "").trim().slice(0, 300);
+    if (!body) return { ok: false, info: "Skriv ett meddelande först." };
+    const res = await prisma.profile.updateMany({ where: massWhere(role), data: { passwordNote: body } });
+    await log("[OWNER]", `popup till ${role} (${people(res.count)}): "${body.slice(0, 40)}"`);
+    return { ok: true, info: `Popup skickad till ${people(res.count)} (${role}).` };
+  });
+}
+
+/** Amnesty: every ban in the database lifted at once. */
+export async function ownerUnbanAll(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const res = await prisma.profile.updateMany({
+      where: { bannedUntil: { not: null } },
+      data: { bannedUntil: null, banMessage: null },
+    });
+    await log("[OWNER]", `AMNESTI: tog bort alla bannlysningar (${people(res.count)})`);
+    return { ok: true, info: `Alla bannlysningar borta (${people(res.count)}).` };
+  });
+}
+
+/** Warn amnesty: every warning counter back to zero. */
+export async function ownerWarnAmnesty(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const res = await prisma.profile.updateMany({ where: { warnings: { gt: 0 } }, data: { warnings: 0 } });
+    await log("[OWNER]", `AMNESTI: nollställde varningar (${people(res.count)})`);
+    return { ok: true, info: `Varningarna är nollställda (${people(res.count)}).` };
+  });
+}
+
+/** Delete log rows older than N days. Keeps the console fast as the log grows. */
+export async function ownerPruneLog(s: S, days: number) {
+  return withAuth("OWNER", s, async () => {
+    const d = Math.max(1, Math.min(365, whole(days, 30)));
+    const before = new Date(Date.now() - d * 24 * 60 * 60_000);
+    const res = await prisma.activity.deleteMany({ where: { createdAt: { lt: before } } });
+    await log("[OWNER]", `städade loggen: ${res.count} rader äldre än ${d} dagar`);
+    return { ok: true, info: `${res.count} loggrader äldre än ${d} dagar är borta.` };
+  });
+}
+
+/** Delete page-visit history older than N days (the time machine's raw data). */
+export async function ownerPruneVisits(s: S, days: number) {
+  return withAuth("OWNER", s, async () => {
+    const d = Math.max(1, Math.min(365, whole(days, 14)));
+    const before = new Date(Date.now() - d * 24 * 60 * 60_000);
+    const res = await prisma.pageVisit.deleteMany({ where: { createdAt: { lt: before } } });
+    await log("[OWNER]", `städade besökshistoriken: ${res.count} rader äldre än ${d} dagar`);
+    return { ok: true, info: `${res.count} besök äldre än ${d} dagar är borta.` };
+  });
+}
+
+// ─── extra tools (admin) ─────────────────────────────────────────────────
+//
+// One size smaller than the owner's: a fixed, once-a-day reward wave, a popup
+// to students and teachers only, and read-only sight of the coin ledger. No
+// resets, no purges, no panic button — those stay upstairs.
+
+export async function adminRewardWave(s: S) {
+  return withAuth("ADMIN", s, async () => {
+    // The log is the ledger: today's wave leaves a row, and the next press
+    // finds it. One per day, whichever admin presses first.
+    const already = await prisma.activity.findFirst({
+      where: { username: "[ADMIN]", action: { startsWith: "våg:" }, createdAt: { gte: startOfDay() } },
+      select: { id: true },
+    });
+    if (already) return { ok: false, info: "Dagens våg är redan skickad — nästa går imorgon." };
+
+    const res = await prisma.profile.updateMany({
+      where: { role: "STUDENT", bannedUntil: null },
+      data: { xp: { increment: 25 } },
+    });
+    await log("[ADMIN]", `våg: +25 XP till alla elever (${people(res.count)})`);
+    return { ok: true, info: `+25 XP till ${people(res.count)}. En våg per dag.` };
+  });
+}
+
+/** Popup to students/teachers only — staff rows stay the owner's business. */
+export async function adminRoleNote(s: S, role: "STUDENT" | "TEACHER", text: string) {
+  return withAuth("ADMIN", s, async () => {
+    const body = (text || "").trim().slice(0, 300);
+    if (!body) return { ok: false, info: "Skriv ett meddelande först." };
+    if (role !== "STUDENT" && role !== "TEACHER") return { ok: false, info: "Välj elever eller lärare." };
+    const res = await prisma.profile.updateMany({ where: { role }, data: { passwordNote: body } });
+    await log("[ADMIN]", `popup till ${role} (${people(res.count)}): "${body.slice(0, 40)}"`);
+    return { ok: true, info: `Popup skickad till ${people(res.count)} (${role}).` };
+  });
+}
+
+/** Today's coin grants, read-only. Lets an admin see the shared daily budget. */
+export async function adminCoinLedger(s: S) {
+  try {
+    if (!(await ok(s, "ADMIN"))) return null;
+    const rows = await prisma.coinGrant.findMany({
+      where: { createdAt: { gte: startOfDay() } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    const byStaff = new Map<string, number>();
+    let total = 0;
+    for (const r of rows) {
+      total += r.amount;
+      byStaff.set(r.staffName, (byStaff.get(r.staffName) ?? 0) + r.amount);
+    }
+    return {
+      total,
+      count: rows.length,
+      byStaff: [...byStaff.entries()]
+        .map(([name, sum]) => ({ name, sum }))
+        .sort((a, b) => b.sum - a.sum),
+      rows: rows.slice(0, 40).map((r) => ({
+        id: r.id,
+        staff: r.staffName,
+        target: r.targetName,
+        amount: r.amount,
+        at: time(r.createdAt),
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── amnesty (security) ──────────────────────────────────────────────────
+
+/**
+ * Clear one person's warnings.
+ *
+ * Security hands out the warnings, so security may take them back for someone
+ * who behaved afterwards — one person at a time, never a whole group. Admins
+ * and the owner keep their own, larger tools.
+ */
+export async function secClearWarnings(s: S, id: string, username: string) {
+  return withAuth("SECURITY", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
+    await prisma.profile.update({ where: { id }, data: { warnings: 0 } });
+    await log("[SECURITY]", `nollställde varningar på ${username}`);
+    return { ok: true, info: `${username}: varningarna är borta (0/3).` };
+  });
 }

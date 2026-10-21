@@ -43,6 +43,20 @@ import {
   toggleDailyBonus,
   togglePin,
   spyOnChats,
+  getOwnerPowers,
+  ownerMassGrant,
+  ownerMassReset,
+  ownerPanic,
+  ownerAllClear,
+  ownerKickLive,
+  ownerPurgeChat,
+  ownerPurgeChatFrom,
+  ownerKick,
+  ownerRoleNote,
+  ownerUnbanAll,
+  ownerWarnAmnesty,
+  ownerPruneLog,
+  ownerPruneVisits,
 } from "../actions";
 import {
   Crown,
@@ -86,6 +100,7 @@ import {
   Clock,
   Shield,
   Search,
+  Send,
   Help,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
@@ -104,7 +119,7 @@ type User = {
   secretNote: string | null;
 };
 
-type TabId = "stats" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log" | "help";
+type TabId = "stats" | "powers" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log" | "help";
 
 /** How long a sändning may run. `null` = until somebody stops it. */
 const DURATIONS: { label: string; minutes: number | null }[] = [
@@ -122,6 +137,7 @@ function timeLeftLabel(ms: number): string {
 
 const TABS: { id: TabId; Icon: typeof Crown; label: string }[] = [
   { id: "stats", Icon: Chart, label: "Översikt" },
+  { id: "powers", Icon: Sparkles, label: "Superkrafter" },
   { id: "requests", Icon: Pray, label: "Ban-begäranden" },
   { id: "chatspy", Icon: Detective, label: "Chatspaning" },
   { id: "chat", Icon: ChatIcon, label: "Stabs-chatt" },
@@ -177,6 +193,14 @@ export default function OwnerPage() {
   const [secret, setSecret] = useState("");
   const [timeMachine, setTimeMachine] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // Superkrafter: the mass tools and what they last showed.
+  const [powers, setPowers] = useState<any>(null);
+  const [waveRole, setWaveRole] = useState("STUDENT");
+  const [waveXp, setWaveXp] = useState("50");
+  const [waveCoins, setWaveCoins] = useState("0");
+  const [noteRole, setNoteRole] = useState("STUDENT");
+  const [noteText, setNoteText] = useState("");
+  const [pruneDays, setPruneDays] = useState("30");
 
   useEffect(() => {
     let sess: any = null;
@@ -210,7 +234,11 @@ export default function OwnerPage() {
   async function load(s: any) {
     if (!s) return;
     try {
-      const [d, ex] = await Promise.all([getOwnerData(s), getOwnerExtra(s)]);
+      const [d, ex, pw] = await Promise.all([
+        getOwnerData(s),
+        getOwnerExtra(s),
+        getOwnerPowers(s).catch(() => null),
+      ]);
       if (!d) {
         try {
           localStorage.removeItem("cmd_session");
@@ -222,6 +250,7 @@ export default function OwnerPage() {
       }
       setData(d);
       setExtra(ex);
+      if (pw) setPowers(pw);
       // Only adopt the stored text while the owner is not editing it.
       if (!bcDirty.current) setBc(d.settings?.broadcast ?? "");
       if (!codesDirty.current)
@@ -368,6 +397,510 @@ export default function OwnerPage() {
                   </p>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {tab === "powers" && (
+          <>
+            <h1 className="gold-title flex items-center gap-2 text-2xl font-extrabold text-amber-300">
+              <Sparkles className="h-6 w-6" /> SUPERKRAFTER
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-400">
+              Verktyg som slår på hela riket samtidigt — en våg till alla, en nödbroms, en sanering. Varje åtgärd
+              loggas med hur många konton den rörde, och <b className="text-amber-300">ägarkontot lämnas alltid utanför</b>.
+            </p>
+
+            {/* Rikets puls: the numbers that make a mass tool's effect visible. */}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {([
+                ["Nya idag", powers?.pulse?.newToday ?? 0, Users, "text-emerald-300"],
+                ["Online nu", powers?.pulse?.online ?? 0, Dot, "text-emerald-300"],
+                ["Bannade", powers?.pulse?.banned ?? 0, Ban, "text-red-300"],
+                ["Tystade", powers?.pulse?.muted ?? 0, Mute, "text-purple-300"],
+                ["Skuggade", powers?.pulse?.shadowed ?? 0, Ghost, "text-indigo-300"],
+                ["Frysta mynt", powers?.pulse?.frozen ?? 0, Snowflake, "text-cyan-300"],
+                ["Mynt ut idag", powers?.pulse?.coinsToday ?? 0, Coins, "text-amber-300"],
+                ["Besök idag", powers?.pulse?.visitsToday ?? 0, Globe, "text-sky-300"],
+              ] as [string, number, typeof Users, string][]).map(([label, value, Icon, tint]) => (
+                <div key={label} className="rounded-2xl border border-white/[0.07] bg-slate-900/60 px-4 py-3">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <Icon className={`h-3.5 w-3.5 ${tint}`} /> {label}
+                  </p>
+                  <p className="mt-0.5 text-2xl font-extrabold tabular-nums text-white">
+                    <CountUp value={Number(value) || 0} />
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {/* Massvåg */}
+              <div className="gold-glow rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Gift className="h-4 w-4" /> Massvåg — XP & mynt till en grupp
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Max ±10 000 per person och gång. Negativa tal tar bort. Ägarkontot ingår aldrig.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <select
+                    value={waveRole}
+                    onChange={(e) => setWaveRole(e.target.value)}
+                    className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  >
+                    {[
+                      ["STUDENT", "Elever"],
+                      ["TEACHER", "Lärare"],
+                      ["ADMIN", "Admins"],
+                      ["SECURITY", "Säkerhet"],
+                      ["ALL", "Alla"],
+                    ].map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={waveXp}
+                    onChange={(e) => setWaveXp(e.target.value)}
+                    aria-label="XP per person"
+                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  />
+                  <span className="text-xs font-bold text-slate-400">XP</span>
+                  <input
+                    value={waveCoins}
+                    onChange={(e) => setWaveCoins(e.target.value)}
+                    aria-label="Mynt per person"
+                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  />
+                  <span className="text-xs font-bold text-slate-400">mynt</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(
+                        ownerMassGrant(
+                          session,
+                          waveRole as any,
+                          parseInt(waveXp, 10) || 0,
+                          parseInt(waveCoins, 10) || 0
+                        )
+                      )
+                    }
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-40"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Skicka vågen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirm({
+                        title: "Nollställ XP för gruppen?",
+                        body: `XP nollställs för alla i ${waveRole}. Går inte att ångra.`,
+                        label: "Nollställ XP",
+                        tone: "amber",
+                        action: () => run(ownerMassReset(session, waveRole as any, "XP")),
+                      })
+                    }
+                    className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    Nollställ XP
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirm({
+                        title: "Nollställ mynt för gruppen?",
+                        body: `Mynt nollställs för alla i ${waveRole}. Går inte att ångra.`,
+                        label: "Nollställ mynt",
+                        tone: "amber",
+                        action: () => run(ownerMassReset(session, waveRole as any, "MYNT")),
+                      })
+                    }
+                    className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    Nollställ mynt
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerMassReset(session, waveRole as any, "VARNINGAR"))}
+                    className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    Nollställ varningar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirm({
+                        title: "TOTAL-RESET för gruppen?",
+                        body: `XP, mynt, varningar, tystnad, skugga och osynlighet nollställs för alla i ${waveRole}.`,
+                        label: "Reset ALLT",
+                        action: () => run(ownerMassReset(session, waveRole as any, "ALLT")),
+                      })
+                    }
+                    className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-600"
+                  >
+                    <Warning className="h-3.5 w-3.5" /> Reset ALLT
+                  </button>
+                </div>
+              </div>
+
+              {/* Nödbroms */}
+              <div className="rounded-2xl border border-red-500/40 bg-red-500/5 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-red-300">
+                  <Ban className="h-4 w-4" /> Nödbroms & amnesti
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Nödbromsen stoppar sändningen, stänger alla LIVE-sessioner och kastar ut alla till inloggningen —
+                  utan att banna eller tysta någon.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirm({
+                        title: "NÖDBROMS?",
+                        body: "Alla utom du kastas ut till inloggningen, sändningen stoppas och alla LIVE-sessioner stängs.",
+                        label: "NÖDBROMS",
+                        action: () => run(ownerPanic(session)),
+                      })
+                    }
+                    className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-500"
+                  >
+                    <Flame className="h-3.5 w-3.5" /> NÖDBROMS
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerAllClear(session))}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-emerald-500"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Släpp in alla igen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerKickLive(session))}
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    <Video className="h-3.5 w-3.5" /> Stäng alla LIVE
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirm({
+                        title: "Amnesti för alla bannar?",
+                        body: "Alla bannlysningar tas bort, även de som gäller för alltid.",
+                        label: "Amnesti",
+                        action: () => run(ownerUnbanAll(session)),
+                      })
+                    }
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Unbanna alla
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerWarnAmnesty(session))}
+                    className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    Nollställ alla varningar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerKick(session, data.users.map((u: User) => u.id)))}
+                    className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    <Refresh className="h-3.5 w-3.5" /> Tvinga alla att logga in
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat-sanering */}
+              <div className="rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Eraser className="h-4 w-4" /> Chat-sanering
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Raderar meddelanden på riktigt. Ingen ångra-knapp — välj låda med flit.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {([
+                    ["global", "Global / Klass"],
+                    ["inbox", "Inkorg"],
+                    ["staff", "Stabs-kanalen"],
+                    ["all", "ALLT"],
+                  ] as ["global" | "inbox" | "staff" | "all", string][]).map(([scope, label]) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirm({
+                          title: `Rensa ${label}?`,
+                          body: "Meddelandena raderas för alltid.",
+                          label: "Rensa",
+                          action: () => run(ownerPurgeChat(session, scope)),
+                        })
+                      }
+                      className={`rounded-lg px-3 py-1.5 text-sm font-bold text-white ${
+                        scope === "all" ? "bg-red-700 hover:bg-red-600" : "bg-slate-700 hover:bg-slate-600"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 flex gap-2 border-t border-white/10 pt-3">
+                  <input
+                    value={purgeWho}
+                    onChange={(e) => setPurgeWho(e.target.value)}
+                    placeholder="en persons namn…"
+                    className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy || !purgeWho.trim()}
+                    onClick={() =>
+                      setConfirm({
+                        title: `Rensa allt från ${purgeWho.trim()}?`,
+                        body: "Personens meddelanden i gemensamma chattar raderas.",
+                        label: "Rensa",
+                        action: () => {
+                          const who = purgeWho.trim();
+                          setPurgeWho("");
+                          return run(ownerPurgeChatFrom(session, who));
+                        },
+                      })
+                    }
+                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-amber-500 disabled:opacity-40"
+                  >
+                    Rensa person
+                  </button>
+                </div>
+              </div>
+
+              {/* Roll-popup */}
+              <div className="rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Mail className="h-4 w-4" /> Popup till en hel grupp
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Samma popup som ett personligt meddelande, men till alla i gruppen på en gång.
+                </p>
+                <select
+                  value={noteRole}
+                  onChange={(e) => setNoteRole(e.target.value)}
+                  className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-amber-400 focus:outline-none"
+                >
+                  {[
+                    ["STUDENT", "Elever"],
+                    ["TEACHER", "Lärare"],
+                    ["ADMIN", "Admins"],
+                    ["SECURITY", "Säkerhet"],
+                    ["ALL", "Alla"],
+                  ].map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={2}
+                  maxLength={300}
+                  placeholder="Skriv något gruppen ser nästa gång de är inne…"
+                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={busy || !noteText.trim()}
+                  onClick={async () => {
+                    const text = noteText;
+                    setNoteText("");
+                    await run(ownerRoleNote(session, noteRole as any, text));
+                  }}
+                  className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-amber-500 disabled:opacity-40"
+                >
+                  <Send className="h-3.5 w-3.5" /> Skicka popup
+                </button>
+              </div>
+
+              {/* Logg & historik */}
+              <div className="rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Scroll className="h-4 w-4" /> Logg & besökshistorik
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Städar gammalt skräp så konsolen förblir snabb. Kvarvarande rader rörs inte.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <input
+                    value={pruneDays}
+                    onChange={(e) => setPruneDays(e.target.value)}
+                    type="number"
+                    min={1}
+                    max={365}
+                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-amber-400 focus:outline-none"
+                  />
+                  <span className="text-xs font-bold text-slate-400">dagar</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerPruneLog(session, parseInt(pruneDays, 10) || 30))}
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    <Scroll className="h-3.5 w-3.5" /> Städa loggen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerPruneVisits(session, parseInt(pruneDays, 10) || 30))}
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
+                  >
+                    <Globe className="h-3.5 w-3.5" /> Städa besök
+                  </button>
+                </div>
+              </div>
+
+              {/* Alt-detektor */}
+              <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-indigo-300">
+                  <Ghost className="h-4 w-4" /> Alt-detektor — samma uppkoppling
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Konton som setts från samma adress. En ledtråd, inte bevis — syskon delar nätverk.
+                </p>
+                <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                  {!powers && <p className="text-sm text-slate-500">Laddar kluster…</p>}
+                  {powers && powers.alts.length === 0 && (
+                    <p className="text-sm text-slate-500">Inga delade adresser hittade.</p>
+                  )}
+                  {(powers?.alts ?? []).map((c: any) => (
+                    <div key={c.ip} className="rounded-xl border border-white/10 bg-slate-950/50 p-2.5">
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-300">
+                        <Globe className="h-3.5 w-3.5 text-indigo-300" />
+                        <span data-no-translate>{c.ip}</span>
+                        <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[11px] text-indigo-200">
+                          {c.count} konton
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400" data-no-translate>
+                        {c.users.map((u: any) => u.username).join(" · ")}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => run(ownerKick(session, c.ids))}
+                        className="mt-1.5 flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-indigo-500"
+                      >
+                        <Refresh className="h-3 w-3" /> Kasta ut alla {c.count}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Senaste besök */}
+              <div className="rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Globe className="h-4 w-4" /> Spårhunden — senaste besöken
+                </p>
+                <p className="mt-1 text-xs text-slate-500">De 40 senaste sidbytena, alla användare.</p>
+                <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1 text-xs">
+                  {(powers?.visits ?? []).map((v: any) => (
+                    <p key={v.id} className="rounded bg-slate-950/60 px-2 py-1 text-slate-300" data-no-translate>
+                      <b className="text-white">{v.username}</b> → {v.path}
+                      <span className="ml-1 text-slate-600">
+                        · {v.at ? new Date(v.at).toLocaleTimeString("sv-SE") : ""}
+                      </span>
+                    </p>
+                  ))}
+                  {powers && powers.visits.length === 0 && <p className="text-slate-600">—</p>}
+                </div>
+              </div>
+
+              {/* Flaggor */}
+              <div className="rounded-2xl border border-amber-500/30 bg-slate-900/60 p-4 lg:col-span-2">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Ghost className="h-4 w-4" /> Alla flaggor på ett ställe
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Skuggade, osynliga, frysta, fästa och tystade — med en knapp som tar bort flaggan direkt.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(powers?.flags ?? []).map((f: any) => (
+                    <span
+                      key={f.id}
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/60 px-2.5 py-1.5 text-xs"
+                    >
+                      <b className="text-white" data-no-translate>
+                        {f.username}
+                      </b>
+                      {f.shadowed && (
+                        <button
+                          type="button"
+                          onClick={() => run(toggleShadow(session, f.id, f.username))}
+                          className="rounded bg-indigo-600 px-1.5 py-0.5 font-bold text-white hover:bg-indigo-500"
+                        >
+                          skugga av
+                        </button>
+                      )}
+                      {f.ghostMode && (
+                        <button
+                          type="button"
+                          onClick={() => run(toggleGhost(session, f.id, f.username))}
+                          className="rounded bg-slate-600 px-1.5 py-0.5 font-bold text-white hover:bg-slate-500"
+                        >
+                          osynlig av
+                        </button>
+                      )}
+                      {f.coinsFrozen && (
+                        <button
+                          type="button"
+                          onClick={() => run(toggleFreezeCoins(session, f.id, f.username))}
+                          className="rounded bg-cyan-600 px-1.5 py-0.5 font-bold text-white hover:bg-cyan-500"
+                        >
+                          tina mynt
+                        </button>
+                      )}
+                      {f.pinned && (
+                        <button
+                          type="button"
+                          onClick={() => run(togglePin(session, f.id, f.username))}
+                          className="rounded bg-rose-600 px-1.5 py-0.5 font-bold text-white hover:bg-rose-500"
+                        >
+                          avfäst
+                        </button>
+                      )}
+                      {f.mutedUntil && (
+                        <button
+                          type="button"
+                          onClick={() => run(unmuteChat(session, f.id, f.username))}
+                          className="rounded bg-emerald-600 px-1.5 py-0.5 font-bold text-white hover:bg-emerald-500"
+                        >
+                          öppna chat
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {powers && powers.flags.length === 0 && (
+                    <p className="text-sm text-slate-500">Inga flaggor just nu — allt är rent.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
