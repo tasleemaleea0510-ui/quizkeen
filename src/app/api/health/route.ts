@@ -131,7 +131,19 @@ async function probe(run: () => Promise<unknown>, timeoutMs = 6000): Promise<Pro
  * It always answers 200 — a failing dependency is data for a human, not a
  * reason for the host to restart a process that is running fine.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  // `?dns=1` adds a resolver survey. It is off by default because it costs a
+  // few lookups, but it is the difference between "this host is wrong" and
+  // "this machine has no working DNS at all".
+  const survey = new URL(request.url).searchParams.get("dns") === "1";
+  const dns = survey
+    ? Object.fromEntries(
+        await Promise.all(
+          ["google.com", "supabase.co", "pooler.supabase.com"].map(async (h) => [h, await resolveHost(h)] as const)
+        )
+      )
+    : undefined;
+
   // Render and Vercel expose the deployed commit under different names.
   const sha = process.env.RENDER_GIT_COMMIT ?? process.env.VERCEL_GIT_COMMIT_SHA;
 
@@ -191,6 +203,7 @@ export async function GET() {
     authDetail: auth.detail,
     supabaseHost: authEndpoint ?? null,
     supabaseDns: authDns,
+    ...(dns ? { dns } : {}),
     time: new Date().toISOString(),
   });
 }
