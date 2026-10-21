@@ -1306,17 +1306,24 @@ export async function ownerGiveKeen(s: S, profileId: string, username: string, k
   return withAuth("OWNER", s, async () => {
     const entry = KEEN_BY_ID[keenId];
     if (!entry) return { ok: false, info: "Den Keenen finns inte i katalogen." };
-    const res = await giveKeen(profileId, username, entry.id, entry.rarity);
+    // The Admin Keen is a trophy, not a stack: one per person, exactly like the
+    // Admin-Keen tab. Everything else stacks, because a spare copy is what the
+    // collection screen counts and what the market sells.
+    const trophy = entry.pack === "admin";
+    const res = await giveKeen(profileId, username, entry.id, entry.rarity, trophy ? "once" : "stack");
     if (!res.ok) {
       return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };
     }
-    await log("[OWNER]", `gav ${entry.name} till ${username}${res.alreadyOwned ? " (dublett)" : ""}`);
-    return {
-      ok: true,
-      info: res.alreadyOwned
-        ? `${username} har nu ${res.count} × ${entry.name}.`
-        : `${username} fick ${entry.name} ${entry.emoji}!`,
-    };
+    await log("[OWNER]", `gav ${entry.name} till ${username}${res.alreadyOwned ? " (hade den redan)" : ""}`);
+    if (res.alreadyOwned) {
+      return {
+        ok: true,
+        info: trophy
+          ? `${username} har redan ${entry.name}.`
+          : `${username} har nu ${res.count} × ${entry.name}.`,
+      };
+    }
+    return { ok: true, info: `${username} fick ${entry.name} ${entry.emoji}!` };
   });
 }
 

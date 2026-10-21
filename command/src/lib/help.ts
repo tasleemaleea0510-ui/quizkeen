@@ -152,6 +152,12 @@ export const MATRIX: HelpRow[] = [
     security: NO,
   },
   {
+    what: "Dela ut Keens||Hand out Keens",
+    owner: "Alla ur katalogen, även dubletter||Any from the catalogue, duplicates included",
+    admin: "Bara Admin-Keenen, en per person||Only the Admin Keen, one per person",
+    security: NO,
+  },
+  {
     what: "Radera konto||Delete an account",
     owner: YES,
     admin: NO,
@@ -438,6 +444,31 @@ const OWNER: HelpDoc = {
               name: "Hemlig anteckning (bara personal)",
               what: "En anteckning som bara personal ser, under personens namn i ägar-, admin- och säkerhetskonsolen.||A note only staff see, under the person's name in the owner, admin and security consoles.",
               how: "Skriv och tryck Spara. Töm rutan och spara för att radera den.||Write and press Save. Empty the box and save to delete it.",
+            },
+          ],
+        },
+        {
+          title: "Keen-valvet (endast ägare)||The Keen vault (owner only)",
+          items: [
+            {
+              name: "Sök Keen… + paketväljaren||Search Keen… + the pack picker",
+              what: "Hela samlarkatalogen utom startpaketet, som alla redan har. \"har ×N\" under namnet visar hur många kopior personen äger.||The whole collectible catalogue except the starter set, which everyone already has. \"har ×N\" under the name shows how many copies the person owns.",
+              how: "Sök på namn eller id, eller filtrera på paket. Siffran i rubriken är hur många av katalogen personen har.||Search by name or id, or filter by pack. The number in the heading is how much of the catalogue the person has.",
+            },
+            {
+              name: "Ge",
+              what: "Lägger en kopia av Keenen i personens samling direkt, och en rad i deras \"Senaste öppningar\".||Puts one copy of that Keen in the person's collection right away, plus a row in their \"Latest pulls\".",
+              how: "Trycker du igen blir det en dublett — samlingen räknar kopior, precis som ett riktigt paket.||Press again and it becomes a duplicate — the collection counts copies, exactly like a real pack.",
+              warn: "Keenen syns först när personen laddar om samlingen. Loggen skriver vem som gav och när.||The Keen shows once the person reloads the collection. The log records who gave it and when.",
+            },
+            {
+              name: "Ta bort",
+              what: "Tar bort en kopia. Har personen flera minskar antalet, annars försvinner Keenen ur samlingen.||Removes one copy. If they have several the count drops, otherwise the Keen leaves the collection.",
+              warn: "Knappen syns bara på Keens personen faktiskt har. Öppningshistoriken rörs inte — den ska fortfarande visa att Keenen kom och försvann.||The button only appears on Keens the person actually owns. The pull history is untouched — it should still show that the Keen arrived and left.",
+            },
+            {
+              name: "Admin-Keenen",
+              what: "Omeisaurus finns också i valvet. Den är en trofé: en per person, precis som knappen under Admin-Keen — trycker du igen säger den att personen redan har den.||Omeisaurus is in the vault too. It's a trophy: one per person, exactly like the button under Admin-Keen — a second press says they already have it.",
             },
           ],
         },
