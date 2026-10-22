@@ -24,6 +24,16 @@ export async function checkRegistration(email: string, username: string): Promis
   if (!verdict.ok && verdict.reason === "syntax") {
     return { ok: false, error: "E-postadressen ser inte ut som en riktig adress. Skriv t.ex. namn@exempel.se." };
   }
+  if (!verdict.ok && verdict.reason === "provider") {
+    const domain = normalizeEmail(email).split("@")[1] || "";
+    return {
+      ok: false,
+      error: `"${domain}" är en webbadress, inte en e-postdomän. Adressen hos ${verdict.provider} är bara namn@${verdict.provider} — inget före eller efter.`,
+    };
+  }
+  if (!verdict.ok && verdict.reason === "typo") {
+    return { ok: false, error: `Domänen ser ut som ett stavfel — menade du @${verdict.suggest}?` };
+  }
   if (!verdict.ok) {
     const domain = normalizeEmail(email).split("@")[1] || "domänen";
     return { ok: false, error: `Domänen "${domain}" kan inte ta emot e-post. Använd en adress du verkligen har.` };
