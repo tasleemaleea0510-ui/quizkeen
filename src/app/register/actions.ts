@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin, hasServiceRoleKey } from "@/lib/supabaseAdmin";
 import { checkEmail, normalizeEmail, USERNAME_RE } from "@/lib/email-check";
+import { blockedVisitor } from "@/lib/ip-block";
 
 export type SignupCheck = { ok: true } | { ok: false; error: string };
 export type ProfileResult = { ok: true } | { ok: false; error: string };
@@ -15,6 +16,12 @@ export type ProfileResult = { ok: true } | { ok: false; error: string };
  * is therefore where the rule is enforced for real — see its comment.
  */
 export async function checkRegistration(email: string, username: string): Promise<SignupCheck> {
+  // A blocked address gets no new account either — otherwise "block the
+  // connection" would only mean "pick a new name".
+  if (await blockedVisitor()) {
+    return { ok: false, error: "Den här uppkopplingen är blockerad från QuizKeen." };
+  }
+
   const name = (username || "").trim();
   if (!USERNAME_RE.test(name)) {
     return { ok: false, error: "Användarnamnet måste vara 3–20 tecken: bokstäver, siffror eller _." };
@@ -78,6 +85,13 @@ export async function createProfile(
 ): Promise<ProfileResult> {
   const name = (username || "").trim();
   if (!USERNAME_RE.test(name)) return { ok: false, error: "Ogiltigt användarnamn." };
+
+  // Last line of defence: the form check can be skipped by calling Supabase's
+  // signup directly, and an auth user without a profile is unusable anyway.
+  if (await blockedVisitor()) {
+    await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
+    return { ok: false, error: "Den här uppkopplingen är blockerad från QuizKeen." };
+  }
 
   // Ask the auth service what address this account actually has, rather than
   // trusting anything the browser sent us. Only when that is impossible — no

@@ -44,6 +44,29 @@ export const ADMIN_COIN_DAILY_CAP = 1000;
 /** The owner is not on a daily budget, but a single click is still bounded. */
 export const OWNER_COIN_MAX_PER_GRANT = 100_000;
 
+/**
+ * The "gift from the owner" button.
+ *
+ * A fixed 100 mynt — no amount to type — and at most one per player every two
+ * hours, which is what stops a kind gesture from turning into an economy.
+ * Admins may press it too, but the recipient always sees the same wording:
+ * a gift from the owner.
+ */
+export const OWNER_GIFT_COINS = 100;
+export const OWNER_GIFT_COOLDOWN_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * How the gift is marked in the CoinGrant ledger.
+ *
+ * `staffId` is still the person who pressed the button, so the gift counts
+ * against their daily budget; only `staffName` carries the marker, which is
+ * also what the two-hour cooldown looks up.
+ */
+export const OWNER_GIFT_LABEL = "Gåva från ägaren";
+
+/** What the recipient sees in their popup. */
+export const OWNER_GIFT_MESSAGE = `🎁 En gåva från ägaren: +${OWNER_GIFT_COINS} mynt! Tack för att du spelar QuizKeen.`;
+
 export const WARNINGS_BEFORE_BAN = 3;
 
 /** How long a third warning shuts an account: a day, not the rest of its life. */

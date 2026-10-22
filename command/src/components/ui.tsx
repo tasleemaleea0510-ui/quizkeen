@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ComponentType, type ReactNode } from "react";
+import { Globe } from "./icons";
 
 /**
  * The console's shared look.
@@ -337,5 +338,35 @@ export function Tilt({
       <span aria-hidden className="cmd-tilt-glare" />
       {children}
     </div>
+  );
+}
+
+/**
+ * The address an account was last seen from, in full.
+ *
+ * Full, because half an address cannot be compared with another account or
+ * pasted into a report. `ipHidden` is decided on the server (app/actions.ts):
+ * the owner's own connection reads as hidden, and a shared admin or security
+ * code must not be able to undo that from the browser.
+ */
+export function IpLine({ user: u }: { user: any }) {
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+      <Globe className="h-3 w-3 text-slate-600" />
+      {u.ipHidden ? (
+        <span className="text-amber-300/80">IP dold — ägarens uppkoppling</span>
+      ) : u.ip ? (
+        <>
+          <span data-no-translate className="font-mono text-slate-300">
+            {u.ip}
+          </span>
+          {(u.ipCity || u.ipCountryCode) && (
+            <span data-no-translate>· {[u.ipCity, u.ipCountryCode].filter(Boolean).join(", ")}</span>
+          )}
+        </>
+      ) : (
+        <span>Ingen IP sparad än</span>
+      )}
+    </p>
   );
 }

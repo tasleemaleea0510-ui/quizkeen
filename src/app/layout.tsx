@@ -9,6 +9,8 @@ import ClassBanner from "@/components/class-banner";
 import { getViewer, getAdminSettings } from "@/lib/viewer";
 import { isBroadcastLive } from "@/lib/broadcast";
 import { MaintenanceScreen, BanScreen, Overlays, LiveBan } from "@/components/owner-overlays";
+import IpBlockedScreen from "@/components/ip-blocked";
+import { blockedVisitor, blockReasonText, blockUntilText } from "@/lib/ip-block";
 import StudentChatBubble from "@/components/student-chat";
 import PresencePing from "@/components/presence-ping";
 import StaffPanel from "@/components/staff-panel";
@@ -53,6 +55,26 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [settings, { user, profile }] = await Promise.all([getAdminSettings(), getViewer()]);
+
+  // A blocked address is refused before anything else renders: not the app, not
+  // the login form, not the register page. A signed-in owner is exempt — the
+  // console refuses to block an address any owner has used, and an owner who
+  // shares a network with a blocked student must still be able to administer.
+  const ipBlock = profile?.role === "OWNER" ? null : await blockedVisitor();
+  if (ipBlock) {
+    return (
+      <html lang="sv" className={`${sans.variable} ${display.variable}`}>
+        <body className="min-h-screen font-sans antialiased">
+          <Aurora />
+          <IpBlockedScreen
+            reason={blockReasonText(ipBlock)}
+            until={blockUntilText(ipBlock)}
+            ip={ipBlock.ip}
+          />
+        </body>
+      </html>
+    );
+  }
 
   const banned = !!(profile?.bannedUntil && profile.bannedUntil > new Date());
 

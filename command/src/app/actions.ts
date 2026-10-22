@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
 import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from "@/lib/keen-grant";
 import { KEEN_BY_ID } from "@/lib/keen-catalogue";
-import { describeLocation, maskIp } from "@/lib/geo";
+import { describeLocation } from "@/lib/geo";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -71,6 +71,65 @@ const userShape = (u: any) => ({
   secretNote: u.secretNote,
   pinned: Boolean(u.pinned),
 });
+
+/**
+ * What a console list may print about a connection.
+ *
+ * The address in full — half an address cannot be compared, pasted into a
+ * report or matched against another account. But never the owner's own: the
+ * admin and security panels open with a shared code, and a shared code is not
+ * a person who has been trusted with that. An account that shares the owner's
+ * address is withheld too, otherwise the address leaks through the second
+ * account.
+ */
+function withAddress(u: any, withheld: Set<string>) {
+  const hidden = !!u.lastIp && withheld.has(u.lastIp);
+  return { ...userShape(u), ip: hidden ? null : u.lastIp ?? null, ipHidden: hidden };
+}
+
+/** Every address the owner's own account has been seen from. */
+async function ownerAddresses(): Promise<Set<string>> {
+  try {
+    const rows = await prisma.profile.findMany({ where: { role: "OWNER" }, select: { id: true, lastIp: true } });
+    const ids = rows.map((r) => r.id);
+    const seen = ids.length
+      ? await prisma.profileIp.findMany({ where: { profileId: { in: ids } }, select: { ip: true } }).catch(() => [])
+      : [];
+    return new Set(
+      [...rows.map((r) => r.lastIp), ...seen.map((r) => r.ip)].filter((ip): ip is string => !!ip)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * A typed address, or null.
+ *
+ * Deliberately strict about the shape only — whether it exists is not
+ * something the console can know, and a mistaken digit is caught by the person
+ * who owns the connection rather than silently blocking a stranger.
+ */
+function cleanAddress(raw: unknown): string | null {
+  const ip = String(raw ?? "").trim();
+  if (!ip || ip.length > 45) return null;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip)) {
+    return ip.split(".").every((n) => Number(n) <= 255) ? ip : null;
+  }
+  if (ip.includes(":") && /^[0-9a-fA-F:.]+$/.test(ip)) return ip;
+  return null;
+}
+
+/** Loopback, LAN and link-local — never a real visitor's public address. */
+function internalAddress(ip: string): boolean {
+  if (ip.startsWith("10.") || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("169.254.")) return true;
+  if (/^172\.(\d+)\./.test(ip)) {
+    const n = Number(/^172\.(\d+)\./.exec(ip)![1]);
+    if (n >= 16 && n <= 31) return true;
+  }
+  const low = ip.toLowerCase();
+  return low.startsWith("fc") || low.startsWith("fd") || low.startsWith("fe80") || low === "::1";
+}
 
 /**
  * "Fäst" puts a user on top of every staff list; the queries come back newest
@@ -170,7 +229,9 @@ export async function getOwnerData(s: S) {
     const totXP = users.reduce((a, u) => a + u.xp, 0);
     const totCoins = users.reduce((a, u) => a + u.coins, 0);
     return {
-      users: users.map(userShape).sort(byPinnedFirst),
+      // The owner sees their own connection: the withholding in
+      // `withAddress` is for the shared admin and security codes.
+      users: users.map((u) => withAddress(u, new Set())).sort(byPinnedFirst),
       // Explicit shape, with dates as ISO strings: the console needs to know
       // *when* the notice ends, not just the text.
       settings: settings
@@ -208,8 +269,9 @@ export async function getAdminData(s: S) {
     ]);
     const until = settings?.broadcastUntil ?? null;
     const live = !!settings?.broadcast?.trim() && (!until || until.getTime() > Date.now());
+    const withheld = await ownerAddresses();
     return {
-      users: users.map(userShape).sort(byPinnedFirst),
+      users: users.map((u) => withAddress(u, withheld)).sort(byPinnedFirst),
       // The banner tab needs to show what is already on screen — otherwise an
       // admin opens it, sees an empty box, and assumes nothing is running.
       settings: {
@@ -226,12 +288,13 @@ export async function getAdminData(s: S) {
 export async function getSecurityData(s: S) {
   try {
     if (!(await ok(s, "SECURITY"))) return null;
-    const [users, logRows] = await Promise.all([
+    const [users, logRows, withheld] = await Promise.all([
       prisma.profile.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+      ownerAddresses(),
     ]);
     return {
-      users: users.map(userShape).sort(byPinnedFirst),
+      users: users.map((u) => withAddress(u, withheld)).sort(byPinnedFirst),
       log: logRows.map((l) => ({ username: l.username, action: l.action, createdAt: time(l.createdAt) })),
     };
   } catch {
@@ -242,7 +305,11 @@ export async function getSecurityData(s: S) {
 export async function getOwnerExtra(s: S) {
   try {
     if (!(await ok(s, "OWNER"))) return null;
-    const requests = await prisma.banRequest.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+    const [requests, blocked] = await Promise.all([
+      prisma.banRequest.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.blockedIp.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
+    ]);
+    const now = Date.now();
     return {
       requests: requests.map((r) => ({
         id: r.id,
@@ -252,6 +319,17 @@ export async function getOwnerExtra(s: S) {
         reason: r.reason,
         status: r.status,
         createdAt: time(r.createdAt),
+      })),
+      // A timed block whose end has passed is still a row, but not a block: the
+      // student app stops enforcing it on its own. Marked so the list agrees.
+      blocked: blocked.map((b) => ({
+        id: b.id,
+        ip: b.ip,
+        reason: b.reason,
+        byName: b.byName,
+        until: time(b.until),
+        createdAt: time(b.createdAt),
+        active: !b.until || b.until.getTime() > now,
       })),
     };
   } catch {
@@ -658,10 +736,103 @@ export async function peekIP(s: S, id: string, username: string) {
       select: { lastIp: true, ipCountry: true, ipCountryCode: true, ipCity: true, ipAt: true, lastSeenAt: true },
     });
     if (!p) return { ok: false, info: "Användaren finns inte längre." };
-    const where = describeLocation(p);
+    const where = describeLocation(p, { full: true });
     const when = p.ipAt ? ` · uppdaterad ${new Date(p.ipAt).toLocaleString("sv-SE")}` : "";
+    // The whole trail matters, not just the current address: "they were on a
+    // different network yesterday" is usually the useful part.
+    const history = await prisma.profileIp.count({ where: { profileId: id } }).catch(() => 0);
+    const trail = history > 1 ? ` · ${history} adresser genom tiderna (se Adresshistorik)` : "";
     await log("[OWNER]", `plats-peek på ${username}`);
-    return { ok: true, info: `${username}: ${where}${when}` };
+    return { ok: true, info: `${username}: ${where}${when}${trail}` };
+  });
+}
+
+/**
+ * Every address this account has ever been seen from, newest use first.
+ *
+ * Read-only, owner-only, and capped: a person who moves between home, school
+ * and a phone hotspot has a handful of rows, not thousands.
+ */
+export async function getIpHistory(s: S, id: string) {
+  try {
+    if (!(await ok(s, "OWNER"))) return null;
+    const [rows, blocks] = await Promise.all([
+      prisma.profileIp.findMany({ where: { profileId: id }, orderBy: { lastAt: "desc" }, take: 100 }),
+      prisma.blockedIp.findMany(),
+    ]);
+    const now = Date.now();
+    const blocked = new Map(blocks.map((b) => [b.ip, !b.until || b.until.getTime() > now]));
+    return rows.map((r) => ({
+      ip: r.ip,
+      country: r.country,
+      countryCode: r.countryCode,
+      city: r.city,
+      firstAt: r.firstAt.toISOString(),
+      lastAt: r.lastAt.toISOString(),
+      hits: r.hits,
+      blocked: blocked.get(r.ip) === true,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Refuse an address at the door — on every device behind it.
+ *
+ * Different from a ban, and it says so in the log. A ban names an account; this
+ * names a connection, so a fresh account from the same network is refused too.
+ * Refused for owner addresses by design: locking yourself out of the console's
+ * own product is never the intent. Everyone currently sitting on the address
+ * is signed out at once, otherwise the block would only bite on their next
+ * visit.
+ */
+export async function blockIp(s: S, rawIp: string, reason: string, minutes: number) {
+  return withAuth("OWNER", s, async () => {
+    const ip = cleanAddress(rawIp);
+    if (!ip) return { ok: false, info: "Skriv en riktig IP-adress, t.ex. 83.250.14.77." };
+    if (internalAddress(ip)) {
+      return { ok: false, info: "Det där är en intern adress (routern eller din egen dator) — den kan inte blockeras." };
+    }
+    if ((await ownerAddresses()).has(ip)) {
+      return { ok: false, info: "Den adressen används av ett ägarkonto. Blockera den inte — du låser ute dig själv." };
+    }
+
+    const mins = whole(minutes, 0);
+    const until = mins > 0 ? new Date(Date.now() + Math.min(mins, 525_600) * 60_000) : null;
+    const body = (reason || "").trim().slice(0, 200) || null;
+
+    await prisma.blockedIp.upsert({
+      where: { ip },
+      create: { ip, reason: body, until, byName: s.role },
+      update: { reason: body, until, byName: s.role, createdAt: new Date() },
+    });
+
+    // Throw out everyone on that connection right now. The student app also
+    // polls the list every few seconds, so this is the fast path, not the only one.
+    const kicked = await prisma.profile.updateMany({
+      where: { lastIp: ip, role: { not: "OWNER" } },
+      data: { forceRelogin: true, liveRequested: false, livePeerId: null },
+    });
+
+    const length = until ? `${mins >= 1440 ? `${Math.round(mins / 1440)} dygn` : `${mins} min`}` : "tills vidare";
+    await log("[OWNER]", `BLOCKERADE IP ${ip} (${length})${body ? `: ${body}` : ""} — ${kicked.count} konton utkastade`);
+    return {
+      ok: true,
+      info: `${ip} blockerad ${length}. ${people(kicked.count)} på den uppkopplingen kastades ut.`,
+    };
+  });
+}
+
+/** Lift a block. New visitors from that address get in again at once. */
+export async function unblockIp(s: S, rawIp: string) {
+  return withAuth("OWNER", s, async () => {
+    const ip = cleanAddress(rawIp) ?? String(rawIp ?? "").trim();
+    if (!ip) return { ok: false, info: "Ingen adress angiven." };
+    const res = await prisma.blockedIp.deleteMany({ where: { ip } });
+    if (!res.count) return { ok: false, info: `${ip} var inte blockerad.` };
+    await log("[OWNER]", `hävde IP-blocket på ${ip}`);
+    return { ok: true, info: `${ip} är inte längre blockerad.` };
   });
 }
 
@@ -961,9 +1132,9 @@ const people = (n: number) => `${n} ${n === 1 ? "konto" : "konton"}`;
 /**
  * Everything the superpower tab shows, in one round trip.
  *
- * The alt detector groups the stored (masked-at-display) addresses: two
- * accounts that keep appearing from the same connection are worth a look, but
- * it is a hint, not proof — siblings share a home network.
+ * The alt detector groups the stored addresses in full: this page is reachable
+ * only with the owner code, and "same connection" is only checkable against the
+ * real address. It is still a hint, not proof — siblings share a home network.
  */
 export async function getOwnerPowers(s: S) {
   try {
@@ -987,7 +1158,7 @@ export async function getOwnerPowers(s: S) {
         prisma.pageVisit.count({ where: { createdAt: { gte: dayStart } } }),
       ]);
 
-    const [flagRows, visitRows, assigned] = await Promise.all([
+    const [flagRows, visitRows, assigned, history] = await Promise.all([
       prisma.profile.findMany({
         where: { OR: [{ shadowed: true }, { ghostMode: true }, { coinsFrozen: true }, { pinned: true }, { chatMutedUntil: { gt: now } }] },
         select: { id: true, username: true, shadowed: true, ghostMode: true, coinsFrozen: true, pinned: true, chatMutedUntil: true },
@@ -996,32 +1167,76 @@ export async function getOwnerPowers(s: S) {
       }),
       prisma.pageVisit.findMany({ orderBy: { createdAt: "desc" }, take: 40 }),
       prisma.profile.findMany({
-        where: { lastIp: { not: null } },
-        select: { id: true, username: true, role: true, lastIp: true, lastSeenAt: true, bannedUntil: true },
+        select: {
+          id: true,
+          username: true,
+          role: true,
+          lastIp: true,
+          lastSeenAt: true,
+          bannedUntil: true,
+          ipCountry: true,
+          ipCountryCode: true,
+          ipCity: true,
+        },
+      }),
+      // The whole address trail, not just today's connection. An account that
+      // switched networks to dodge a cluster still turns up in it here.
+      prisma.profileIp.findMany({
+        select: { profileId: true, ip: true, country: true, countryCode: true, city: true, lastAt: true },
+        orderBy: { lastAt: "desc" },
+        take: 5000,
       }),
     ]);
 
-    const byIp = new Map<string, typeof assigned>();
+    const byId = new Map(assigned.map((p) => [p.id, p] as const));
+    const addressCount = new Map<string, number>();
+    const clusters = new Map<string, { ids: Set<string>; geo: { country: string | null; countryCode: string | null; city: string | null } | null }>();
+    for (const r of history) {
+      addressCount.set(r.profileId, (addressCount.get(r.profileId) ?? 0) + 1);
+      const entry = clusters.get(r.ip) ?? { ids: new Set<string>(), geo: null };
+      entry.ids.add(r.profileId);
+      if (!entry.geo && (r.countryCode || r.city || r.country)) {
+        entry.geo = { country: r.country, countryCode: r.countryCode, city: r.city };
+      }
+      clusters.set(r.ip, entry);
+    }
+    // Accounts that predate the history table still match on their current
+    // address, so the detector does not go blind on old data.
     for (const p of assigned) {
       if (!p.lastIp) continue;
-      const list = byIp.get(p.lastIp) ?? [];
-      list.push(p);
-      byIp.set(p.lastIp, list);
+      const entry = clusters.get(p.lastIp) ?? { ids: new Set<string>(), geo: null };
+      entry.ids.add(p.id);
+      if (!entry.geo && (p.ipCountryCode || p.ipCity || p.ipCountry)) {
+        entry.geo = { country: p.ipCountry, countryCode: p.ipCountryCode, city: p.ipCity };
+      }
+      clusters.set(p.lastIp, entry);
     }
-    const alts = Array.from(byIp.entries())
-      .filter(([, list]) => list.length > 1)
-      .map(([ip, list]) => ({
-        ip: maskIp(ip),
-        ids: list.map((p) => p.id),
-        count: list.length,
-        users: list.map((p) => ({
-          id: p.id,
-          username: p.username,
-          role: p.role,
-          banned: Boolean(p.bannedUntil && p.bannedUntil > now),
-          lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
-        })),
-      }))
+
+    const alts = Array.from(clusters.entries())
+      .map(([ip, entry]) => {
+        const list = Array.from(entry.ids).flatMap((id) => {
+          const person = byId.get(id);
+          return person ? [person] : [];
+        });
+        return {
+          ip,
+          ids: list.map((p) => p.id),
+          count: list.length,
+          country: entry.geo?.country ?? null,
+          countryCode: entry.geo?.countryCode ?? null,
+          city: entry.geo?.city ?? null,
+          online: list.filter((p) => p.lastSeenAt && now.getTime() - p.lastSeenAt.getTime() < 120_000).length,
+          users: list.map((p) => ({
+            id: p.id,
+            username: p.username,
+            role: p.role,
+            banned: Boolean(p.bannedUntil && p.bannedUntil > now),
+            lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
+            addresses: addressCount.get(p.id) ?? 0,
+          })),
+        };
+      })
+      .filter((c) => c.count > 1)
       .sort((a, b) => b.count - a.count)
       .slice(0, 12);
 
@@ -1220,6 +1435,38 @@ export async function ownerKick(s: S, ids: string[]) {
     });
     await log("[OWNER]", `kastade ut ${people(res.count)}`);
     return { ok: true, info: `${people(res.count)} måste logga in igen.` };
+  });
+}
+
+/**
+ * Ban everyone who has been seen from one connection.
+ *
+ * The one-click answer to "five accounts, one kid": the same address turns up
+ * under five names, and banning them one at a time invites four of them back.
+ * Staff and the owner are never swept up — a bulk action must not become a
+ * way to ban a colleague by guessing their IP — and a bad press is undoable
+ * with the amnesty button.
+ */
+export async function ownerBanSameIp(s: S, usernames: string[], minutes: number) {
+  return withAuth("OWNER", s, async () => {
+    const mins = whole(minutes, 60);
+    if (mins <= 0) return { ok: false, info: "Välj hur länge bannen ska gälla." };
+    const clean = (usernames || [])
+      .filter((n): n is string => typeof n === "string" && !!n.trim())
+      .map((n) => n.trim())
+      .slice(0, 100);
+    if (!clean.length) return { ok: false, info: "Ingen att banna." };
+
+    const until = new Date(Date.now() + Math.min(mins, 525_600) * 60_000);
+    const res = await prisma.profile.updateMany({
+      where: { username: { in: clean }, role: { in: ["STUDENT", "TEACHER"] } },
+      data: { bannedUntil: until, banMessage: "Bannad med resten av sin IP" },
+    });
+    await log("[OWNER]", `IP-bann: ${people(res.count)} i ${mins} min`);
+    return {
+      ok: true,
+      info: `${people(res.count)} bannade i ${mins >= 1440 ? `${Math.round(mins / 1440)} dygn` : `${mins} min`}. Ångra med Amnesti.`,
+    };
   });
 }
 

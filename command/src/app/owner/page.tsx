@@ -41,6 +41,9 @@ import {
   forceRelogin,
   getTimeMachine,
   peekIP,
+  getIpHistory,
+  blockIp,
+  unblockIp,
   toggleDailyBonus,
   togglePin,
   spyOnChats,
@@ -53,6 +56,7 @@ import {
   ownerPurgeChat,
   ownerPurgeChatFrom,
   ownerKick,
+  ownerBanSameIp,
   ownerRoleNote,
   ownerUnbanAll,
   ownerWarnAmnesty,
@@ -63,6 +67,7 @@ import {
   ownerTakeKeen,
 } from "../actions";
 import { KEEN_CATALOGUE, KEEN_SHELVES, RARITY_LABEL, keenArtSrc } from "../../lib/keen-catalogue";
+import { countryName, flagFor } from "../../lib/geo";
 import {
   Crown,
   Chart,
@@ -122,6 +127,10 @@ type User = {
   lastSeenAt: string | null;
   livePath: string | null;
   secretNote: string | null;
+  ip: string | null;
+  ipHidden: boolean;
+  ipCity: string | null;
+  ipCountryCode: string | null;
 };
 
 type TabId = "stats" | "powers" | "requests" | "chatspy" | "chat" | "users" | "broadcast" | "codes" | "log" | "help";
@@ -226,6 +235,11 @@ export default function OwnerPage() {
   const [vault, setVault] = useState<{ keenId: string; count: number }[]>([]);
   const [vaultQ, setVaultQ] = useState("");
   const [vaultShelf, setVaultShelf] = useState("all");
+  // Every address the selected account has used, and the blocklist's controls.
+  const [ipHistory, setIpHistory] = useState<any[] | null>(null);
+  const [blockAddr, setBlockAddr] = useState("");
+  const [blockWhy, setBlockWhy] = useState("");
+  const [blockMin, setBlockMin] = useState(0);
 
   useEffect(() => {
     let sess: any = null;
@@ -275,6 +289,36 @@ export default function OwnerPage() {
       alive = false;
     };
   }, [session, sel?.id]);
+
+  // The address trail follows the selected person, like the Keen vault does.
+  useEffect(() => {
+    if (!session || !sel?.id) {
+      setIpHistory(null);
+      return;
+    }
+    let alive = true;
+    setIpHistory(null);
+    getIpHistory(session, sel.id)
+      .then((r) => {
+        if (alive) setIpHistory(r ?? []);
+      })
+      .catch(() => {
+        if (alive) setIpHistory([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session, sel?.id]);
+
+  /** After a block or an unblock, re-read just the address trail. */
+  async function refreshIps() {
+    if (!session || !sel?.id) return;
+    try {
+      setIpHistory((await getIpHistory(session, sel.id)) ?? []);
+    } catch {
+      /* keep the last known list */
+    }
+  }
 
   /** After a gift or a take-back, re-read just the vault. */
   async function refreshVault() {
@@ -848,22 +892,164 @@ export default function OwnerPage() {
                     <div key={c.ip} className="rounded-xl border border-white/10 bg-slate-950/50 p-2.5">
                       <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-300">
                         <Globe className="h-3.5 w-3.5 text-indigo-300" />
-                        <span data-no-translate>{c.ip}</span>
+                        <span data-no-translate className="font-mono">
+                          {c.ip}
+                        </span>
+                        <CopyIp ip={c.ip} />
                         <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[11px] text-indigo-200">
-                          {c.count} konton
+                          {c.count} konton{c.online ? ` · ${c.online} online` : ""}
                         </span>
                       </p>
+                      {(c.city || c.countryCode) && (
+                        <p className="mt-0.5 text-[11px] text-slate-500" data-no-translate>
+                          {flagFor(c.countryCode)} {countryName(c.countryCode, c.country)}
+                          {c.city ? ` · ${c.city}` : ""}
+                        </p>
+                      )}
                       <p className="mt-1 text-xs text-slate-400" data-no-translate>
                         {c.users.map((u: any) => u.username).join(" · ")}
                       </p>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => run(ownerKick(session, c.ids))}
-                        className="mt-1.5 flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-indigo-500"
-                      >
-                        <Refresh className="h-3 w-3" /> Kasta ut alla {c.count}
-                      </button>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => run(ownerKick(session, c.ids))}
+                          className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-indigo-500"
+                        >
+                          <Refresh className="h-3 w-3" /> Kasta ut alla {c.count}
+                        </button>
+                        {(c.users as any[]).some((u) => u.role === "STUDENT" || u.role === "TEACHER") && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(ownerBanSameIp(session, (c.users as any[]).map((u) => u.username), 60))}
+                              className="flex items-center gap-1 rounded-lg bg-red-600/90 px-2 py-1 text-[11px] font-bold text-white hover:bg-red-500"
+                            >
+                              <Ban className="h-3 w-3" /> Banna alla 1 tim
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(ownerBanSameIp(session, (c.users as any[]).map((u) => u.username), 1440))}
+                              className="flex items-center gap-1 rounded-lg bg-red-700/80 px-2 py-1 text-[11px] font-bold text-white hover:bg-red-600"
+                            >
+                              <Ban className="h-3 w-3" /> 1 dygn
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            setConfirm({
+                              title: "Blockera adressen?",
+                              body: `${c.ip} stängs för alla. Kontona ovan kastas ut och nya konton på samma nät släpps inte in. Ångra med Avblockera.`,
+                              label: "Blockera IP",
+                              tone: "red",
+                              action: () => run(blockIp(session, c.ip, "Blockerad från alt-detektorn", 0)),
+                            })
+                          }
+                          className="flex items-center gap-1 rounded-lg border border-red-500/40 bg-slate-950/60 px-2 py-1 text-[11px] font-bold text-red-300 hover:bg-red-600/20"
+                        >
+                          <Ban className="h-3 w-3" /> Blockera IP
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Blockerade IP */}
+              <div className="rounded-2xl border border-red-500/35 bg-red-500/[0.05] p-4">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-red-300">
+                  <Ban className="h-4 w-4" /> Blockerade uppkopplingar
+                  <span className="rounded-full bg-red-600/20 px-2 py-0.5 text-[11px] font-bold text-red-200 tabular-nums">
+                    {(extra?.blocked ?? []).filter((b: any) => b.active).length} aktiva
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  En IP-spärr gäller nätet, inte kontot: personen kan byta konto och enhet och kommer ändå inte in.
+                  Därför slår den också mot delade nät — på en skola kan flera elever ligga bakom samma adress.
+                </p>
+
+                <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-slate-950/50 p-2.5">
+                  <input
+                    value={blockAddr}
+                    onChange={(e) => setBlockAddr(e.target.value)}
+                    placeholder="83.250.14.77"
+                    inputMode="decimal"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-sm text-white placeholder:text-slate-600 focus:border-red-400 focus:outline-none"
+                  />
+                  <input
+                    value={blockWhy}
+                    onChange={(e) => setBlockWhy(e.target.value)}
+                    placeholder="varför (syns för personen)"
+                    maxLength={200}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-red-400 focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    <select
+                      value={blockMin}
+                      onChange={(e) => setBlockMin(Number(e.target.value))}
+                      className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white focus:border-red-400 focus:outline-none"
+                    >
+                      <option value={0}>Tills vidare</option>
+                      <option value={60}>1 tim</option>
+                      <option value={1440}>1 dygn</option>
+                      <option value={10080}>7 dygn</option>
+                    </select>
+                    <button
+                      type="button"
+                      disabled={busy || !blockAddr.trim()}
+                      onClick={async () => {
+                        await run(blockIp(session, blockAddr, blockWhy, blockMin));
+                        setBlockAddr("");
+                        setBlockWhy("");
+                      }}
+                      className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-500 disabled:opacity-40"
+                    >
+                      <Ban className="h-3.5 w-3.5" /> Blockera IP
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                  {(extra?.blocked ?? []).length === 0 && (
+                    <p className="text-sm text-slate-500">Inga blockerade adresser. Dörren är öppen för alla.</p>
+                  )}
+                  {(extra?.blocked ?? []).map((b: any) => (
+                    <div
+                      key={b.id}
+                      className={`rounded-lg border px-2.5 py-2 ${
+                        b.active ? "border-red-500/30 bg-slate-950/60" : "border-white/[0.06] bg-slate-950/40 opacity-60"
+                      }`}
+                    >
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="font-mono font-bold text-white" data-no-translate>
+                          {b.ip}
+                        </span>
+                        <CopyIp ip={b.ip} />
+                        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                          {b.active ? (b.until ? `till ${new Date(b.until).toLocaleString("sv-SE")}` : "för alltid") : "utgången"}
+                        </span>
+                      </p>
+                      {b.reason && (
+                        <p className="mt-0.5 text-[11px] italic text-slate-400" data-no-translate>
+                          “{b.reason}”
+                        </p>
+                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600" data-no-translate>
+                        <span>{b.createdAt ? `blockerad ${new Date(b.createdAt).toLocaleString("sv-SE")}` : ""}</span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => run(unblockIp(session, b.ip))}
+                          className="rounded bg-emerald-600 px-2 py-0.5 font-bold text-white hover:bg-emerald-500 disabled:opacity-40"
+                        >
+                          Avblockera
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1167,6 +1353,10 @@ export default function OwnerPage() {
                           {u.livePath}
                         </span>
                       )}
+                      <span className="flex items-center gap-1 rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[11px] font-normal text-slate-300">
+                        <Globe className="h-3 w-3 text-slate-500" />
+                        <span data-no-translate>{u.ip ?? "ingen IP än"}</span>
+                      </span>
                     </span>
                     <span className="flex items-center gap-1.5 text-sm text-slate-400">
                       {u.role} · Lv {u.level} · {u.xp} XP · {u.coins} <Coins className="h-3.5 w-3.5" />
@@ -1558,6 +1748,85 @@ export default function OwnerPage() {
                       >
                         Spara
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Adresshistorik */}
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-4 lg:col-span-2">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-emerald-300">
+                      <Globe className="h-4 w-4" /> Adresshistorik — varje uppkoppling kontot använt
+                      <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] font-bold text-slate-300 tabular-nums">
+                        {ipHistory?.length ?? 0} adresser
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Allt som sparats, inte bara den senaste. <b className="text-slate-300">Blockera uppkopplingen</b> stänger
+                      dörren för hela nätet — nya konton därifrån släpps inte in heller.
+                    </p>
+                    <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto pr-1">
+                      {ipHistory === null && <p className="text-sm text-slate-500">Laddar adresser…</p>}
+                      {ipHistory?.length === 0 && (
+                        <p className="text-sm text-slate-500">
+                          Ingen adress sparad än — personen måste vara inloggad i QuizKeen en stund.
+                        </p>
+                      )}
+                      {(ipHistory ?? []).map((h: any) => (
+                        <div key={h.ip} className="rounded-lg border border-white/[0.06] bg-slate-950/50 px-2.5 py-2">
+                          <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-mono font-bold text-white" data-no-translate>
+                              {h.ip}
+                            </span>
+                            <CopyIp ip={h.ip} />
+                            {h.blocked && (
+                              <span className="rounded-full bg-red-600/20 px-2 py-0.5 text-[10px] font-bold text-red-300">
+                                BLOCKERAD
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500" data-no-translate>
+                            {flagFor(h.countryCode)} {countryName(h.countryCode, h.country)}
+                            {h.city ? ` · ${h.city}` : ""}
+                            {" · "}först {new Date(h.firstAt).toLocaleString("sv-SE")}
+                            {" · "}senast {new Date(h.lastAt).toLocaleString("sv-SE")}
+                            {h.hits > 1 ? ` · ${h.hits} gånger` : ""}
+                          </p>
+                          <div className="mt-1.5">
+                            {h.blocked ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={async () => {
+                                  await run(unblockIp(session, h.ip));
+                                  await refreshIps();
+                                }}
+                                className="flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-500 disabled:opacity-40"
+                              >
+                                <Check className="h-3 w-3" /> Avblockera
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() =>
+                                  setConfirm({
+                                    title: "Blockera uppkopplingen?",
+                                    body: `${h.ip} blockeras tills vidare. Alla konton som sitter på den adressen kastas ut, och nya konton därifrån släpps inte in. Du kan häva det härifrån eller under Superkrafter.`,
+                                    label: "Blockera",
+                                    tone: "red",
+                                    action: async () => {
+                                      await run(blockIp(session, h.ip, "Blockerad av ägaren", 0));
+                                      await refreshIps();
+                                    },
+                                  })
+                                }
+                                className="flex items-center gap-1 rounded bg-red-700 px-2 py-1 text-[11px] font-bold text-white hover:bg-red-600 disabled:opacity-40"
+                              >
+                                <Ban className="h-3 w-3" /> Blockera uppkopplingen
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2009,5 +2278,28 @@ export default function OwnerPage() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Copies an address to the clipboard — the first step of every ban report,
+ * support mail and blocklist. A masked address cannot be pasted anywhere.
+ */
+function CopyIp({ ip }: { ip: string }) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(false), 1500);
+    return () => clearTimeout(t);
+  }, [done]);
+  return (
+    <button
+      type="button"
+      title="Kopiera IP-adressen"
+      onClick={() => navigator.clipboard?.writeText(ip).then(() => setDone(true), () => {})}
+      className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+    >
+      {done ? "kopierad ✓" : "kopiera"}
+    </button>
   );
 }

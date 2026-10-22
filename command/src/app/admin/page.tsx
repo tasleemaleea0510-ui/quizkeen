@@ -53,10 +53,12 @@ import {
   Coins,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
-import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
+import { ConsoleHero, IpLine, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "tools" | "log" | "help";
+
+
 
 /** How long a sändning may run. `null` = until somebody stops it. */
 const BROADCAST_DURATIONS: { label: string; minutes: number | null }[] = [
@@ -358,6 +360,7 @@ export default function AdminPage() {
                               <p className="mt-1 text-xs text-slate-500" data-no-translate>
                                 {u.role} · Lv {u.level} · {u.xp} XP
                               </p>
+                              <IpLine user={u} />
                             </div>
                           </div>
                           {u.bannedUntil && (

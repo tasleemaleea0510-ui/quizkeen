@@ -5,6 +5,7 @@ import {
   getModerationData,
   modBan,
   modClearWarnings,
+  modGiftFromOwner,
   modGiveCoins,
   modMute,
   modSetColor,
@@ -13,11 +14,13 @@ import {
   modUnban,
   modUnmute,
   modWarn,
+  type AltGroup,
   type ModerationData,
   type StaffPlayer,
 } from "@/app/system/moderation";
 import {
   ADMIN_COIN_DAILY_CAP,
+  OWNER_GIFT_COINS,
   WARNINGS_BEFORE_BAN,
   banPresets,
   humanRemaining,
@@ -25,6 +28,7 @@ import {
   type StaffRole,
 } from "@/lib/moderation";
 import { ROLE_THEME } from "@/lib/roles";
+import { countryName, flagFor } from "@/lib/geo";
 import NameColorPicker from "@/components/name-color-picker";
 import { cn } from "@/lib/utils";
 import {
@@ -32,12 +36,15 @@ import {
   Ban,
   Check,
   Coins,
+  Copy,
   Crown,
   EyeOff,
   Ghost,
+  Gift,
   Loader2,
   LogOut,
   MapPin,
+  Network,
   Palette,
   Pin,
   RefreshCw,
@@ -87,6 +94,9 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [info, setInfo] = useState<Info>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Alt clusters open first: "two accounts, one connection" is the question
+  // staff come here to answer, and the player list is one tap away.
+  const [tab, setTab] = useState<"alts" | "players">("alts");
 
   // Per-target drafts. They live here (not inside the row) so collapsing a row
   // never eats a half-written reason.
@@ -221,10 +231,21 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
               </div>
             </header>
 
-            <div className="grid grid-cols-3 gap-2 border-b border-white/5 px-4 py-3 text-center">
+            <div className="grid grid-cols-4 gap-1.5 border-b border-white/5 px-3 py-3 text-center">
+              <Stat label="Alt-IP" value={data?.stats.alts ?? 0} tone="indigo" />
               <Stat label="Spelare" value={data?.stats.total ?? 0} />
               <Stat label="Online" value={data?.stats.online ?? 0} tone="emerald" />
               <Stat label="Bannade" value={data?.stats.banned ?? 0} tone="red" />
+            </div>
+
+            <div className="flex gap-1.5 border-b border-white/5 px-4 py-2">
+              <TabButton active={tab === "alts"} onClick={() => setTab("alts")} icon={Ghost}>
+                Alt-konton
+                {data ? ` (${data.stats.alts})` : ""}
+              </TabButton>
+              <TabButton active={tab === "players"} onClick={() => setTab("players")} icon={ShieldCheck}>
+                Spelare
+              </TabButton>
             </div>
 
             <div className="border-b border-white/5 px-4 py-2.5">
@@ -233,7 +254,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Sök spelare…"
+                  placeholder="Sök spelare eller IP…"
                   className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
                 />
               </label>
@@ -263,10 +284,22 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
                   <Loader2 className="h-4 w-4 animate-spin" /> Hämtar spelare…
                 </p>
               )}
-              {!loading && data && players.length === 0 && (
+              {tab === "alts" && data && (
+                <AltList
+                  alts={data.alts}
+                  query={query}
+                  onOpen={(id) => {
+                    setQuery("");
+                    setTab("players");
+                    setExpanded(id);
+                  }}
+                />
+              )}
+
+              {tab === "players" && !loading && data && players.length === 0 && (
                 <p className="py-10 text-center text-sm text-slate-500">Ingen spelare matchar “{query}”.</p>
               )}
-              {players.map((p) => (
+              {tab === "players" && players.map((p) => (
                 <PlayerRow
                   key={p.id}
                   player={p}
@@ -285,7 +318,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
                   budget={data?.coinsBudget ?? ADMIN_COIN_DAILY_CAP}
                 />
               ))}
-              {data && players.length > 0 && (
+              {tab === "players" && data && players.length > 0 && (
                 <p className="pt-1 text-center text-[10px] text-slate-600">
                   Visar {players.length} av {data.stats.total}. Uppdateras när du trycker på en knapp.
                 </p>
@@ -296,9 +329,9 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
               {staffRole === "OWNER"
                 ? "Du kan banna för alltid, ge mynt utan dagstak och använda ägarreglagen."
                 : staffRole === "ADMIN"
-                  ? `Bannlys i max 1 dygn och ge max ${ADMIN_COIN_DAILY_CAP} mynt per person och dag.`
+                  ? `Bannlys i max 1 dygn, ge max ${ADMIN_COIN_DAILY_CAP} mynt per person och dag, och skicka gåvan (${OWNER_GIFT_COINS} mynt) varannan timme.`
                   : "Säkerhet: varna, bannlys i max 1 timme och tysta chatten i max 1 timme."}{" "}
-              Allt loggas.
+              Full IP syns för personal — ägarens egen uppkoppling är alltid dold. Allt loggas.
             </footer>
           </section>
         </div>
@@ -307,19 +340,152 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "red" }) {
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "emerald" | "red" | "indigo";
+}) {
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.03] px-2 py-1.5">
+    <div className="rounded-xl border border-white/5 bg-white/[0.03] px-1.5 py-1.5">
       <p
         className={cn(
           "text-lg font-extrabold tabular-nums",
-          tone === "emerald" ? "text-emerald-300" : tone === "red" ? "text-red-300" : "text-white"
+          tone === "emerald"
+            ? "text-emerald-300"
+            : tone === "red"
+              ? "text-red-300"
+              : tone === "indigo"
+                ? "text-indigo-300"
+                : "text-white"
         )}
       >
         {value}
       </p>
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[11px] font-extrabold transition-colors",
+        active
+          ? "border-indigo-400/50 bg-indigo-500/15 text-indigo-200"
+          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/25 hover:text-white"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {children}
+    </button>
+  );
+}
+
+/**
+ * The alt clusters: one card per address, every account seen from it.
+ *
+ * Grouping happens on the server, on the full address — the panel never sees a
+ * list it has to reassemble. A shared address is a hint, not proof: siblings
+ * and school networks produce the same card.
+ */
+function AltList({
+  alts,
+  query,
+  onOpen,
+}: {
+  alts: AltGroup[];
+  query: string;
+  onOpen: (id: string) => void;
+}) {
+  const q = query.trim().toLowerCase();
+  const groups = q
+    ? alts.filter(
+        (g) => g.ip.toLowerCase().includes(q) || g.accounts.some((a) => a.username.toLowerCase().includes(q))
+      )
+    : alts;
+
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-8 text-center">
+        <Ghost className="mx-auto mb-2 h-5 w-5 text-slate-600" />
+        <p className="text-sm font-semibold text-slate-400">
+          {q ? "Ingen träff på alt-konton." : "Inga delade adresser just nu."}
+        </p>
+        <p className="mt-1 text-[11px] text-slate-600">
+          {q
+            ? "Prova användarnamnet eller en del av IP-adressen."
+            : "En grupp dyker upp här när två konton setts från samma IP."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {groups.map((g) => (
+        <div key={g.ip} className="rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.04] p-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <p className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-200">
+              <Network className="h-3.5 w-3.5 shrink-0 text-indigo-300" />
+              <span data-no-translate className="truncate font-mono">
+                {g.ip}
+              </span>
+            </p>
+            <span className="shrink-0 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+              {g.count} konton
+            </span>
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
+            <span>{flagFor(g.countryCode)}</span>
+            <span>{countryName(g.countryCode, g.country)}</span>
+            {g.city && <span>· {g.city}</span>}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {g.accounts.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => onOpen(a.id)}
+                title="Öppna spelaren"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-bold transition-colors",
+                  a.banned
+                    ? "border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                    : "border-white/10 bg-white/5 text-slate-200 hover:border-white/30 hover:bg-white/10"
+                )}
+              >
+                {a.online && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+                {a.username}
+                {a.role !== "STUDENT" && (
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400">{a.role}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="pt-1 text-center text-[10px] text-slate-600">
+        Samma IP är en ledtråd, inte bevis — syskon och skolnät delar adress.
+      </p>
+    </>
   );
 }
 
@@ -420,6 +586,8 @@ function PlayerRow({
               <MapPin className="h-3 w-3 text-slate-500" /> {p.location}
             </p>
           )}
+
+          <IpLine player={p} />
 
           {protectedOwner && !self && (
             <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-200">
@@ -588,6 +756,27 @@ function PlayerRow({
                   Ge
                 </ActionChip>
               </div>
+              {/* Everyone who reaches this section may send the gift: security is
+                  already excluded by `canCoins` above. */}
+              {!self && (
+                <>
+                  <ActionChip
+                    tone="amber"
+                    icon={Gift}
+                    disabled={!!busy || !!p.giftReadyAt}
+                    loading={busy === key("gift")}
+                    onClick={() => run(key("gift"), () => modGiftFromOwner(p.id))}
+                  >
+                    {p.giftReadyAt
+                      ? `Gåva om ${humanRemaining(new Date(p.giftReadyAt).getTime() - Date.now())}`
+                      : `Gåva från ägaren · ${OWNER_GIFT_COINS} mynt`}
+                  </ActionChip>
+                  <p className="text-[10px] leading-relaxed text-slate-500">
+                    En fast gåva, högst en per spelare varannan timme. Mottagaren ser en
+                    popup: “en gåva från ägaren”.
+                  </p>
+                </>
+              )}
             </section>
           )}
 
@@ -652,6 +841,69 @@ function PlayerRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The address, in full, for staff who are allowed to read it.
+ *
+ * Copy matters more than it looks: the address is what gets pasted into a ban
+ * report or a blocklist, and a masked one cannot be. The owner's own connection
+ * arrives as `ipHidden` from the server and never reaches this component as text.
+ */
+function IpLine({ player: p }: { player: StaffPlayer }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  if (p.ipHidden) {
+    return (
+      <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <Shield className="h-3 w-3 text-amber-400/70" /> IP dold — ägarens uppkoppling.
+      </p>
+    );
+  }
+
+  if (!p.ip) {
+    return (
+      <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
+        <Network className="h-3 w-3 text-slate-600" /> Ingen IP sparad än.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+      <span className="flex items-center gap-1.5">
+        <Network className="h-3 w-3 text-indigo-300" />
+        <span data-no-translate className="font-mono text-slate-200">
+          {p.ip}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(p.ip ?? "").then(
+              () => setCopied(true),
+              () => setCopied(false)
+            );
+          }}
+          aria-label="Kopiera IP-adressen"
+          className="rounded p-0.5 text-slate-500 transition-colors hover:text-white"
+        >
+          {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+        </button>
+      </span>
+      {p.sameIp > 1 && (
+        <span className="rounded bg-indigo-500/15 px-1.5 py-0.5 font-bold text-indigo-200">
+          {p.sameIp} konton på samma IP
+        </span>
+      )}
+      {p.ipAt && <span className="text-slate-600">sedd {ago(p.ipAt)}</span>}
     </div>
   );
 }

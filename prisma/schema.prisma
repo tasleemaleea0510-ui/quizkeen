@@ -68,8 +68,47 @@ model Profile {
   completions        AssignmentCompletion[]
   targetedAssignments Assignment[]
   keens              ProfileKeen[]
+  ipHistory          ProfileIp[]
 
   @@index([role])
+}
+
+/// Every address an account has ever been seen from, one row per (person, address).
+/// `Profile.lastIp` answers "where are they now"; this answers "where have they
+/// been" — which is the only way to spot an account that changes network or a
+/// person hiding behind a fresh address after a block. Written by the presence
+/// ping, never by the browser.
+model ProfileIp {
+  id          String   @id @default(uuid())
+  profileId   String
+  username    String
+  ip          String
+  country     String?
+  countryCode String?
+  city        String?
+  firstAt     DateTime @default(now())
+  lastAt      DateTime @default(now())
+  hits        Int      @default(1)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, ip])
+  @@index([ip])
+  @@index([profileId, lastAt])
+}
+
+/// An address refused entry to QuizKeen, on every device behind it.
+/// `until` null means forever. The owner console writes it; the student app's
+/// root layout and presence ping read it.
+model BlockedIp {
+  id        String   @id @default(uuid())
+  ip        String   @unique
+  reason    String?
+  byName    String?
+  until     DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([until])
 }
 
 model Activity {

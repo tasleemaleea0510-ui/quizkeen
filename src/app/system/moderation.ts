@@ -12,15 +12,20 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { maskIp, flagFor, countryName } from "@/lib/geo";
+import { flagFor, countryName } from "@/lib/geo";
 import {
   ADMIN_COIN_DAILY_CAP,
   OWNER_COIN_MAX_PER_GRANT,
+  OWNER_GIFT_COINS,
+  OWNER_GIFT_COOLDOWN_MS,
+  OWNER_GIFT_LABEL,
+  OWNER_GIFT_MESSAGE,
   WARNINGS_BEFORE_BAN,
   WARNING_BAN_MINUTES,
   canDecorate,
   canGiveCoins,
   canModerate,
+  humanRemaining,
   canUseOwnerSwitch,
   isStaffRole,
   maxBanMinutes,
@@ -83,15 +88,19 @@ async function loadTarget(id: string) {
     .catch(() => null);
 }
 
-function locationFor(
-  viewerRole: StaffRole,
-  p: { lastIp: string | null; ipCountry: string | null; ipCountryCode: string | null; ipCity: string | null; ipAt: Date | null }
-): string | null {
-  // Security keeps the door; it does not get to know where anyone lives.
-  if (viewerRole === "SECURITY") return null;
-  if (!p.ipAt && !p.lastIp) return null;
+/**
+ * Country and city only — the address is a separate field, unpicked from this
+ * line so that hiding it never leaves half of it printed here.
+ */
+function locationFor(p: {
+  ipCountry: string | null;
+  ipCountryCode: string | null;
+  ipCity: string | null;
+  ipAt: Date | null;
+}): string | null {
+  if (!p.ipAt) return null;
   const country = p.ipCountryCode ? countryName(p.ipCountryCode, p.ipCountry) : p.ipCountry;
-  const bits = [country, p.ipCity, p.lastIp ? maskIp(p.lastIp) : null].filter(Boolean);
+  const bits = [country, p.ipCity].filter(Boolean);
   return bits.length ? `${flagFor(p.ipCountryCode)} ${bits.join(" · ")}` : null;
 }
 
@@ -113,14 +122,45 @@ export type StaffPlayer = {
   ghostMode: boolean;
   online: boolean;
   lastSeenAt: string | null;
+  /** "🇸🇪 Sverige · Stockholm" — never the address itself. */
   location: string | null;
+  /** The full address, or null when staff must not see this one. */
+  ip: string | null;
+  /** True when an address exists but is withheld (the owner's connection). */
+  ipHidden: boolean;
+  ipAt: string | null;
+  /** How many accounts have been seen from this same address; 1 = just them. */
+  sameIp: number;
+  /** When the next "gift from the owner" unlocks, ISO; null = now. */
+  giftReadyAt: string | null;
   coinsGivenToday: number;
+};
+
+/** One account inside an alt cluster. */
+export type AltAccount = {
+  id: string;
+  username: string;
+  role: string;
+  online: boolean;
+  banned: boolean;
+  lastSeenAt: string | null;
+};
+
+/** Accounts that keep turning up from the same address. */
+export type AltGroup = {
+  ip: string;
+  country: string | null;
+  countryCode: string | null;
+  city: string | null;
+  count: number;
+  accounts: AltAccount[];
 };
 
 export type ModerationData = {
   me: { id: string; username: string; role: StaffRole; accentColor: string | null };
   players: StaffPlayer[];
-  stats: { total: number; online: number; banned: number };
+  alts: AltGroup[];
+  stats: { total: number; online: number; banned: number; alts: number; sharedAccounts: number };
   coinsBudget: number;
 };
 
@@ -136,7 +176,8 @@ export async function getModerationData(): Promise<ModerationData | null> {
   if (!me) return null;
 
   try {
-    const [meRow, rows, grants] = await Promise.all([
+    const cooldownSince = new Date(Date.now() - OWNER_GIFT_COOLDOWN_MS);
+    const [meRow, rows, grants, gifts, ownerRows] = await Promise.all([
       prisma.profile.findUnique({ where: { id: me.id }, select: { accentColor: true } }),
       prisma.profile.findMany({
         orderBy: [{ pinned: "desc" }, { lastSeenAt: { sort: "desc", nulls: "last" } }],
@@ -170,39 +211,113 @@ export async function getModerationData(): Promise<ModerationData | null> {
           _sum: { amount: true },
         })
         .catch(() => [] as { targetId: string; _sum: { amount: number | null } }[]),
+      // The two-hour gift cooldown lives in the ledger, so it holds whichever
+      // admin pressed the button and whichever device they pressed it on.
+      prisma.coinGrant
+        .findMany({
+          where: { staffName: OWNER_GIFT_LABEL, createdAt: { gte: cooldownSince } },
+          orderBy: { createdAt: "desc" },
+          select: { targetId: true, createdAt: true },
+        })
+        .catch(() => [] as { targetId: string; createdAt: Date }[]),
+      // The owner's own address, so it can be withheld below.
+      prisma.profile
+        .findMany({ where: { role: "OWNER" }, select: { lastIp: true } })
+        .catch(() => [] as { lastIp: string | null }[]),
     ]);
 
     const givenByTarget = new Map<string, number>();
     for (const g of grants) givenByTarget.set(g.targetId, g._sum.amount ?? 0);
 
+    const giftReady = new Map<string, string>();
+    for (const g of gifts) {
+      if (giftReady.has(g.targetId)) continue;
+      giftReady.set(g.targetId, new Date(g.createdAt.getTime() + OWNER_GIFT_COOLDOWN_MS).toISOString());
+    }
+
+    // What an admin or a security code may never read: the owner's own
+    // connection. Hiding only the owner's row would be pointless — an alt
+    // account on the same home line would print the very same address — so
+    // every account seen from that address is withheld too. The owner
+    // themselves still sees their own address.
+    const withheld = new Set(
+      me.role === "OWNER" ? [] : ownerRows.map((o) => o.lastIp).filter((ip): ip is string => !!ip)
+    );
+
+    const perIp = new Map<string, number>();
+    for (const p of rows) {
+      if (!p.lastIp || withheld.has(p.lastIp)) continue;
+      perIp.set(p.lastIp, (perIp.get(p.lastIp) ?? 0) + 1);
+    }
+
     const now = Date.now();
-    const players = rows.map((p) => ({
-      id: p.id,
-      username: p.username,
-      role: p.role,
-      level: p.level,
-      coins: p.coins,
-      warnings: p.warnings,
-      bannedUntil: p.bannedUntil && p.bannedUntil.getTime() > now ? p.bannedUntil.toISOString() : null,
-      mutedUntil: p.chatMutedUntil && p.chatMutedUntil.getTime() > now ? p.chatMutedUntil.toISOString() : null,
-      accentColor: p.accentColor,
-      pinned: p.pinned,
-      shadowed: p.shadowed,
-      coinsFrozen: p.coinsFrozen,
-      ghostMode: p.ghostMode,
-      online: !!p.lastSeenAt && now - p.lastSeenAt.getTime() < ONLINE_MS,
-      lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
-      location: locationFor(me.role, p),
-      coinsGivenToday: givenByTarget.get(p.id) ?? 0,
-    }));
+    const players = rows.map((p) => {
+      const hidden = !!p.lastIp && withheld.has(p.lastIp);
+      return {
+        id: p.id,
+        username: p.username,
+        role: p.role,
+        level: p.level,
+        coins: p.coins,
+        warnings: p.warnings,
+        bannedUntil: p.bannedUntil && p.bannedUntil.getTime() > now ? p.bannedUntil.toISOString() : null,
+        mutedUntil: p.chatMutedUntil && p.chatMutedUntil.getTime() > now ? p.chatMutedUntil.toISOString() : null,
+        accentColor: p.accentColor,
+        pinned: p.pinned,
+        shadowed: p.shadowed,
+        coinsFrozen: p.coinsFrozen,
+        ghostMode: p.ghostMode,
+        online: !!p.lastSeenAt && now - p.lastSeenAt.getTime() < ONLINE_MS,
+        lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
+        location: locationFor(p),
+        ip: hidden ? null : p.lastIp ?? null,
+        ipHidden: hidden,
+        ipAt: p.ipAt ? p.ipAt.toISOString() : null,
+        sameIp: hidden || !p.lastIp ? 0 : perIp.get(p.lastIp) ?? 1,
+        giftReadyAt: giftReady.get(p.id) ?? null,
+        coinsGivenToday: givenByTarget.get(p.id) ?? 0,
+      };
+    });
+
+    // Alt clusters, newest-first by size. Built from the same rows, so an
+    // address withheld above can never resurface as a group heading.
+    const byIp = new Map<string, typeof rows>();
+    for (const p of rows) {
+      if (!p.lastIp || withheld.has(p.lastIp)) continue;
+      const list = byIp.get(p.lastIp) ?? [];
+      list.push(p);
+      byIp.set(p.lastIp, list);
+    }
+    const alts: AltGroup[] = Array.from(byIp.entries())
+      .filter(([, list]) => list.length > 1)
+      .map(([ip, list]) => ({
+        ip,
+        country: list[0].ipCountry,
+        countryCode: list[0].ipCountryCode,
+        city: list[0].ipCity,
+        count: list.length,
+        accounts: list.map((p) => ({
+          id: p.id,
+          username: p.username,
+          role: p.role,
+          online: !!p.lastSeenAt && now - p.lastSeenAt.getTime() < ONLINE_MS,
+          banned: !!p.bannedUntil && p.bannedUntil.getTime() > now,
+          lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
+        })),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 40);
 
     return {
       me: { ...me, accentColor: meRow?.accentColor ?? null },
       players,
+      alts,
       stats: {
         total: players.length,
         online: players.filter((p) => p.online).length,
         banned: players.filter((p) => p.bannedUntil).length,
+        alts: alts.length,
+        sharedAccounts: alts.reduce((n, g) => n + g.count, 0),
       },
       coinsBudget: ADMIN_COIN_DAILY_CAP,
     };
@@ -444,6 +559,84 @@ export async function modGiveCoins(targetId: string, amount: number): Promise<Re
       return { ok: true, info: `+${amt} mynt till ${target.username}. ${Math.max(0, remaining)} kvar idag.` };
     }
     return { ok: true, info: `+${amt} mynt till ${target.username}.` };
+  } catch {
+    return { ok: false, info: GENERIC };
+  }
+}
+
+/**
+ * "Gåva från ägaren" — 100 mynt, once per player every two hours.
+ *
+ * Admins may press it, but the recipient always reads the same thing, so the
+ * gift never turns into "admin X likes you best". The cooldown is per player,
+ * not per admin: two colleagues cannot each hand out 100 to the same person
+ * within the hour, which is what keeps it a treat instead of a wage.
+ */
+export async function modGiftFromOwner(targetId: string): Promise<Result> {
+  const me = await staffSession();
+  if (!me) return { ok: false, info: "Du är inte personal." };
+  try {
+    const target = await loadTarget(targetId);
+    if (!target) return { ok: false, info: "Användaren finns inte längre." };
+    const perm = canGiveCoins(me, target);
+    if (!perm.ok) return { ok: false, info: perm.reason };
+    // A gift is for players. Staff topping up their own wallet with the
+    // owner's name on it is the one thing this button must never allow.
+    if (me.id === target.id) return { ok: false, info: "Gåvan är till spelare — inte till dig själv." };
+
+    const last = await prisma.coinGrant.findFirst({
+      where: {
+        targetId: target.id,
+        staffName: OWNER_GIFT_LABEL,
+        createdAt: { gte: new Date(Date.now() - OWNER_GIFT_COOLDOWN_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (last) {
+      const left = last.createdAt.getTime() + OWNER_GIFT_COOLDOWN_MS - Date.now();
+      return {
+        ok: false,
+        info: `${target.username} fick en gåva nyss — nästa går att skicka om ${humanRemaining(left)}.`,
+      };
+    }
+
+    // The gift still comes out of an admin's daily budget, so it cannot become
+    // a way around the 1000/day ceiling.
+    if (me.role === "ADMIN") {
+      const used = await prisma.coinGrant.aggregate({
+        where: { staffId: me.id, targetId: target.id, createdAt: { gte: startOfDay() } },
+        _sum: { amount: true },
+      });
+      const left = ADMIN_COIN_DAILY_CAP - (used._sum.amount ?? 0);
+      if (left < OWNER_GIFT_COINS) {
+        return {
+          ok: false,
+          info: `Ditt dagstak räcker inte: ${Math.max(0, left)} mynt kvar till ${target.username} idag.`,
+        };
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.profile.update({
+        where: { id: target.id },
+        data: { coins: { increment: OWNER_GIFT_COINS }, passwordNote: OWNER_GIFT_MESSAGE },
+      }),
+      prisma.coinGrant.create({
+        data: {
+          staffId: me.id,
+          staffName: OWNER_GIFT_LABEL,
+          targetId: target.id,
+          targetName: target.username,
+          amount: OWNER_GIFT_COINS,
+        },
+      }),
+    ]);
+    await log(me, `gåva från ägaren: ${OWNER_GIFT_COINS} mynt till ${target.username}`);
+    return {
+      ok: true,
+      info: `Gåva skickad: +${OWNER_GIFT_COINS} mynt till ${target.username}. Hen ser “en gåva från ägaren”. Nästa gåva om 2 tim.`,
+    };
   } catch {
     return { ok: false, info: GENERIC };
   }

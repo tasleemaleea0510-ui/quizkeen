@@ -45,7 +45,7 @@ import {
   Cross,
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
-import { ConsoleHero, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
+import { ConsoleHero, IpLine, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "chat" | "log" | "help";
@@ -261,6 +261,7 @@ export default function SecurityPage() {
                                   {u.warnings}/3 varningar
                                 </span>
                               </p>
+                              <IpLine user={u} />
                             </div>
                           </div>
                           {u.bannedUntil && (

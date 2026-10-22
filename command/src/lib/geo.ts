@@ -30,16 +30,26 @@ export function countryName(code: string | null | undefined, fallback?: string |
   }
 }
 
-/** "🇸🇪 Sverige · Stockholm · 95.12.x.x", or a clear "not seen yet". */
-export function describeLocation(p: {
-  lastIp?: string | null;
-  ipCountry?: string | null;
-  ipCountryCode?: string | null;
-  ipCity?: string | null;
-  ipAt?: Date | null;
-}): string {
+/**
+ * "🇸🇪 Sverige · Stockholm · 95.12.x.x", or a clear "not seen yet".
+ *
+ * `full` prints the whole address instead of the masked form. That is the
+ * owner console's default now: "two accounts, one connection" can only be
+ * answered with an address you can actually compare and paste.
+ */
+export function describeLocation(
+  p: {
+    lastIp?: string | null;
+    ipCountry?: string | null;
+    ipCountryCode?: string | null;
+    ipCity?: string | null;
+    ipAt?: Date | null;
+  },
+  opts?: { full?: boolean }
+): string {
   if (!p.lastIp && !p.ipAt) return "Ingen plats sparad än — personen måste vara inloggad i QuizKeen en stund.";
   const country = p.ipCountryCode ? countryName(p.ipCountryCode, p.ipCountry) : p.ipCountry;
-  const bits = [country, p.ipCity, p.lastIp ? maskIp(p.lastIp) : null].filter(Boolean);
+  const address = p.lastIp ? (opts?.full ? p.lastIp : maskIp(p.lastIp)) : null;
+  const bits = [country, p.ipCity, address].filter(Boolean);
   return bits.length ? `${flagFor(p.ipCountryCode)} ${bits.join(" · ")}` : "Ingen plats sparad än";
 }

@@ -420,8 +420,20 @@ const OWNER: HelpDoc = {
             },
             {
               name: "IP-peek",
-              what: "Visar bara de två första delarna av IP-adressen, t.ex. 84.55.x.x.||Shows only the first two parts of the IP address, e.g. 84.55.x.x.",
-              warn: "Hela IP-adressen sparas aldrig — det är medvetet, låt det vara så.||The full IP address is never stored — that's deliberate, keep it that way.",
+              what: "Visar hela IP-adressen, landet, staden och när den sågs.||Shows the full IP address, the country, the city and when it was seen.",
+              warn: "Ägarens egen uppkoppling visas som “dold” för admin och säkerhet — bara ägaren ser den.||The owner's own connection reads as “dold” to admins and security; only the owner sees it.",
+            },
+            {
+              name: "Adresshistorik||Address history",
+              what: "Varje adress kontot någonsin setts från — först sedd, senast sedd och hur många gånger. Inte bara den senaste.||Every address the account has ever been seen from — first seen, last seen and how many times. Not just the latest.",
+              how: "Öppna personen under Användare. Listan fylls på av appens hjärtslag var 15:e sekund.||Open the person under Users. The list is filled by the app's heartbeat every 15 seconds.",
+              warn: "En adress som bytts ut ligger kvar — det är hela poängen. Blockera den därifrån om personen hoppar mellan nät.||An address that is no longer used stays in the list — that is the point. Block it from there if the person hops between networks.",
+            },
+            {
+              name: "Blockera uppkopplingen||Block the connection",
+              what: "Spärrar hela nätet, inte kontot: nya konton och andra enheter på samma adress släpps inte in.||Locks the network, not the account: new accounts and other devices on the same address are refused.",
+              how: "Tryck på knappen vid en adress i historiken, eller skriv adressen under Superkrafter → Blockerade uppkopplingar. Avblockera häver den.||Press the button next to an address in the history, or type the address under Superpowers → Blocked connections. Unblock lifts it.",
+              warn: "På en skola delar många elever adress — en spärr kan träffa flera. Tidsbegränsa när du kan.||At a school many students share an address — one block can hit several. Time-limit it when you can.",
             },
             {
               name: "Frys mynt",

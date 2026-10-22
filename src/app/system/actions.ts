@@ -3,10 +3,52 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { isBroadcastLive, readBroadcast } from "@/lib/broadcast";
-import { clientIp, resolveGeo } from "@/lib/geo";
+import { clientIp, resolveGeo, type Geo } from "@/lib/geo";
+import { blockForIp } from "@/lib/ip-block";
 
 /** How long a resolved country is trusted before it is looked up again. */
 const GEO_TTL_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * How often the same address's "last seen" is refreshed.
+ *
+ * The ping runs every 15 seconds per tab. Writing an address row that often
+ * would be four updates a minute per player for a number nobody reads at that
+ * resolution; five minutes keeps "senast sedd" honest at a fraction of the
+ * writes. A *new* address is always written at once.
+ */
+const ADDRESS_TOUCH_MS = 5 * 60 * 1000;
+const lastAddressWrite = new Map<string, number>();
+
+/**
+ * One row per (person, address), forever.
+ *
+ * `Profile.lastIp` only remembers the current connection, so an account that
+ * moved from one network to another left no trace of the first one. This keeps
+ * every address the person has ever been seen from, with when it started and
+ * when it was last used — the history the owner console reads.
+ */
+async function recordAddress(
+  profileId: string,
+  username: string,
+  ip: string,
+  geo: Geo | null,
+  now: Date
+) {
+  const place = geo
+    ? { country: geo.country, countryCode: geo.countryCode, city: geo.city }
+    : {};
+  try {
+    await prisma.profileIp.upsert({
+      where: { profileId_ip: { profileId, ip } },
+      create: { profileId, username, ip, firstAt: now, lastAt: now, ...place },
+      update: { username, lastAt: now, hits: { increment: 1 }, ...place },
+    });
+    lastAddressWrite.set(`${profileId}|${ip}`, now.getTime());
+  } catch {
+    // Address history is a nicety. The heartbeat still has to land.
+  }
+}
 
 export async function clearPasswordNote() {
   const supabase = await createClient();
@@ -172,9 +214,28 @@ export async function pingPresence(path: string) {
   const before = await prisma.profile
     .findUnique({
       where: { id: user.id },
-      select: { username: true, livePath: true, lastIp: true, ipAt: true },
+      select: { username: true, role: true, livePath: true, lastIp: true, ipAt: true },
     })
     .catch(() => null);
+
+  let head: Headers | null = null;
+  try {
+    head = headers();
+  } catch {
+    // No headers (or no network): the heartbeat still has to land.
+  }
+  const ip = head ? clientIp(head) : null;
+
+  // The door list is checked on every tick, not only on a page load. A block
+  // placed while a tab is open has to end the session in seconds — otherwise
+  // the person keeps playing until they happen to navigate. A signed-in owner
+  // is exempt: an owner sharing a network with a blocked student must still be
+  // able to run the site.
+  const blocked = before?.role === "OWNER" ? null : await blockForIp(ip);
+  if (blocked) {
+    await supabase.auth.signOut().catch(() => {});
+    return { ok: false, blocked: true, until: blocked.until ? blocked.until.toISOString() : null };
+  }
 
   if (before && before.livePath !== path) {
     const p = path && path.startsWith("/") ? path.slice(0, 200) : "/";
@@ -182,20 +243,25 @@ export async function pingPresence(path: string) {
   }
 
   let location: { lastIp?: string; ipAt?: Date; ipCountry?: string | null; ipCountryCode?: string | null; ipCity?: string | null } = {};
-  try {
-    const h = headers();
-    const ip = clientIp(h);
-    const stale = !before?.ipAt || now.getTime() - before.ipAt.getTime() > GEO_TTL_MS;
-    if (ip && (ip !== before?.lastIp || stale)) {
-      const geo = await resolveGeo(h, ip);
+  if (ip && before) {
+    const stale = !before.ipAt || now.getTime() - before.ipAt.getTime() > GEO_TTL_MS;
+    const moved = ip !== before.lastIp;
+    if (moved || stale) {
+      const geo = await resolveGeo(head!, ip);
       location = {
         lastIp: ip,
         ipAt: now,
         ...(geo ? { ipCountry: geo.country, ipCountryCode: geo.countryCode, ipCity: geo.city } : {}),
       };
+      await recordAddress(user.id, before.username, ip, geo, now);
+    } else {
+      // Same connection: refresh the history row now and then so "senast sedd"
+      // does not freeze at the first day somebody used this network.
+      const key = `${user.id}|${ip}`;
+      if (now.getTime() - (lastAddressWrite.get(key) ?? 0) > ADDRESS_TOUCH_MS) {
+        await recordAddress(user.id, before.username, ip, null, now);
+      }
     }
-  } catch {
-    // No headers (or no network): the heartbeat still has to land.
   }
 
   await prisma.profile.update({

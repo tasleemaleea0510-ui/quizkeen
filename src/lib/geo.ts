@@ -6,8 +6,12 @@
  * that into a country used to be the owner console's weakest feature: it read
  * `user_metadata.ip`, a value nothing ever wrote, so every player showed up as
  * "okänd" no matter where they were. This module is the one place that reads
- * the address, resolves it to a country/city and decides how much of it is
- * allowed to leave the server.
+ * the address and resolves it to a country/city.
+ *
+ * The address itself is stored in full, because "two accounts, one connection"
+ * cannot be answered with half of one. Who may read it is decided in one place
+ * — app/system/moderation.ts — so that rule cannot drift from the screens that
+ * draw it.
  */
 
 export type Geo = {
@@ -42,20 +46,6 @@ export function isPrivateIp(ip: string): boolean {
   if (ip.startsWith("169.254.") || ip.startsWith("fc") || ip.startsWith("fd") || ip.startsWith("fe80")) return true;
   const m = /^172\.(\d+)\./.exec(ip);
   return !!m && Number(m[1]) >= 16 && Number(m[1]) <= 31;
-}
-
-/**
- * What the console is allowed to print: the network part only.
- *
- * The full address stays in the database (that is what makes "two accounts,
- * one connection" answerable), but a staff screen is not a place to leak it.
- */
-export function maskIp(ip: string | null | undefined): string {
-  if (!ip) return "okänd";
-  if (ip.includes(":")) return `${ip.split(":").slice(0, 4).join(":")}:…`;
-  const parts = ip.split(".");
-  if (parts.length !== 4) return ip;
-  return `${parts[0]}.${parts[1]}.x.x`;
 }
 
 /** 🇸🇪 from "SE" — two regional-indicator letters. */
@@ -117,14 +107,3 @@ export async function resolveGeo(h: Headers, ip: string): Promise<Geo | null> {
   }
 }
 
-/** One line for a staff screen: "🇸🇪 Sverige · Stockholm · 95.12.x.x". */
-export function describeLocation(p: {
-  lastIp?: string | null;
-  ipCountry?: string | null;
-  ipCountryCode?: string | null;
-  ipCity?: string | null;
-}): string {
-  const country = p.ipCountryCode ? countryName(p.ipCountryCode, p.ipCountry) : p.ipCountry;
-  const bits = [country, p.ipCity, maskIp(p.lastIp)].filter(Boolean);
-  return bits.length ? `${flagFor(p.ipCountryCode)} ${bits.join(" · ")}` : "🌍 Ingen plats sparad än";
-}
