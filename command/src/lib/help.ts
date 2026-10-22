@@ -452,7 +452,7 @@ const OWNER: HelpDoc = {
           items: [
             {
               name: "Sök Keen… + paketväljaren||Search Keen… + the pack picker",
-              what: "Hela samlarkatalogen utom startpaketet, som alla redan har. \"har ×N\" under namnet visar hur många kopior personen äger.||The whole collectible catalogue except the starter set, which everyone already has. \"har ×N\" under the name shows how many copies the person owns.",
+              what: "Hela samlarkatalogen. \"har ×N\" under namnet visar hur många kopior personen äger.||The whole collectible catalogue. \"har ×N\" under the name shows how many copies the person owns.",
               how: "Sök på namn eller id, eller filtrera på paket. Siffran i rubriken är hur många av katalogen personen har.||Search by name or id, or filter by pack. The number in the heading is how much of the catalogue the person has.",
             },
             {
@@ -469,6 +469,11 @@ const OWNER: HelpDoc = {
             {
               name: "Admin-Keenen",
               what: "Omeisaurus finns också i valvet. Den är en trofé: en per person, precis som knappen under Admin-Keen — trycker du igen säger den att personen redan har den.||Omeisaurus is in the vault too. It's a trophy: one per person, exactly like the button under Admin-Keen — a second press says they already have it.",
+            },
+            {
+              name: "Ägar-Keenen (DragonY)",
+              what: "DragonY är ägarens egen Mystiska Keen. Den finns inte i något paket och bara ägaren kan ge bort den — därför ligger den bara i det här valvet, aldrig i adminpanelen.||DragonY is the owner's own Mystical Keen. It is in no pack and only the owner can give it away — so it lives in this vault only, never in the admin panel.",
+              warn: "En trofé: en per person. Trycker du Ge igen säger den att personen redan har den.||A trophy: one per person. Press Ge again and it says the person already has it.",
             },
           ],
         },

@@ -47,6 +47,8 @@ const PAIRS: [string, string][] = [
   ["Gamerpaketet", "Gamer pack"],
   ["Pixlar, neon och något som rör sig i mörkret.", "Pixels, neon and something moving in the dark."],
   ["Admin-gåva", "Admin gift"],
+  ["Ägar-gåva", "Owner gift"],
+  ["Gåva", "Gift"],
   [
     "Fler temapaket är inte till salu just nu — deras Keens finns kvar i samlingen och går att köpa i marknaden.",
     "More theme packs are not for sale right now — their Keens stay in the collection and can still be bought in the market.",
@@ -966,8 +968,8 @@ const PAIRS: [string, string][] = [
     "The market sells the Keens the packs in the shop can give. A Keen from a removed pack only shows if you already have it, and then you can sell it — but not buy more.",
   ],
   [
-    "48 figurer i sex paket och sex sällsynthetsgrader — från vanliga till Kroma. Tjäna mynt genom att svara rätt, öppna paket, och byt till dig de du saknar i marknaden.",
-    "48 characters across six packs and six rarities — from Common to Kroma. Earn coins by answering right, open packs, and trade for the ones you're missing in the market.",
+    "Gamerpaketet är först ut: fem figurer, från vanliga till hemliga. Fler paket är på väg — och två Keens delas bara ut av ägaren och en admin. Tjäna mynt genom att svara rätt och öppna paket.",
+    "The Gamer pack is up first: five characters, from Common to Secret. More packs are on the way — and two Keens are only handed out by the owner and an admin. Earn coins by answering right and opening packs.",
   ],
   ["Instruktioner", "Instructions"],
   ["Erfarenhet (XP)", "Experience (XP)"],

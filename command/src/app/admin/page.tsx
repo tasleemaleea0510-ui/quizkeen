@@ -23,8 +23,7 @@ import {
   adminCoinLedger,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
-import { keenArtSvg } from "../../lib/keen-art";
-import { KEEN_BY_ID } from "../../lib/keen-catalogue";
+import { keenArtSrc } from "../../lib/keen-catalogue";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
 import { HelpButton, HelpPanel } from "../../components/help-guide";
@@ -72,19 +71,6 @@ function timeLeftLabel(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
-
-// The Admin Keen, drawn by the same renderer the player site uses. The fallback
-// is the catalogue row itself, so a removed id still shows the dragon rather
-// than an empty box.
-const ADMIN_KEEN =
-  KEEN_BY_ID["omeisaurus"] ?? {
-    id: "omeisaurus",
-    name: "Omeisaurus",
-    rarity: "MYSTISK",
-    pack: "admin",
-    hue: 30,
-    emoji: "🐉",
-  };
 
 const QUICK = [
   { label: "5 min", min: 5 },
@@ -676,14 +662,19 @@ export default function AdminPage() {
                   note="En Keen som inte finns i något paket. Dela ut den härifrån — den hamnar i samlingen direkt."
                 />
                 <div className="mt-4 flex flex-wrap items-center gap-5 rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
-                  {/* The drawing the receiver will actually see, not a placeholder. */}
-                  <span
-                    className="shrink-0 drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
-                    dangerouslySetInnerHTML={{ __html: keenArtSvg(ADMIN_KEEN, { size: 96 }) }}
+                  {/* The picture the receiver will actually see, not a placeholder. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local, fixed-size art */}
+                  <img
+                    src={keenArtSrc("omeisaurus")}
+                    alt="Omeisaurus"
+                    width={96}
+                    height={96}
+                    draggable={false}
+                    className="h-24 w-24 shrink-0 object-contain drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
                   />
                   <p className="max-w-md text-sm text-slate-400">
-                    <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — den
-                    kan bara delas ut härifrån. Välj personen, och den hamnar i samlingen direkt.
+                    <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — bara
+                    personal kan dela ut den, härifrån eller i ägarens valv. Välj personen, och den hamnar i samlingen direkt.
                   </p>
                 </div>
 

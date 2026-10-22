@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Phaser from "phaser";
-import { KEEN_BY_ID, type Keen } from "@/lib/keens";
-import { keenRunnerDataUri } from "@/lib/keen-art";
+import { KEEN_BY_ID, keenArtSrc, type Keen } from "@/lib/keens";
 import { wornIdFromCookieString } from "@/lib/worn";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
@@ -16,12 +15,9 @@ const KEEN_TEX = 128;
 /**
  * Turn a Keen into a Phaser texture, once per Keen per game.
  *
- * The runner you steer in the lobby is the *same* drawing as the card in your
- * collection, in its round-token form: `keen-art.ts` renders it to an SVG data
- * URI, the browser decodes that, and Phaser keeps the resulting image. A square
- * card shrunk to 60 px read as a coloured blob, which is why the minigame now
- * uses the runner frame — the character fills a circle instead of sitting on a
- * card nobody can read.
+ * The runner you steer in the lobby is the *same* picture as the card in your
+ * collection: the PNG the browser already knows how to decode, which Phaser
+ * keeps as the sprite texture. One asset, two frames.
  *
  * It resolves to `null` on any failure, and the caller keeps the plain coloured
  * player, so a character can never break the game.
@@ -53,7 +49,8 @@ function ensureKeenTexture(scene: Phaser.Scene, keen: Keen): Promise<string | nu
       }
     };
     img.onerror = () => resolve(null);
-    img.src = keenRunnerDataUri(keen, KEEN_TEX);
+    // The runner wears the same picture as its card — one asset, two frames.
+    img.src = keenArtSrc(keen);
   });
 
   cache.set(key, job);

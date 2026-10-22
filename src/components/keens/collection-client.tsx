@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Clock, Coins, Crown, Flame, Package, Search, Shirt, Sparkles, Store, Tag, Trophy } from "lucide-react";
 import {
   ADMIN_PACK,
+  OWNER_PACK,
   KEEN_BY_ID,
   OBTAINABLE_KEENS,
   PACK_BY_ID,
@@ -149,7 +150,10 @@ export default function CollectionClient({ state }: { state: KeenState }) {
     const ids = Array.from(new Set(collection.map((k) => k.pack)));
     return ids.map((id) => {
       const theme = PACK_BY_ID[id];
-      if (!theme) return { id, label: id === ADMIN_PACK ? "Admin-gåva" : id };
+      if (!theme) {
+        const gift = id === ADMIN_PACK ? "Admin-gåva" : id === OWNER_PACK ? "Ägar-gåva" : id;
+        return { id, label: gift };
+      }
       return { id, label: theme.hidden ? `${theme.name} (utgången)` : theme.name };
     });
   }, [collection]);
@@ -497,7 +501,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                           ? `Såld +${r.refund}`
                           : "Marknad"
                         : r.packId === "gava"
-                          ? "Admin-gåva"
+                          ? "Gåva"
                           : PACK_BY_ID[r.packId]?.name ?? r.packId}
                     </p>
                   </div>
@@ -568,7 +572,9 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                 <dt className="text-slate-400">Paket</dt>
                 <dd className="font-semibold text-slate-200">
                   {selectedGift
-                    ? "Admin-gåva"
+                    ? selected?.pack === OWNER_PACK
+                      ? "Ägar-gåva"
+                      : "Admin-gåva"
                     : `${selectedPack?.emoji ?? ""} ${selectedPack?.name ?? "—"}${selectedRetired ? " (utgången)" : ""}`}
                 </dd>
               </div>
@@ -595,12 +601,6 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                 </dd>
               </div>
             </dl>
-
-            {selected.rarity === "KROMA" && (
-              <p className="mt-3 text-[11px] text-slate-400">
-                Kroma-Keens finns bara i Mytiskapaketet — eller i marknaden.
-              </p>
-            )}
 
             {selectedRetired && (
               <p className="mt-3 text-[11px] text-slate-400">

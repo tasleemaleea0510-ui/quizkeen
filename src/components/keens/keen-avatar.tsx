@@ -1,17 +1,16 @@
 import * as React from "react";
-import type { Keen } from "@/lib/keens";
-import { keenArtSvg } from "@/lib/keen-art";
+import { keenArtSrc, type Keen } from "@/lib/keens";
 import { cn } from "@/lib/utils";
 
 /**
- * A Keen, drawn.
+ * A Keen, as the artwork itself.
  *
- * One renderer for the whole catalogue: `lib/keen-art.ts` builds the SVG from
- * the Keen's own recipe, and this inlines it, so a 20 px chip in the navbar and
- * the 168 px reveal in the pack opener are the same drawing at different sizes —
- * with no image files, no emoji, and no blur.
+ * One picture per id in `public/keens`, rendered as an `<img>`: a 20 px chip in
+ * the navbar and the 168 px reveal in the pack opener are the same file, so
+ * nothing is redrawn and nothing can drift from the design sheet.
  *
- * A locked Keen is a silhouette: same plate, same size, no spoilers.
+ * A locked Keen is a silhouette: the same file, flattened to black and dimmed.
+ * That hides the character without needing a second set of shapes.
  */
 export default function KeenAvatar({
   keen,
@@ -30,7 +29,22 @@ export default function KeenAvatar({
     <span
       className={cn("inline-grid shrink-0 select-none place-items-center align-middle", className)}
       style={{ width: size, height: size, ...style }}
-      dangerouslySetInnerHTML={{ __html: keenArtSvg(keen, { locked }) }}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- the art is a fixed, local PNG; next/image adds nothing at these sizes */}
+      <img
+        src={keenArtSrc(keen)}
+        alt={locked ? "" : keen.name}
+        aria-hidden={locked || undefined}
+        width={size}
+        height={size}
+        draggable={false}
+        decoding="async"
+        loading="lazy"
+        className={cn(
+          "h-full w-full object-contain",
+          locked && "opacity-40 brightness-0 saturate-0"
+        )}
+      />
+    </span>
   );
 }

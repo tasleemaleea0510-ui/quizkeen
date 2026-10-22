@@ -1306,10 +1306,10 @@ export async function ownerGiveKeen(s: S, profileId: string, username: string, k
   return withAuth("OWNER", s, async () => {
     const entry = KEEN_BY_ID[keenId];
     if (!entry) return { ok: false, info: "Den Keenen finns inte i katalogen." };
-    // The Admin Keen is a trophy, not a stack: one per person, exactly like the
-    // Admin-Keen tab. Everything else stacks, because a spare copy is what the
+    // Both gift Keens are trophies, not stacks: one per person, exactly like the
+    // Admin-Keen tab. Pack Keens stack, because a spare copy is what the
     // collection screen counts and what the market sells.
-    const trophy = entry.pack === "admin";
+    const trophy = entry.pack === "admin" || entry.pack === "owner";
     const res = await giveKeen(profileId, username, entry.id, entry.rarity, trophy ? "once" : "stack");
     if (!res.ok) {
       return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };

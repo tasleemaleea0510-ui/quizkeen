@@ -117,8 +117,8 @@ export default function Home() {
             <div>
               <p className="font-display text-xl font-extrabold text-white">Samla Keens</p>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-400">
-                48 figurer i sex paket och sex sällsynthetsgrader — från vanliga till Kroma. Tjäna mynt genom att
-                svara rätt, öppna paket, och byt till dig de du saknar i marknaden.
+                Gamerpaketet är först ut: fem figurer, från vanliga till hemliga. Fler paket är på väg — och två
+                Keens delas bara ut av ägaren och en admin. Tjäna mynt genom att svara rätt och öppna paket.
               </p>
             </div>
           </div>

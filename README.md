@@ -27,29 +27,41 @@ build only runs `prisma generate && next build`, it never migrates.
 
 ### The two Keens that no pack contains
 
-`ADMIN_PACK` (`"admin"`) is a shelf that exists only so a given-away Keen has a
-home in the data model. It is deliberately absent from `PACKS`, and because it
-has no odds, `rollKeen` can never reach it either.
+`ADMIN_PACK` (`"admin"`) and `OWNER_PACK` (`"owner"`) are shelves that exist only
+so a given-away Keen has a home in the data model. Both are deliberately absent
+from `PACKS`, and because neither has odds, `rollKeen` can never reach them.
 
 - **The Admin Keen** — `omeisaurus`, rarity `MYSTISK` — is handed out one person
-  at a time from QuizKeen Command → **Admin-Keen**. Its `RarityMeta.tradeable` is
-  `false`, which is what makes `buyKeen`, `sellKeen`, `sellAllDuplicates` and the
-  daily deals skip it; the market renders from `MARKET_KEENS`/`MARKET_RARITIES`,
-  so it can never be listed with a price. Clicking the button twice is safe: the
-  insert is `ON CONFLICT DO NOTHING` and the console says "already has it".
-  Because the two apps are separate deployments sharing one database, and
-  Command's Prisma schema has no Keen models, the row is written with
-  parameterised SQL from `command/src/lib/keen-grant.ts`. The Keen **id lives in
-  both repositories** — `ADMIN_KEEN_ID` there and `P(...)` in `src/lib/keens.ts`
-  here — so rename it in both or the gift lands on an id the app ignores.
+  at a time from QuizKeen Command → **Admin-Keen**, or from the owner's vault.
+- **The Owner Keen** — `dragony`, also `MYSTISK` — only exists in the owner's
+  vault; no admin can give it.
+
+Neither is tradeable, because `isTradeable` refuses every granted Keen
+(`isGiftKeen`), not a whole rarity — which is what makes `buyKeen`, `sellKeen`,
+`sellAllDuplicates` and the daily deals skip them. The market renders from
+`MARKET_KEENS`/`MARKET_RARITIES`, so a gift can never be listed with a price.
+Clicking the button twice is safe: the insert is `ON CONFLICT DO NOTHING` and the
+console says "already has it". Because the two apps are separate deployments
+sharing one database, and Command's Prisma schema has no Keen models, the row is
+written with parameterised SQL from `command/src/lib/keen-grant.ts`. The Keen
+**ids live in both repositories** — `command/src/lib/keen-catalogue.ts` and
+`P(...)` in `src/lib/keens.ts` here — so rename one in both or the gift lands on
+an id the app ignores. Their PNGs are copied to `command/public/keens` for the
+same reason.
+
 - **`HEMLIG`** ("Hemlig", Secret) is the Gamer pack's 0,02 % chase: pink, above
   Legendary, below Kroma. It is tradeable, just very unlikely to drop.
 
 The Gamer pack's odds are the design document's own — `57,3 / 37 / 5,01 / 0,67 /
-0,02` — and its artwork is drawn in code: `src/lib/keen-art.ts` holds one recipe
-per Keen, the pixel-led ones on a fixed rectangle grid and the rest as curves, so
-there is still no image file to ship, host or lose. The same drawing is both the
-card in the collection and the round runner in the minigame.
+0,02`. Its artwork is the design sheet itself: one PNG per Keen in
+`public/keens/<id>.png`, cropped from the sheet with a transparent background,
+and `KeenAvatar` renders that file everywhere — the collection, the pack reveal,
+the market, the lobby runner. The Owner Keen (`dragony`) and the Admin Keen
+(`omeisaurus`) live on their own shelves and never drop from a pack.
+
+The catalogue is filled one pack at a time: a pack exists in `PACKS` only when
+its characters have artwork, and adding the rows plus the PNGs is all it takes to
+put a finished pack on the shelf.
 
 ## Automatic sync (auto-commit + auto-push)
 

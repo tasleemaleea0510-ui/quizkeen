@@ -5,6 +5,11 @@
  * pack rolls a rarity and then a character, and the market lets you buy the one
  * you are missing or sell your duplicates back for coins.
  *
+ * The art is not generated: every Keen is a picture in `public/keens/<id>.png`,
+ * cropped from the design sheets, and `keenArtSrc` is the single place that turns
+ * an id into a file. A pack is filled one pack at a time, so the catalogue below
+ * only lists what actually has artwork.
+ *
  * Everything below is CONTENT, not data: it is a plain module with no imports,
  * no database access and no randomness until you ask for it, so the exact same
  * catalogue powers the server (which rolls the pack) and the browser (which
@@ -14,20 +19,25 @@
 export const RARITIES = ["VANLIG", "OVANLIG", "SALLSYNT", "EPISK", "LEGENDARISK", "HEMLIG", "KROMA", "MYSTISK"] as const;
 export type Rarity = (typeof RARITIES)[number];
 
-export const PACK_IDS = ["djur", "skola", "rymd", "djungel", "godis", "gamer", "halloween", "mytisk"] as const;
+/**
+ * The packs on sale, and the only ids `PACKS` may use.
+ *
+ * One pack is in the file because one pack has art. The rest return here as
+ * their characters are drawn, and nothing else in the app assumes a pack exists
+ * until it is listed.
+ */
+export const PACK_IDS = ["gamer"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
-/** The free pack's own id — it is not a theme, it draws from every cheap Keen. */
+/** The free pack's own id — it draws from the cheap end of what is on sale. */
 export const FREE_PACK = "gratis" as const;
 
 /**
  * The starter set's own shelf.
  *
- * Ten commons and uncommons that every account simply HAS: the collection of a
- * new player is not empty, everyone has something to wear from minute one, and
- * nothing here can be bought, sold, dropped from a pack or lost. It is seeded on
- * read in `lib/keens-store.ts` rather than written to the database, so accounts
- * that existed before the starter set got it too, with no migration.
+ * The shelf is kept so older collections and the "every account owns these"
+ * seeding path still have a name to point at, but it is empty: the starter set
+ * is rebuilt with real artwork before it returns.
  */
 export const START_PACK = "start" as const;
 export type AnyPackId = PackId | typeof FREE_PACK | typeof START_PACK;
@@ -41,7 +51,17 @@ export type AnyPackId = PackId | typeof FREE_PACK | typeof START_PACK;
  * which is what keeps the generic "every Keen" loops honest about it.
  */
 export const ADMIN_PACK = "admin" as const;
-export type ShelfId = AnyPackId | typeof ADMIN_PACK;
+
+/**
+ * The Owner Keen's own shelf.
+ *
+ * Same rules as the Admin Keen, but only the owner can hand this one out. It is
+ * a separate shelf rather than a flag on the Admin Keen so the vault can label
+ * the two gifts differently and the permission check has one obvious thing to
+ * ask about.
+ */
+export const OWNER_PACK = "owner" as const;
+export type ShelfId = AnyPackId | typeof ADMIN_PACK | typeof OWNER_PACK;
 
 export type Keen = {
   id: string;
@@ -49,14 +69,24 @@ export type Keen = {
   nameEn: string;
   emoji: string;
   rarity: Rarity;
-  pack: PackId | typeof ADMIN_PACK | typeof START_PACK;
-  /** Base hue (0–360) for this Keen's body, so the grid looks like a collection. */
+  pack: PackId | typeof ADMIN_PACK | typeof START_PACK | typeof OWNER_PACK;
+  /** Base hue (0–360), used for the soft colour behind the artwork. */
   hue: number;
 };
 
-/** True for the Admin Keen: handed out by a person, never by a pack. */
+/** The picture for a Keen. One file per id, no drawing. */
+export function keenArtSrc(keen: Pick<Keen, "id">): string {
+  return `/keens/${keen.id}.png`;
+}
+
+/** True for a Keen handed out by a person rather than rolled by a pack. */
 export function isGiftKeen(keen: Keen): boolean {
-  return keen.pack === ADMIN_PACK;
+  return keen.pack === ADMIN_PACK || keen.pack === OWNER_PACK;
+}
+
+/** True for the Owner Keen: only the owner can hand it out. */
+export function isOwnerKeen(keen: Keen): boolean {
+  return keen.pack === OWNER_PACK;
 }
 
 /** True for a starter Keen: every account has it, and it cannot be lost. */
@@ -67,7 +97,7 @@ export function isStarterKeen(keen: Keen): boolean {
 /**
  * True for Keens nobody collects — they are held, not earned.
  *
- * Both the Admin Keen and the starter set are in this class, and every rule that
+ * Both gifted Keens and the starter set are in this class, and every rule that
  * asks "can this be traded, sold or rolled?" goes through here rather than
  * asking about one specific shelf.
  */
@@ -78,10 +108,9 @@ export function isGrantedKeen(keen: Keen): boolean {
 /**
  * Can this Keen be bought and sold in the market?
  *
- * A granted Keen never can, whatever its rarity says — the Admin Keen is Mystisk
- * and Mystisk is a normal pack tier, and a starter Keen that sold for coins
- * would be a coin printer — so "is it handed out?" is the question the market
- * asks, not "which tier is it?".
+ * A granted Keen never can, whatever its rarity says — Mystisk is a normal pack
+ * tier, and a starter Keen that sold for coins would be a coin printer — so "is
+ * it handed out?" is the question the market asks, not "which tier is it?".
  */
 export function isTradeable(keen: Keen): boolean {
   return RARITY_META[keen.rarity].tradeable && !isGrantedKeen(keen);
@@ -95,13 +124,7 @@ export type RarityMeta = {
   /** What you get back for a spare copy — a pack duplicate is refunded this. */
   sell: number;
   order: number;
-  /**
-   * Whether the market trades this rarity at all.
-   *
-   * Read through `isTradeable(keen)` rather than directly: a Keen that is handed
-   * out is never tradeable whatever its rarity says, and that one rule is what
-   * keeps the Admin Keen out of the shop without freezing a whole rarity tier.
-   */
+  /** Whether the market trades this rarity at all. */
   tradeable: boolean;
   /** Literal class strings (Tailwind only ships classes it can see in the source). */
   text: string;
@@ -214,9 +237,6 @@ export const RARITY_META: Record<Rarity, RarityMeta> = {
   MYSTISK: {
     label: "Mystisk",
     labelEn: "Mystical",
-    // The crown of a pack ladder — Halloween's Pumpkin King lives here. It is a
-    // real market Keen, not a gift: the Admin Keen is kept untradeable by being a
-    // gift (`isGiftKeen`), so the tier itself does not have to be untradeable.
     price: 3400,
     sell: 1350,
     order: 7,
@@ -246,13 +266,15 @@ export type Pack = {
   odds: Partial<Record<Rarity, number>>;
   /** Packs can be opened in these amounts. */
   sizes: number[];
+  /** The pack's own cover picture, when the design has one. */
+  art?: string;
   free?: boolean;
   /**
    * When the pack landed on the shelf (YYYY-MM-DD).
    *
    * Only used to put a "NEW" ribbon on the most recently added pack, so a fresh
    * theme is visibly the fresh theme without anyone having to remember to move a
-   * badge by hand. Leave it off for the packs that have always been there.
+   * badge by hand.
    */
   added?: string;
   /**
@@ -264,22 +286,6 @@ export type Pack = {
 };
 
 export const PACKS: Pack[] = [
-  {
-    // Free and hidden at once, so it is neither on the shelf nor in the "off the
-    // shelf" note: it is not a pack you open, it is the ten Keens you start with.
-    id: START_PACK,
-    hidden: true,
-    free: true,
-    name: "Startpaketet",
-    nameEn: "Starter set",
-    tagline: "Tio Keens som alla har från dag ett.",
-    taglineEn: "Ten Keens everyone has from day one.",
-    price: 0,
-    emoji: "🌱",
-    hue: 165,
-    odds: {},
-    sizes: [],
-  },
   {
     id: FREE_PACK,
     name: "Gratispaketet",
@@ -294,71 +300,6 @@ export const PACKS: Pack[] = [
     free: true,
   },
   {
-    id: "djur",
-    hidden: true,
-    name: "Djurpaketet",
-    nameEn: "Animal pack",
-    tagline: "Katter, hundar och en och annan varg.",
-    taglineEn: "Cats, dogs and the occasional wolf.",
-    price: 25,
-    emoji: "🐾",
-    hue: 35,
-    odds: { VANLIG: 50, OVANLIG: 32, SALLSYNT: 13, EPISK: 4.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "skola",
-    hidden: true,
-    name: "Skolpaketet",
-    nameEn: "School pack",
-    tagline: "Från suddgummi till rektor.",
-    taglineEn: "From eraser to principal.",
-    price: 40,
-    emoji: "🎒",
-    hue: 210,
-    odds: { VANLIG: 50, OVANLIG: 32, SALLSYNT: 13, EPISK: 4.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "rymd",
-    hidden: true,
-    name: "Rymdpaketet",
-    nameEn: "Space pack",
-    tagline: "Raketer, planeter och något som tittar tillbaka.",
-    taglineEn: "Rockets, planets and something looking back.",
-    price: 60,
-    emoji: "🚀",
-    hue: 260,
-    odds: { VANLIG: 50, OVANLIG: 32, SALLSYNT: 13, EPISK: 4.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "djungel",
-    hidden: true,
-    name: "Djungelpaketet",
-    nameEn: "Jungle pack",
-    tagline: "Vilda djur och en lejonkung.",
-    taglineEn: "Wild animals and a lion king.",
-    price: 90,
-    emoji: "🌴",
-    hue: 140,
-    odds: { VANLIG: 50, OVANLIG: 32, SALLSYNT: 13, EPISK: 4.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "godis",
-    hidden: true,
-    name: "Godispaketet",
-    nameEn: "Candy pack",
-    tagline: "Sött, sötare, regnbåge.",
-    taglineEn: "Sweet, sweeter, rainbow.",
-    price: 140,
-    emoji: "🍭",
-    hue: 320,
-    odds: { VANLIG: 50, OVANLIG: 32, SALLSYNT: 13, EPISK: 4.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
     id: "gamer",
     name: "Gamerpaketet",
     nameEn: "Gamer pack",
@@ -368,34 +309,11 @@ export const PACKS: Pack[] = [
     price: 180,
     emoji: "🎮",
     hue: 285,
+    // Straight from the design sheet: common 57,3 %, rare 37 %, epic 5,01 %,
+    // legendary 0,67 %, secret 0,02 % — 100 % together.
     odds: { VANLIG: 57.3, SALLSYNT: 37, EPISK: 5.01, LEGENDARISK: 0.67, HEMLIG: 0.02 },
     sizes: [1, 3, 5],
-  },
-  {
-    id: "halloween",
-    name: "Halloweenpaketet",
-    nameEn: "Halloween pack",
-    tagline: "Pumpor, spöken och en kung i mörkret.",
-    taglineEn: "Pumpkins, ghosts and a king in the dark.",
-    added: "2026-10-01",
-    price: 250,
-    emoji: "🎃",
-    hue: 24,
-    odds: { VANLIG: 55, SALLSYNT: 30, EPISK: 12, LEGENDARISK: 2.6, HEMLIG: 0.3, MYSTISK: 0.1 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "mytisk",
-    hidden: true,
-    name: "Mytiskapaketet",
-    nameEn: "Mythical pack",
-    tagline: "Bara det bästa — och Kroma-Keens.",
-    taglineEn: "Only the best — and Chroma Keens.",
-    price: 300,
-    emoji: "🔮",
-    hue: 285,
-    odds: { EPISK: 58, LEGENDARISK: 34, KROMA: 8 },
-    sizes: [1, 3, 5],
+    art: "/keens/packs/gamer.png",
   },
 ];
 
@@ -404,8 +322,7 @@ export const PACKS: Pack[] = [
  *
  * `PACKS` stays the whole catalogue: rolling, the "which pack drops this" hints
  * and the collection's pack filter all read from it, so hiding a pack changes the
- * shop and nothing else. That is deliberate — a hidden pack's Keens are still
- * collectable (the market sells them), they just are not on sale.
+ * shop and nothing else.
  */
 export const SHELF_PACKS: Pack[] = PACKS.filter((p) => !p.free && !p.hidden);
 export const HIDDEN_PACKS: Pack[] = PACKS.filter((p) => !p.free && p.hidden);
@@ -437,7 +354,7 @@ export function chaseKeen(pack: ShelfId, owned: OwnedMap = {}): Keen | null {
 }
 
 const P = (
-  // `Keen["pack"]`, not `PackId`: the Admin Keen lives on its own shelf.
+  // `Keen["pack"]`, not `PackId`: the gift Keens live on their own shelves.
   pack: Keen["pack"],
   rarity: Rarity,
   hue: number,
@@ -448,107 +365,22 @@ const P = (
 ): Keen => ({ id, name, nameEn, emoji, rarity, pack, hue });
 
 export const KEENS: Keen[] = [
-  // ── Startpaketet ───────────────────────────────────────────────────────────
-  // Ten Keens every account owns from the start. Commons and uncommons only, so
-  // the ladder above them still means something, and none of them is in any pack
-  // pool — see `keensInPack`, which keeps granted Keens out of every roll.
-  P(START_PACK, "VANLIG", 45, "keenungen", "Keenungen", "Keenling", "🐣"),
-  P(START_PACK, "VANLIG", 210, "blipp", "Roboten Blipp", "Blipp the Robot", "🤖"),
-  P(START_PACK, "VANLIG", 205, "puff", "Molnet Puff", "Puff the Cloud", "☁️"),
-  P(START_PACK, "VANLIG", 190, "driz", "Droppen Driz", "Driz the Droplet", "💧"),
-  P(START_PACK, "VANLIG", 48, "sunny", "Solstrålen Sunny", "Sunny the Sunbeam", "☀️"),
-  P(START_PACK, "OVANLIG", 330, "blom", "Blomman Blom", "Blom the Flower", "🌸"),
-  P(START_PACK, "OVANLIG", 355, "svamp", "Svampen Svamp", "Svamp the Mushroom", "🍄"),
-  P(START_PACK, "OVANLIG", 235, "sten", "Stenen Sten", "Sten the Stone", "🪨"),
-  P(START_PACK, "OVANLIG", 5, "popp", "Ballongen Popp", "Popp the Balloon", "🎈"),
-  P(START_PACK, "OVANLIG", 265, "tia", "Tärningen Tia", "Tia the Dice", "🎲"),
-
-  // ── Djurpaketet ────────────────────────────────────────────────────────────
-  P("djur", "VANLIG", 28, "kisse", "Katten Kisse", "Kisse the Cat", "🐱"),
-  P("djur", "VANLIG", 45, "vovve", "Valpen Vovve", "Vovve the Pup", "🐶"),
-  P("djur", "OVANLIG", 340, "kaninen", "Kaninen Bus", "Bus the Rabbit", "🐰"),
-  P("djur", "OVANLIG", 160, "turt", "Sköldpaddan Turt", "Turt the Turtle", "🐢"),
-  P("djur", "OVANLIG", 195, "pippi", "Fågeln Pippi", "Pippi the Bird", "🐦"),
-  P("djur", "SALLSYNT", 18, "sly", "Räven Sly", "Sly the Fox", "🦊"),
-  P("djur", "EPISK", 25, "bruno", "Björnen Bruno", "Bruno the Bear", "🐻"),
-  P("djur", "LEGENDARISK", 220, "fenrir", "Vargen Fenrir", "Fenrir the Wolf", "🐺"),
-
-  // ── Skolpaketet ────────────────────────────────────────────────────────────
-  P("skola", "VANLIG", 48, "penny", "Pennan Penny", "Penny the Pencil", "✏️"),
-  P("skola", "VANLIG", 200, "gummi", "Suddgummit Gummi", "Gummi the Eraser", "🧽"),
-  P("skola", "OVANLIG", 205, "bag", "Ryggsäcken Bag", "Bag the Backpack", "🎒"),
-  P("skola", "OVANLIG", 230, "kalkyl", "Miniräknaren Kalkyl", "Kalkyl the Calculator", "🧮"),
-  P("skola", "OVANLIG", 0, "prov", "Provpappret Prov", "Prov the Test Paper", "📝"),
-  P("skola", "SALLSYNT", 215, "larsson", "Läraren Larsson", "Larsson the Teacher", "🧑‍🏫"),
-  P("skola", "EPISK", 42, "nobel", "Nobelpriset Nobel", "Nobel the Prize", "🏅"),
-  P("skola", "LEGENDARISK", 225, "rektor", "Rektorn Rector", "Rector the Principal", "🎓"),
-
-  // ── Rymdpaketet ────────────────────────────────────────────────────────────
-  P("rymd", "VANLIG", 8, "raffe", "Raketen Raffe", "Raffe the Rocket", "🚀"),
-  P("rymd", "VANLIG", 50, "stella", "Stjärnan Stella", "Stella the Star", "⭐"),
-  P("rymd", "OVANLIG", 235, "luna", "Månen Luna", "Luna the Moon", "🌙"),
-  P("rymd", "OVANLIG", 20, "kalle", "Kometen Kalle", "Kalle the Comet", "☄️"),
-  P("rymd", "OVANLIG", 190, "tella", "Teleskopet Tella", "Tella the Telescope", "🔭"),
-  P("rymd", "SALLSYNT", 210, "astro", "Astronauten Astro", "Astro the Astronaut", "🧑‍🚀"),
-  P("rymd", "EPISK", 30, "saturnus", "Planeten Saturnus", "Saturn the Planet", "🪐"),
-  P("rymd", "LEGENDARISK", 120, "zorg", "Alien Zorg", "Zorg the Alien", "👽"),
-
-  // ── Djungelpaketet ─────────────────────────────────────────────────────────
-  P("djungel", "VANLIG", 150, "polly", "Papegojan Polly", "Polly the Parrot", "🦜"),
-  P("djungel", "VANLIG", 275, "ving", "Fjärilen Ving", "Ving the Butterfly", "🦋"),
-  P("djungel", "OVANLIG", 25, "abbe", "Apan Abbe", "Abbe the Monkey", "🐵"),
-  P("djungel", "OVANLIG", 130, "slir", "Ormen Slir", "Slir the Snake", "🐍"),
-  P("djungel", "OVANLIG", 105, "groda", "Grodan Groda", "Groda the Frog", "🐸"),
-  P("djungel", "SALLSYNT", 40, "leo", "Leoparden Leo", "Leo the Leopard", "🐆"),
-  P("djungel", "EPISK", 250, "elsa", "Elefanten Elsa", "Elsa the Elephant", "🐘"),
-  P("djungel", "LEGENDARISK", 45, "leon", "Lejonet Leon", "Leon the Lion", "🦁"),
-
-  // ── Godispaketet ───────────────────────────────────────────────────────────
-  P("godis", "VANLIG", 300, "klubba", "Klubban Klubba", "Klubba the Lollipop", "🍭"),
-  P("godis", "VANLIG", 30, "kex", "Keksen Kex", "Kex the Cookie", "🍪"),
-  P("godis", "OVANLIG", 330, "munk", "Munken Munk", "Munk the Donut", "🍩"),
-  P("godis", "OVANLIG", 20, "choklad", "Chokladen Choklad", "Choklad the Chocolate", "🍫"),
-  P("godis", "OVANLIG", 340, "glass", "Glasskupen Glass", "Glass the Sundae", "🍨"),
-  P("godis", "SALLSYNT", 350, "tarta", "Tårtan Tårta", "Tårta the Cake", "🎂"),
-  P("godis", "EPISK", 315, "cupcake", "Cupcaken Cupcake", "Cupcake the Cupcake", "🧁"),
-  P("godis", "LEGENDARISK", 265, "rainbow", "Regnbågsgodiset Rainbow", "Rainbow the Candy", "🌈"),
-
-  // ── Mytiskapaketet ─────────────────────────────────────────────────────────
-  P("mytisk", "EPISK", 290, "uno", "Enhörningen Uno", "Uno the Unicorn", "🦄"),
-  P("mytisk", "EPISK", 110, "drako", "Drakungen Drako", "Drako the Dragon", "🐉"),
-  P("mytisk", "LEGENDARISK", 15, "fenix", "Fenixen Fenix", "Fenix the Phoenix", "🔥"),
-  P("mytisk", "LEGENDARISK", 175, "marina", "Sjöjungfrun Marina", "Marina the Mermaid", "🧜"),
-  P("mytisk", "LEGENDARISK", 255, "merlin", "Trollkarlen Merlin", "Merlin the Wizard", "🧙"),
-  P("mytisk", "KROMA", 0, "kromakatt", "Kroma-Katten", "Chroma Cat", "😻"),
-  P("mytisk", "KROMA", 0, "kromadrake", "Kroma-Draken", "Chroma Dragon", "🐲"),
-  P("mytisk", "KROMA", 0, "kromakrona", "Kroma-Kronan", "Chroma Crown", "👑"),
-
   // ── Gamerpaketet ───────────────────────────────────────────────────────────
-  // One Keen per step of the ladder, straight from the design doc: common 57,3 %,
-  // rare 37 %, epic 5,01 %, legendary 0,67 %, secret 0,02 %.
+  // One Keen per step of the ladder, straight from the design sheet: common
+  // 57,3 %, rare 37 %, epic 5,01 %, legendary 0,67 %, secret 0,02 %.
   P("gamer", "VANLIG", 120, "invader", "Space Invader", "Space Invader", "👾"),
   P("gamer", "SALLSYNT", 0, "crewmate", "Crewmate", "Crewmate", "🚀"),
   P("gamer", "EPISK", 110, "chubbypig", "Chubby Pig", "Chubby Pig", "🐷"),
   P("gamer", "LEGENDARISK", 130, "creeper", "Creeper", "Creeper", "🧟"),
   P("gamer", "HEMLIG", 285, "pixelthorne", "Pixel Thorne", "Pixel Thorne", "🦔"),
 
-  // ── Halloweenpaketet ───────────────────────────────────────────────────────
-  // The partner's design sheet, top to bottom: a grinning pumpkin, the two
-  // chicken cubes, a vampire frog, two legendary cookies, a ghost cookie and the
-  // Pumpkin King on the mythic rung. Art: painted in illustrated-avatar.tsx.
-  P("halloween", "VANLIG", 24, "pumpkin", "Pumpan Grin", "Grin the Pumpkin", "🎃"),
-  P("halloween", "SALLSYNT", 200, "chickenchick", "Kuben Chick", "Chicken Chick", "🐤"),
-  P("halloween", "SALLSYNT", 48, "chickchicken", "Kuben Chicken", "Chick Chicken", "🐔"),
-  P("halloween", "EPISK", 120, "frogula", "Vampyrgrodan Frogula", "Frogula the Vampire Frog", "🐸"),
-  P("halloween", "LEGENDARISK", 30, "cookiepumpkin", "Kakpumpan Cookie", "Cookie Pumpkin", "🍪"),
-  P("halloween", "LEGENDARISK", 35, "cookiemummy", "Kakmumien Mummy", "Cookie Mummy", "🧟"),
-  P("halloween", "HEMLIG", 195, "cookieghost", "Kakspöket Boo", "Cookie Ghost", "👻"),
-  P("halloween", "MYSTISK", 285, "pumpkinking", "Pumpakungen", "Pumpkin King", "👑"),
-
   // ── Admin-Keenen ───────────────────────────────────────────────────────────
-  // Never on a shelf: an admin in QuizKeen Command hands this one out. See
-  // ADMIN_PACK above and lib/keen-grant.ts for the delivery path.
+  // Never on a shelf: an admin in QuizKeen Command hands this one out.
   P(ADMIN_PACK, "MYSTISK", 30, "omeisaurus", "Omeisaurus", "Omeisaurus", "🐉"),
+
+  // ── Ägar-Keenen ────────────────────────────────────────────────────────────
+  // Also never on a shelf, and only the owner can hand it out.
+  P(OWNER_PACK, "MYSTISK", 230, "dragony", "DragonY", "DragonY", "🐲"),
 ];
 
 /**
@@ -560,78 +392,6 @@ export const KEENS: Keen[] = [
  * argument on every `P(...)` row) so the big table stays readable as a table.
  */
 export const KEEN_BIOS: Record<string, string> = {
-  // ── Startpaketet ──────────────────────────────────────────────────────────
-  keenungen: "Nykläckt, nyfiken och med på varje fråga.",
-  blipp: "Räknar allt, piper när svaret är rätt.",
-  puff: "Svävar in, svävar ut, glömmer aldrig ett glosförhör.",
-  driz: "Liten droppe, stor tålamod — rinner aldrig ut.",
-  sunny: "Går upp tidigt för att hinna plugga ikapp.",
-  blom: "Blommar när du svarar rätt, slokar när du gissar.",
-  svamp: "Växer i skuggan av dina misstag — och lär sig av dem.",
-  sten: "Trögstartad, men glömmer aldrig något den lärt sig.",
-  popp: "Spricker av glädje varje gång du klarar ett prov.",
-  tia: "Slår alltid sex — utom när det gäller.",
-
-  // ── Djurpaketet ───────────────────────────────────────────────────────────
-  kisse: "Sover 18 timmar om dagen och vinner resten av tiden.",
-  vovve: "Hämtar alltid bollen — även när du inte kastat den.",
-  kaninen: "Hoppar hellre än går, och räknar morötter bäst i klassen.",
-  turt: "Långsam på frågor, omöjlig att slå på tålamod.",
-  pippi: "Pip pip! Sjunger svaret när du inte hinner.",
-  sly: "Lånar dina pennor och lämnar tillbaka dem oslipade.",
-  bruno: "Sover genom provet och drömmer om honung.",
-  fenrir: "Ylar mot månen och svarar rätt på ren instinkt.",
-
-  // ── Skolpaketet ───────────────────────────────────────────────────────────
-  penny: "Spetsad och redo — suddar aldrig ett rätt svar.",
-  gummi: "Tar bort misstag, ett sudd i taget.",
-  bag: "Bär alla böcker, glömmer alltid läxan hemma.",
-  kalkyl: "Räknar snabbare än du hinner skriva.",
-  prov: "Blir alltid nervös, även när det är grupparbete.",
-  larsson: "Rättar i röd penna och ler ändå.",
-  nobel: "Vinsten är tung att bära — men den är snygg.",
-  rektor: "Utropar studiedag med ett litet leende.",
-
-  // ── Rymdpaketet ───────────────────────────────────────────────────────────
-  raffe: "Räknar ned från tio och lämnar atmosfären.",
-  stella: "Lyser upp mörka nätter och svåra tal.",
-  luna: "Halv, full eller bara trött — alltid vacker.",
-  kalle: "Kommer farande med svansen av glöd.",
-  tella: "Ser allt som är för långt borta för att se.",
-  astro: "Tar ett litet steg, sedan en hel lektion.",
-  saturnus: "Har ringar, attityd och alldeles för många månar.",
-  zorg: "Pratar i signaler och förstår ändå alla frågor.",
-
-  // ── Djungelpaketet ────────────────────────────────────────────────────────
-  polly: "Upprepar allt du säger — även rätt svar.",
-  ving: "Byter skepnad och landar på rätt svar.",
-  abbe: "Klänger på allt, även riktigt svåra uppgifter.",
-  slir: "Ringlar fram utan ben och utan brådska.",
-  groda: "Sitter still, sedan hopp — rätt svar.",
-  leo: "Snabb, fläckig och misstänkt självsäker.",
-  elsa: "Glömmer aldrig något — och verkligen inget prov.",
-  leon: "Kungen av djungeln, men rädd för bin.",
-
-  // ── Godispaketet ──────────────────────────────────────────────────────────
-  klubba: "Söt ut i tåspetsarna, kladdig i marginalen.",
-  kex: "Knaprig, med choklad i varje hörn.",
-  munk: "Ett hål i mitten och socker överallt.",
-  choklad: "Smälter i handen, aldrig i provet.",
-  glass: "Tre kulor, en kula och alltid i tid.",
-  tarta: "Ett lager för varje rätt svar.",
-  cupcake: "Liten, men med glasyr över hela krönet.",
-  rainbow: "Alla färger på en gång — och smakar regnbåge.",
-
-  // ── Mytiskapaketet ────────────────────────────────────────────────────────
-  uno: "Ett horn, ett ben, ett rätt svar.",
-  drako: "Eldar bara när svaret är fel.",
-  fenix: "Reser sig ur provet och börjar om.",
-  marina: "Bubblar fram svaret från havets botten.",
-  merlin: "Trollar fram rätt svar med en vink av staven.",
-  kromakatt: "Byter färg varje gång du blinkar.",
-  kromadrake: "Äter guldmynt och andas glitter.",
-  kromakrona: "Regnbågens krona — den sista på hyllan.",
-
   // ── Gamerpaketet ──────────────────────────────────────────────────────────
   invader: "Landar i åtta bitar och flyttar sig i sidled.",
   crewmate: "Åtta i besättningen, och en av dem ljuger.",
@@ -639,18 +399,9 @@ export const KEEN_BIOS: Record<string, string> = {
   creeper: "Kommer tyst, exploderar mitt i provet.",
   pixelthorne: "En skugga med tänder — bara några har sett den.",
 
-  // ── Halloweenpaketet ──────────────────────────────────────────────────────
-  pumpkin: "Lyser upp mörkret och ler bredare än alla andra.",
-  chickenchick: "Frusen sedan i tisdags — men kammen är röd och glad.",
-  chickchicken: "Samma kyckling, tinad, med slör och allt.",
-  frogula: "Sover i kistan på dagen och hoppar i provet på natten.",
-  cookiepumpkin: "Gräddad i pumpform, med choklad i ögonen.",
-  cookiemummy: "Lindad i band och redo för evigheten.",
-  cookieghost: "Gladast av alla spöken — den är söt, inte hemsk.",
-  pumpkinking: "Kungen i mörkret: 0,1 % chans och en hel armé av pumpor.",
-
-  // ── Admin-Keenen ──────────────────────────────────────────────────────────
+  // ── Gåvorna ───────────────────────────────────────────────────────────────
   omeisaurus: "Chefens egen drake — delas bara ut av en admin.",
+  dragony: "Ägarens drake, som sover på moln och vaktar hela samlingen.",
 };
 
 /** The one-liner for a Keen, or an empty string if it has none yet. */
@@ -673,17 +424,10 @@ export function isObtainable(keen: Keen): boolean {
 }
 
 /**
- * The whole obtainable catalogue — what "samla N figurer" actually counts.
- *
- * It follows the shelf instead of the file: putting a pack back on sale (delete
- * its `hidden: true`) grows this set again, and every counter in the app with it.
- */
-/**
  * The starter set: what every account owns on purpose.
  *
- * `owned` maps for a viewer start from `starterOwned()`, so the same ten Keens
- * that the grid shows as yours are also the ones the wear-check and the market
- * treat as yours. One source, so the pages and the rules cannot disagree.
+ * Empty until the set is redrawn with real artwork. The mechanism stays, so
+ * adding a Keen on the `start` shelf is all it takes to seed it for everyone.
  */
 export const STARTER_KEENS: Keen[] = KEENS.filter(isStarterKeen);
 export const STARTER_KEEN_IDS: string[] = STARTER_KEENS.map((k) => k.id);
@@ -750,8 +494,7 @@ export function rarityOdds(pack: string): { rarity: Rarity; chance: number }[] {
   const odds = PACK_BY_ID[pack]?.odds ?? {};
   const pool = packPool(pack);
   // A rarity this pack has no Keen left for is dropped and the rest rescaled,
-  // because a chance the pack cannot honour is a lie: the free pack used to
-  // advertise "Ovanlig 30 %" while nothing uncommon could ever come out of it.
+  // because a chance the pack cannot honour is a lie.
   const rows = RARITY_ORDER.filter((r) => (odds[r] ?? 0) > 0 && pool.some((k) => k.rarity === r));
   const total = rows.reduce((a, r) => a + (odds[r] as number), 0) || 1;
   // Two decimals, because the catalogue's rarest rolls live there (0,02 %):
@@ -790,7 +533,7 @@ export function rollKeen(pack: AnyPackId, rand: () => number = Math.random): Kee
 /**
  * The pack that can drop a given Keen — shown as "hint" on locked cards.
  *
- * `null` for the Admin Keen: no pack contains it, so callers must say "gift"
+ * `null` for the gift Keens: no pack contains them, so callers must say "gift"
  * rather than render an empty name.
  */
 export function dropsFrom(keen: Keen): Pack | null {
@@ -847,11 +590,12 @@ export function dailyDeals(dateKey: string): { keen: Keen; price: number; off: n
   // actually sell. Kroma Keens are the top of the market and never get
   // discounted, and a Keen that is handed out has no price to discount at all.
   const pool = MARKET_KEENS.filter((k) => k.rarity !== "KROMA");
+  if (!pool.length) return [];
   let seed = 0;
   for (let i = 0; i < dateKey.length; i++) seed = (seed * 31 + dateKey.charCodeAt(i)) >>> 0;
   const used = new Set<number>();
   const out: { keen: Keen; price: number; off: number }[] = [];
-  for (let n = 0; n < DEALS_PER_DAY; n++) {
+  for (let n = 0; n < DEALS_PER_DAY && n < pool.length; n++) {
     seed = (seed * 1103515245 + 12345) >>> 0;
     let idx = seed % pool.length;
     let guard = 0;
@@ -874,10 +618,9 @@ export function dayKey(d: Date = new Date()): string {
 /**
  * Today's Keen: one character, the same for everyone, until midnight UTC.
  *
- * A reason to come back tomorrow, and a reason to look at a Keen you would
- * otherwise never study. It is drawn from the chase tiers (Episk and up) because
- * a spotlight on the fifth common is not a spotlight — and it is a pure function
- * of the date, so the server and every browser agree on who it is.
+ * It is drawn from the chase tiers (Episk and up) because a spotlight on the
+ * fifth common is not a spotlight — and it is a pure function of the date, so
+ * the server and every browser agree on who it is.
  */
 export function keenOfTheDay(dateKey: string, pool?: Keen[]): Keen | null {
   const chase = (pool ?? OBTAINABLE_KEENS).filter((k) => RARITY_META[k.rarity].order >= RARITY_META.EPISK.order);
@@ -925,19 +668,27 @@ export function packProgress(owned: OwnedMap, pack: AnyPackId) {
 /**
  * What a collection is worth, and what that makes you.
  *
- * Counting Keens alone makes a shelf of 22 commons look the same as a shelf with
- * a Pumpkin King on it, so a Keen is worth its rung on the ladder: a common is a
- * point, and the crown of a pack is worth eight. Nothing here is stored — it is
- * derived from what you own, so the rank can never drift out of date.
+ * Counting Keens alone makes a shelf of commons look the same as a shelf with a
+ * hidden Keen on it, so a Keen is worth its rung on the ladder: a common is a
+ * point, and the crown of a pack is worth eight. The thresholds are fractions of
+ * what the current catalogue can actually hold, so adding a pack grows the ladder
+ * instead of leaving its top rungs unreachable.
  */
+export const MAX_COLLECTOR_POINTS: number = OBTAINABLE_KEENS.reduce(
+  (sum, k) => sum + RARITY_META[k.rarity].order + 1,
+  0
+);
+
+const rung = (fraction: number) => Math.round(MAX_COLLECTOR_POINTS * fraction);
+
 export const RANKS: { points: number; label: string; labelEn: string }[] = [
   { points: 0, label: "Nyfiken", labelEn: "Curious" },
-  { points: 8, label: "Samlare", labelEn: "Collector" },
-  { points: 20, label: "Jägare", labelEn: "Hunter" },
-  { points: 40, label: "Kännare", labelEn: "Connoisseur" },
-  { points: 65, label: "Mästare", labelEn: "Master" },
-  { points: 90, label: "Legendar", labelEn: "Legend" },
-  { points: 106, label: "Keen-Kungen", labelEn: "Keen King" },
+  { points: rung(0.08), label: "Samlare", labelEn: "Collector" },
+  { points: rung(0.2), label: "Jägare", labelEn: "Hunter" },
+  { points: rung(0.4), label: "Kännare", labelEn: "Connoisseur" },
+  { points: rung(0.65), label: "Mästare", labelEn: "Master" },
+  { points: rung(0.9), label: "Legendar", labelEn: "Legend" },
+  { points: MAX_COLLECTOR_POINTS, label: "Keen-Kungen", labelEn: "Keen King" },
 ];
 
 /** A collection's score: one point for a common, eight for a Mystisk. */
