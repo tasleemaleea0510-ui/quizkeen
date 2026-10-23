@@ -20,6 +20,7 @@ import {
   OWNER_GIFT_COOLDOWN_MS,
   OWNER_GIFT_LABEL,
   OWNER_GIFT_MESSAGE,
+  OWNER_GIFT_SELF_MESSAGE,
   WARNINGS_BEFORE_BAN,
   WARNING_BAN_MINUTES,
   canDecorate,
@@ -580,9 +581,14 @@ export async function modGiftFromOwner(targetId: string): Promise<Result> {
     if (!target) return { ok: false, info: "Användaren finns inte längre." };
     const perm = canGiveCoins(me, target);
     if (!perm.ok) return { ok: false, info: perm.reason };
-    // A gift is for players. Staff topping up their own wallet with the
-    // owner's name on it is the one thing this button must never allow.
-    if (me.id === target.id) return { ok: false, info: "Gåvan är till spelare — inte till dig själv." };
+    // A gift is for players — except for admins, who may take it themselves:
+    // a fixed 100 mynt every two hours is their own top-up, and it goes through
+    // the same ledger and the same cooldown as every other gift. The owner has
+    // direct grants in the console, and security never sees the coins section.
+    if (me.id === target.id && me.role !== "ADMIN") {
+      return { ok: false, info: "Gåvan är till spelare — inte till dig själv." };
+    }
+    const toSelf = me.id === target.id;
 
     const last = await prisma.coinGrant.findFirst({
       where: {
@@ -601,9 +607,10 @@ export async function modGiftFromOwner(targetId: string): Promise<Result> {
       };
     }
 
-    // The gift still comes out of an admin's daily budget, so it cannot become
-    // a way around the 1000/day ceiling.
-    if (me.role === "ADMIN") {
+    // A gift to somebody else still comes out of an admin's daily budget, so it
+    // cannot become a way around the 1000/day ceiling. Their own gift is the one
+    // exception: 100 every two hours is the ceiling of that button by itself.
+    if (me.role === "ADMIN" && !toSelf) {
       const used = await prisma.coinGrant.aggregate({
         where: { staffId: me.id, targetId: target.id, createdAt: { gte: startOfDay() } },
         _sum: { amount: true },
@@ -620,7 +627,10 @@ export async function modGiftFromOwner(targetId: string): Promise<Result> {
     await prisma.$transaction([
       prisma.profile.update({
         where: { id: target.id },
-        data: { coins: { increment: OWNER_GIFT_COINS }, passwordNote: OWNER_GIFT_MESSAGE },
+        data: {
+          coins: { increment: OWNER_GIFT_COINS },
+          passwordNote: toSelf ? OWNER_GIFT_SELF_MESSAGE : OWNER_GIFT_MESSAGE,
+        },
       }),
       prisma.coinGrant.create({
         data: {
@@ -632,10 +642,17 @@ export async function modGiftFromOwner(targetId: string): Promise<Result> {
         },
       }),
     ]);
-    await log(me, `gåva från ägaren: ${OWNER_GIFT_COINS} mynt till ${target.username}`);
+    await log(
+      me,
+      toSelf
+        ? `tog gåvan själv: ${OWNER_GIFT_COINS} mynt`
+        : `gåva från ägaren: ${OWNER_GIFT_COINS} mynt till ${target.username}`
+    );
     return {
       ok: true,
-      info: `Gåva skickad: +${OWNER_GIFT_COINS} mynt till ${target.username}. Hen ser “en gåva från ägaren”. Nästa gåva om 2 tim.`,
+      info: toSelf
+        ? `+${OWNER_GIFT_COINS} mynt till dig. Nästa gåva om 2 tim.`
+        : `Gåva skickad: +${OWNER_GIFT_COINS} mynt till ${target.username}. Hen ser “en gåva från ägaren”. Nästa gåva om 2 tim.`,
     };
   } catch {
     return { ok: false, info: GENERIC };

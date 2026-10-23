@@ -329,7 +329,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
               {staffRole === "OWNER"
                 ? "Du kan banna för alltid, ge mynt utan dagstak och använda ägarreglagen."
                 : staffRole === "ADMIN"
-                  ? `Bannlys i max 1 dygn, ge max ${ADMIN_COIN_DAILY_CAP} mynt per person och dag, och skicka gåvan (${OWNER_GIFT_COINS} mynt) varannan timme.`
+                  ? `Bannlys i max 1 dygn, ge max ${ADMIN_COIN_DAILY_CAP} mynt per person och dag, och ta gåvan (${OWNER_GIFT_COINS} mynt) varannan timme — även till dig själv.`
                   : "Säkerhet: varna, bannlys i max 1 timme och tysta chatten i max 1 timme."}{" "}
               Full IP syns för personal — ägarens egen uppkoppling är alltid dold. Allt loggas.
             </footer>
@@ -757,8 +757,9 @@ function PlayerRow({
                 </ActionChip>
               </div>
               {/* Everyone who reaches this section may send the gift: security is
-                  already excluded by `canCoins` above. */}
-              {!self && (
+                  already excluded by `canCoins` above. An admin sees it on their
+                  own row too — the same fixed gift, the same two-hour cooldown. */}
+              {(!self || staffRole === "ADMIN") && (
                 <>
                   <ActionChip
                     tone="amber"
@@ -769,11 +770,14 @@ function PlayerRow({
                   >
                     {p.giftReadyAt
                       ? `Gåva om ${humanRemaining(new Date(p.giftReadyAt).getTime() - Date.now())}`
-                      : `Gåva från ägaren · ${OWNER_GIFT_COINS} mynt`}
+                      : self
+                        ? `Ta gåvan · ${OWNER_GIFT_COINS} mynt`
+                        : `Gåva från ägaren · ${OWNER_GIFT_COINS} mynt`}
                   </ActionChip>
                   <p className="text-[10px] leading-relaxed text-slate-500">
-                    En fast gåva, högst en per spelare varannan timme. Mottagaren ser en
-                    popup: “en gåva från ägaren”.
+                    {self
+                      ? `Din egen gåva: fast ${OWNER_GIFT_COINS} mynt, högst en varannan timme.`
+                      : "En fast gåva, högst en per spelare varannan timme. Mottagaren ser en popup: “en gåva från ägaren”."}
                   </p>
                 </>
               )}

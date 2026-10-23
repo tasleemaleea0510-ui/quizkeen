@@ -67,6 +67,9 @@ export const OWNER_GIFT_LABEL = "Gåva från ägaren";
 /** What the recipient sees in their popup. */
 export const OWNER_GIFT_MESSAGE = `🎁 En gåva från ägaren: +${OWNER_GIFT_COINS} mynt! Tack för att du spelar QuizKeen.`;
 
+/** The popup an admin reads after taking the gift themselves. */
+export const OWNER_GIFT_SELF_MESSAGE = `🎁 Din gåva: +${OWNER_GIFT_COINS} mynt! Nästa går att ta om 2 tim.`;
+
 export const WARNINGS_BEFORE_BAN = 3;
 
 /** How long a third warning shuts an account: a day, not the rest of its life. */

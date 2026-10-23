@@ -3,6 +3,14 @@ import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import { KEEN_BY_ID, keenArtSrc, type Keen } from "@/lib/keens";
 import { wornIdFromCookieString } from "@/lib/worn";
+import {
+  CLEAR_BEFORE_GOAL,
+  DOUBLE_OFFSET,
+  SPAWN_AHEAD,
+  isDoubleSpike,
+  obstacleX,
+  seedFromPin,
+} from "@/lib/lobby-obstacles";
 
 const COLORS = [0x6366f1, 0xef4444, 0x22c55e, 0xeab308, 0xec4899, 0x06b6d4, 0xf97316, 0xa855f7, 0x14b8a6, 0xf43f5e];
 const WORLD_END = 170000;
@@ -99,16 +107,6 @@ function sendIntervalMs(players: number): number {
   return 400;
 }
 
-function mulberry32(a: number) {
-  return function () {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export default function LobbyGame({ pin, username }: { pin: string; username: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -116,7 +114,9 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
     if (!ref.current) return;
     const wornKeenId = wornIdFromCookieString(document.cookie);
     const myColor = colorIndexFor(username);
-    const rngSeed = parseInt(pin, 10) || 1;
+    // Same PIN, same course on every screen — and a different course in every
+    // lobby, because the server picks the PIN at random.
+    const courseSeed = seedFromPin(pin);
 
     class LobbyScene extends Phaser.Scene {
       player!: Phaser.Physics.Arcade.Sprite;
@@ -133,7 +133,9 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       boardText!: Phaser.GameObjects.Text;
       keys: any = null;
       wasd: any = null;
-      nextSpawnX = 600;
+      // Which spike number comes next. Positions are derived from (seed, index),
+      // so this is the only state the course needs.
+      obstacleIndex = 0;
       finished = false;
       trailG!: Phaser.GameObjects.Graphics;
       trail: { x: number; y: number }[] = [];
@@ -141,7 +143,6 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       starsT!: Phaser.GameObjects.TileSprite;
       mFarT!: Phaser.GameObjects.TileSprite;
       mNearT!: Phaser.GameObjects.TileSprite;
-      rng: () => number = Math.random;
 
       constructor() {
         super("LobbyScene");
@@ -228,8 +229,6 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
       }
 
       create() {
-        this.rng = mulberry32(rngSeed);
-
         const sky = this.add.image(400, 150, "sky").setScrollFactor(0).setDepth(0);
         sky.setDisplaySize(800, 300);
         this.starsT = this.add.tileSprite(400, 150, 800, 300, "stars").setScrollFactor(0).setDepth(1);
@@ -271,10 +270,13 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           this.player.setVelocity(0, 0);
           this.player.setPosition(120, 200);
           this.trail = [];
+          // Rebuild the stretch from the start. Safe now that a spike's position
+          // comes from the course seed, not from a random stream that had already
+          // moved on — before, this re-rolled the course for one player only.
           this.obstacles.getChildren().forEach((c) => {
             (c as Phaser.Physics.Arcade.Sprite).destroy();
           });
-          this.nextSpawnX = 600;
+          this.obstacleIndex = 0;
         });
 
         const finish = this.physics.add.staticImage(WORLD_END, 150, "finish");
@@ -406,26 +408,22 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           this.tweens.add({ targets: d, alpha: 0, duration: 350, onComplete: () => d.destroy() });
         }
 
-        while (this.nextSpawnX < this.player.x + 1200 && this.nextSpawnX < WORLD_END - 400) {
-          const ob = this.obstacles.create(this.nextSpawnX, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
-          ob.setDepth(6);
-          const b = ob.body as Phaser.Physics.Arcade.Body;
-          if (b) {
-            b.setAllowGravity(false);
-            b.setVelocityX(0);
-          }
-          let gap = 180 + this.rng() * 320;
-          if (this.rng() < 0.3) {
-            const ob2 = this.obstacles.create(this.nextSpawnX + 46, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
-            ob2.setDepth(6);
-            const b2 = ob2.body as Phaser.Physics.Arcade.Body;
-            if (b2) {
-              b2.setAllowGravity(false);
-              b2.setVelocityX(0);
+        while (true) {
+          const index = this.obstacleIndex;
+          const x = obstacleX(courseSeed, index);
+          if (x > this.player.x + SPAWN_AHEAD || x >= WORLD_END - CLEAR_BEFORE_GOAL) break;
+          const spike = (at: number) => {
+            const ob = this.obstacles.create(at, 246, "obstacle") as Phaser.Physics.Arcade.Sprite;
+            ob.setDepth(6);
+            const b = ob.body as Phaser.Physics.Arcade.Body;
+            if (b) {
+              b.setAllowGravity(false);
+              b.setVelocityX(0);
             }
-            gap += 120;
-          }
-          this.nextSpawnX += gap;
+          };
+          spike(x);
+          if (isDoubleSpike(courseSeed, index)) spike(x + DOUBLE_OFFSET);
+          this.obstacleIndex = index + 1;
         }
 
         this.obstacles.getChildren().forEach((child) => {
@@ -456,9 +454,12 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
           const s = this.others[name];
           if (!s) continue;
           const r = this.remote[name];
-          const age = Math.min(0.4, (performance.now() - r.at) / 1000);
-          const targetX = r.x + r.vx * age;
-          const targetY = r.y + r.vy * age;
+          const age = Math.min(0.3, (performance.now() - r.at) / 1000);
+          // Clamped to the playable column: a late packet or a reset used to be
+          // able to draw somebody below the ground, which reads as "under the
+          // map" even though their own screen is fine.
+          const targetX = Phaser.Math.Clamp(r.x + r.vx * age, 0, WORLD_END + 800);
+          const targetY = Phaser.Math.Clamp(r.y + r.vy * age, 120, 262);
           s.x += (targetX - s.x) * ease;
           s.y += (targetY - s.y) * ease;
           this.otherLabels[name]?.setPosition(s.x, s.y - 36);
