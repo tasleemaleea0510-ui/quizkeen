@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from "@/lib/keen-grant";
 import { KEEN_BY_ID } from "@/lib/keen-catalogue";
 import { describeLocation } from "@/lib/geo";
+import { GIFT_COINS, GIFT_COOLDOWN_MS, GIFT_LABEL, GIFT_POPUP, giftWait } from "@/lib/gift";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -262,16 +263,32 @@ export async function getOwnerData(s: S) {
 export async function getAdminData(s: S) {
   try {
     if (!(await ok(s, "ADMIN"))) return null;
-    const [users, logRows, settings] = await Promise.all([
+    const [users, logRows, settings, gifts] = await Promise.all([
       prisma.profile.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
       prisma.adminSettings.findFirst({ select: { broadcast: true, broadcastUntil: true } }),
+      // The two-hour gift cooldown lives in the ledger, so the countdown below
+      // is the same one the in-app panel shows — and the same one that blocks it.
+      prisma.coinGrant
+        .findMany({
+          where: { staffName: GIFT_LABEL, createdAt: { gte: new Date(Date.now() - GIFT_COOLDOWN_MS) } },
+          orderBy: { createdAt: "desc" },
+          select: { targetId: true, createdAt: true },
+        })
+        .catch(() => [] as { targetId: string; createdAt: Date }[]),
     ]);
     const until = settings?.broadcastUntil ?? null;
     const live = !!settings?.broadcast?.trim() && (!until || until.getTime() > Date.now());
     const withheld = await ownerAddresses();
+    const giftReady = new Map<string, string>();
+    for (const g of gifts) {
+      if (giftReady.has(g.targetId)) continue;
+      giftReady.set(g.targetId, new Date(g.createdAt.getTime() + GIFT_COOLDOWN_MS).toISOString());
+    }
     return {
-      users: users.map((u) => withAddress(u, withheld)).sort(byPinnedFirst),
+      users: users
+        .map((u) => ({ ...withAddress(u, withheld), giftReadyAt: giftReady.get(u.id) ?? null }))
+        .sort(byPinnedFirst),
       // The banner tab needs to show what is already on screen — otherwise an
       // admin opens it, sees an empty box, and assumes nothing is running.
       settings: {
@@ -1050,6 +1067,60 @@ export async function adminGiveCoins(s: S, id: string, username: string, amt: nu
     });
     await log("[ADMIN]", `gav ${amount} mynt till ${username}`);
     return { ok: true, info: `+${amount} mynt till ${username}. ${left - amount} kvar idag.` };
+  });
+}
+
+/**
+ * The admin's own gift: 100 mynt, at most once every two hours.
+ *
+ * The console signs in with one shared admin code, so it cannot know which
+ * profile is "me" — the button therefore sits on the admin's own row in the
+ * user list. What it cannot fake is the ledger: a grant to any admin account,
+ * from here or from the in-app panel, starts the same two-hour cooldown, and a
+ * second press inside it is refused on the server.
+ */
+export async function adminSelfGift(s: S, id: string) {
+  return withAuth("ADMIN", s, async () => {
+    const target = await prisma.profile.findUnique({
+      where: { id },
+      select: { id: true, username: true, role: true },
+    });
+    if (!target) return { ok: false, info: "Användaren finns inte längre." };
+    // Players have their own gift in the app; this one exists so an admin can
+    // top themselves up without needing a colleague to press anything.
+    if (target.role !== "ADMIN") return { ok: false, info: "Gåvan är bara för admin-konton." };
+
+    const last = await prisma.coinGrant.findFirst({
+      where: {
+        targetId: id,
+        staffName: GIFT_LABEL,
+        createdAt: { gte: new Date(Date.now() - GIFT_COOLDOWN_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (last) {
+      const left = last.createdAt.getTime() + GIFT_COOLDOWN_MS - Date.now();
+      return { ok: false, info: `Gåvan är redan tagen — nästa om ${giftWait(left)}.` };
+    }
+
+    await prisma.$transaction([
+      prisma.profile.update({
+        where: { id },
+        data: { coins: { increment: GIFT_COINS }, passwordNote: GIFT_POPUP },
+      }),
+      prisma.coinGrant.create({
+        data: {
+          staffId: "console:ADMIN",
+          staffName: GIFT_LABEL,
+          targetId: id,
+          targetName: target.username,
+          amount: GIFT_COINS,
+        },
+      }),
+    ]);
+    await log("[ADMIN]", `tog gåvan: ${GIFT_COINS} mynt`);
+    return { ok: true, info: `+${GIFT_COINS} mynt till ${target.username}. Nästa gåva om 2 tim.` };
   });
 }
 

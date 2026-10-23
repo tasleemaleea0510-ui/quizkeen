@@ -9,6 +9,7 @@ import {
   adminRequestBan,
   adminGiveXP,
   adminGiveCoins,
+  adminSelfGift,
   adminSetBroadcast,
   adminStopBroadcast,
   adminGiveAdminKeen,
@@ -54,6 +55,7 @@ import {
 } from "../../components/icons";
 import { CountUp } from "../../components/motion";
 import { ConsoleHero, IpLine, Panel, SectionHead, SearchField, ToolButton, ToolGroup } from "../../components/ui";
+import { GIFT_COINS } from "../../lib/gift";
 
 type S = { role: string; code: string };
 type NavId = "users" | "chats" | "broadcast" | "chat" | "keen" | "tools" | "log" | "help";
@@ -72,6 +74,16 @@ const BROADCAST_DURATIONS: { label: string; minutes: number | null }[] = [
 function timeLeftLabel(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
+}
+
+/** "1:58:12" — time left on the admin's two-hour gift. */
+function giftLeft(iso: string): string {
+  const total = Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  const mm = m.toString().padStart(2, "0");
+  return h ? `${h}:${mm}:${sec.toString().padStart(2, "0")}` : `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
 const QUICK = [
@@ -473,7 +485,37 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {u.role !== "STUDENT" && u.role !== "TEACHER" && (
+                        {u.role === "ADMIN" && (
+                          <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+                            <ToolGroup title="Din gåva" Icon={Coins} tone="amber">
+                              <ToolButton
+                                label={
+                                  u.giftReadyAt && new Date(u.giftReadyAt).getTime() > nowTick
+                                    ? `Gåva om ${giftLeft(u.giftReadyAt)}`
+                                    : `Ta gåvan · ${GIFT_COINS} mynt`
+                                }
+                                Icon={Gift}
+                                tone="amber"
+                                variant={u.giftReadyAt && new Date(u.giftReadyAt).getTime() > nowTick ? "soft" : "solid"}
+                                title={`Fast ${GIFT_COINS} mynt, högst en gång varannan timme`}
+                                disabled={
+                                  busy || Boolean(u.giftReadyAt && new Date(u.giftReadyAt).getTime() > nowTick)
+                                }
+                                onClick={() => run(adminSelfGift(s, u.id))}
+                              />
+                            </ToolGroup>
+                            <div className="rounded-2xl border border-white/[0.07] bg-slate-950/40 p-3 md:col-span-1 2xl:col-span-2">
+                              <p className="text-xs leading-relaxed text-slate-500">
+                                Fast <b className="text-amber-200">{GIFT_COINS} mynt</b>, högst en gång varannan
+                                timme. Samma gåva som i QuizKeen, med samma klocka — trycker du där startar
+                                nedräkningen här. Konsolen loggar in med en gemensam kod och vet inte vilket
+                                konto som är ditt, så tryck på din egen rad.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {(u.role === "OWNER" || u.role === "SECURITY") && (
                           <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
                             <Shield className="h-3.5 w-3.5 text-amber-400" /> Skyddad roll — inga åtgärder härifrån.
                           </p>
