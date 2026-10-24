@@ -1103,6 +1103,9 @@ const PAIRS: [string, string][] = [
   ["Äter guldmynt och andas glitter.", "Eats gold coins and breathes glitter."],
   ["Kommer tyst, exploderar mitt i provet.", "Arrives silently, explodes in the middle of the test."],
   ["Chefens egen drake — delas bara ut av en admin.", "The boss's own dragon — only handed out by an admin."],
+  ["Ritad med krita i marginalen av ett skrivblock — bläck har den aldrig sett.", "Drawn in crayon in the margin of a notepad — it has never seen ink."],
+  ["Sover under mossan i skogen med vingarna som täcke.", "Sleeps under the moss in the forest with its wings as a blanket."],
+  ["Vaknar först när månen står som högst — då vaktar den valvet.", "Wakes only when the moon is at its highest — then it guards the vault."],
 
 ];
 

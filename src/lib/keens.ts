@@ -375,12 +375,18 @@ export const KEENS: Keen[] = [
   P("gamer", "HEMLIG", 285, "pixelthorne", "Pixel Thorne", "Pixel Thorne", "🦔"),
 
   // ── Admin-Keenen ───────────────────────────────────────────────────────────
-  // Never on a shelf: an admin in QuizKeen Command hands this one out.
+  // Never on a shelf: an admin in QuizKeen Command hands these out. Both are
+  // trophies — one per person — so the panel offers them as a pair of cards.
+  P(ADMIN_PACK, "MYSTISK", 205, "doodlekraken", "Doodle Kraken", "Doodle Kraken", "🐙"),
   P(ADMIN_PACK, "MYSTISK", 30, "omeisaurus", "Omeisaurus", "Omeisaurus", "🐉"),
 
   // ── Ägar-Keenen ────────────────────────────────────────────────────────────
-  // Also never on a shelf, and only the owner can hand it out.
+  // Also never on a shelf, and only the owner can hand these out. The two
+  // dragons are the same sleeper in different palettes, so they are named after
+  // the place each one naps rather than numbered.
   P(OWNER_PACK, "MYSTISK", 230, "dragony", "DragonY", "DragonY", "🐲"),
+  P(OWNER_PACK, "MYSTISK", 140, "dragonyforest", "DragonY (Forest)", "DragonY (Forest)", "🌿"),
+  P(OWNER_PACK, "MYSTISK", 265, "dragonymoonlight", "DragonY (Moonlight)", "DragonY (Moonlight)", "🌙"),
 ];
 
 /**
@@ -400,8 +406,11 @@ export const KEEN_BIOS: Record<string, string> = {
   pixelthorne: "En skugga med tänder — bara några har sett den.",
 
   // ── Gåvorna ───────────────────────────────────────────────────────────────
+  doodlekraken: "Ritad med krita i marginalen av ett skrivblock — bläck har den aldrig sett.",
   omeisaurus: "Chefens egen drake — delas bara ut av en admin.",
   dragony: "Ägarens drake, som sover på moln och vaktar hela samlingen.",
+  dragonyforest: "Sover under mossan i skogen med vingarna som täcke.",
+  dragonymoonlight: "Vaknar först när månen står som högst — då vaktar den valvet.",
 };
 
 /** The one-liner for a Keen, or an empty string if it has none yet. */

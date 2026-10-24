@@ -56,11 +56,26 @@ export const KEEN_CATALOGUE: KeenEntry[] = [
   { id: "chubbypig", name: "Chubby Pig", rarity: "EPISK", pack: "gamer", hue: 110, emoji: "🐷" },
   { id: "creeper", name: "Creeper", rarity: "LEGENDARISK", pack: "gamer", hue: 130, emoji: "🧟" },
   { id: "pixelthorne", name: "Pixel Thorne", rarity: "HEMLIG", pack: "gamer", hue: 285, emoji: "🦔" },
-  // Gåvor — never in a pack.
+  // Gåvor — never in a pack. Admins hand out the two `admin` ones (the panel
+  // shows them as cards); only the owner may hand out the `owner` ones.
+  { id: "doodlekraken", name: "Doodle Kraken", rarity: "MYSTISK", pack: "admin", hue: 205, emoji: "🐙" },
   { id: "omeisaurus", name: "Omeisaurus", rarity: "MYSTISK", pack: "admin", hue: 30, emoji: "🐉" },
   { id: "dragony", name: "DragonY", rarity: "MYSTISK", pack: "owner", hue: 230, emoji: "🐲" },
+  { id: "dragonyforest", name: "DragonY (Forest)", rarity: "MYSTISK", pack: "owner", hue: 140, emoji: "🌿" },
+  { id: "dragonymoonlight", name: "DragonY (Moonlight)", rarity: "MYSTISK", pack: "owner", hue: 265, emoji: "🌙" },
 ];
 
 export const KEEN_BY_ID: Record<string, KeenEntry> = Object.fromEntries(
   KEEN_CATALOGUE.map((k) => [k.id, k])
 );
+
+/**
+ * The Keens an admin may hand out — everything on the `admin` shelf.
+ *
+ * Kept here, in the client-safe catalogue, because both sides need the same
+ * answers: the admin panel draws one card per entry, and the server checks a
+ * submitted id against this same list before it writes anything. The first entry
+ * is the panel's default selection.
+ */
+export const ADMIN_KEENS: KeenEntry[] = KEEN_CATALOGUE.filter((k) => k.pack === "admin");
+export const ADMIN_KEEN_ID = ADMIN_KEENS[0]?.id ?? "doodlekraken";

@@ -1840,8 +1840,8 @@ export default function OwnerPage() {
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       Alla Keens som finns i spelet. <b className="text-slate-300">Ge</b> lägger en i samlingen direkt (en till
-                      blir en dublett), <b className="text-slate-300">Ta bort</b> tar en kopia. Ägar-Keenen kan bara delas ut
-                      härifrån; Admin-Keenen finns också i adminpanelen.
+                      blir en dublett), <b className="text-slate-300">Ta bort</b> tar en kopia. Ägar-Keens (drakarna) kan
+                      bara delas ut härifrån; Admin-Keens finns också i adminpanelen.
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">

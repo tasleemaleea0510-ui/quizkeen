@@ -479,12 +479,12 @@ const OWNER: HelpDoc = {
               warn: "Knappen syns bara på Keens personen faktiskt har. Öppningshistoriken rörs inte — den ska fortfarande visa att Keenen kom och försvann.||The button only appears on Keens the person actually owns. The pull history is untouched — it should still show that the Keen arrived and left.",
             },
             {
-              name: "Admin-Keenen",
-              what: "Omeisaurus finns också i valvet. Den är en trofé: en per person, precis som knappen under Admin-Keen — trycker du igen säger den att personen redan har den.||Omeisaurus is in the vault too. It's a trophy: one per person, exactly like the button under Admin-Keen — a second press says they already have it.",
+              name: "Admin-Keens",
+              what: "Doodle Kraken och Omeisaurus finns också i valvet. De är troféer: en per person, precis som korten under Admin-Keens — trycker du igen säger den att personen redan har den.||Doodle Kraken and Omeisaurus are in the vault too. They are trophies: one per person, exactly like the cards under Admin-Keens — a second press says they already have it.",
             },
             {
-              name: "Ägar-Keenen (DragonY)",
-              what: "DragonY är ägarens egen Mystiska Keen. Den finns inte i något paket och bara ägaren kan ge bort den — därför ligger den bara i det här valvet, aldrig i adminpanelen.||DragonY is the owner's own Mystical Keen. It is in no pack and only the owner can give it away — so it lives in this vault only, never in the admin panel.",
+              name: "Ägar-Keens (drakarna)",
+              what: "DragonY, DragonY (Forest) och DragonY (Moonlight) är ägarens egna Mystiska Keens. De finns inte i något paket och bara ägaren kan ge bort dem — därför ligger de bara i det här valvet, aldrig i adminpanelen.||DragonY, DragonY (Forest) and DragonY (Moonlight) are the owner's own Mystical Keens. They are in no pack and only the owner can give them away — so they live in this vault only, never in the admin panel.",
               warn: "En trofé: en per person. Trycker du Ge igen säger den att personen redan har den.||A trophy: one per person. Press Ge again and it says the person already has it.",
             },
           ],

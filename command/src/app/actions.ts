@@ -2,8 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
-import { ADMIN_KEEN_NAME, adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from "@/lib/keen-grant";
-import { KEEN_BY_ID } from "@/lib/keen-catalogue";
+import { adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from "@/lib/keen-grant";
+import { ADMIN_KEEN_ID, KEEN_BY_ID } from "@/lib/keen-catalogue";
 import { describeLocation } from "@/lib/geo";
 import { GIFT_COINS, GIFT_COOLDOWN_MS, GIFT_LABEL, GIFT_POPUP, giftWait } from "@/lib/gift";
 
@@ -1214,10 +1214,10 @@ export async function secUnban(s: S, username: string) {
   });
 }
 
-// ─── the Admin Keen ──────────────────────────────────────────────────────
+// ─── the Admin Keens ─────────────────────────────────────────────────────
 
 /**
- * Give the Admin Keen to one person.
+ * Give one of the Admin Keens to one person.
  *
  * ADMIN and above, like every other power in this console, and the whole thing
  * is logged with the [ADMIN] tag so the owner can see who handed one out. The
@@ -1225,25 +1225,31 @@ export async function secUnban(s: S, username: string) {
  * into the shared database, because QuizKeen Command and QuizKeen are separate
  * deployments. Clicking twice is safe: the helper reports "already owned"
  * instead of adding a second one.
+ *
+ * `keenId` comes from the console, so it is not trusted: the helper refuses any
+ * id that is not on the `admin` shelf, which is what keeps the owner-only
+ * dragons out of an admin's reach.
  */
-export async function adminGiveAdminKeen(s: S, profileId: string, username: string) {
+export async function adminGiveAdminKeen(s: S, profileId: string, username: string, keenId: string = ADMIN_KEEN_ID) {
   return withAuth("ADMIN", s, async () => {
-    const res = await giveAdminKeen(profileId, username);
+    const name = KEEN_BY_ID[keenId]?.name ?? "Admin-Keenen";
+    const res = await giveAdminKeen(profileId, username, keenId);
     if (!res.ok) {
+      if (res.error === "denied") return { ok: false, info: "Den Keenen delas inte ut härifrån." };
       return { ok: false, info: res.error === "missing" ? "Användaren finns inte längre." : GENERIC_FAILURE };
     }
     if (res.alreadyOwned) {
-      await log("[ADMIN]", `försökte ge ${ADMIN_KEEN_NAME} till ${username}, som redan hade den`);
-      return { ok: true, info: `${username} har redan ${ADMIN_KEEN_NAME}.` };
+      await log("[ADMIN]", `försökte ge ${name} till ${username}, som redan hade den`);
+      return { ok: true, info: `${username} har redan ${name}.` };
     }
-    await log("[ADMIN]", `gav ${ADMIN_KEEN_NAME} till ${username}`);
-    return { ok: true, info: `${username} fick ${ADMIN_KEEN_NAME}! Den ligger i samlingen nu.` };
+    await log("[ADMIN]", `gav ${name} till ${username}`);
+    return { ok: true, info: `${username} fick ${name}! Den ligger i samlingen nu.` };
   });
 }
 
-/** Profile ids that already own the Admin Keen, for the picker's badges. */
-export async function adminKeenHoldersList(s: S) {
-  return withAuth("ADMIN", s, async () => ({ ok: true, info: "", holders: await adminKeenHolders() }));
+/** Profile ids that already own one of the Admin Keens, for the picker's badges. */
+export async function adminKeenHoldersList(s: S, keenId: string = ADMIN_KEEN_ID) {
+  return withAuth("ADMIN", s, async () => ({ ok: true, info: "", holders: await adminKeenHolders(keenId) }));
 }
 
 // ─── superpowers (owner) ─────────────────────────────────────────────────
@@ -1676,7 +1682,7 @@ export async function ownerPruneVisits(s: S, days: number) {
 
 // ─── the Keen vault ─────────────────────────────────────────────────────
 //
-// The Admin-Keen button is a single trophy; the vault is the whole catalogue.
+// The Admin-Keen cards are trophies; the vault is the whole catalogue.
 // Both go through `lib/keen-grant.ts`, which writes straight into the shared
 // database, so a Keen handed out here is in the collection before the person
 // refreshes the page.

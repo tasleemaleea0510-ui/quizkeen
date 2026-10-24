@@ -1,18 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { KEEN_BY_ID } from "@/lib/keen-catalogue";
-
-/**
- * The Admin Keen's id.
- *
- * Same string as `P(ADMIN_PACK, "MYSTISK", …, "omeisaurus", …)` in QuizKeen's
- * `src/lib/keens.ts`. The name and rarity are read from the generated catalogue
- * so they cannot drift; only the id is spelled out, because it is the one value
- * a rename would silently break.
- */
-export const ADMIN_KEEN_ID = "omeisaurus";
-export const ADMIN_KEEN_NAME = KEEN_BY_ID[ADMIN_KEEN_ID]?.name ?? "Omeisaurus";
-export const ADMIN_KEEN_RARITY = KEEN_BY_ID[ADMIN_KEEN_ID]?.rarity ?? "MYSTISK";
+import { ADMIN_KEEN_ID, KEEN_BY_ID } from "@/lib/keen-catalogue";
 
 /**
  * Handing out Keens.
@@ -38,7 +26,8 @@ const GIFT_SHELF = "gava";
 export type GrantResult =
   /** `alreadyOwned` is true when the person had it before — nothing was added. */
   | { ok: true; alreadyOwned: boolean; count: number }
-  | { ok: false; error: "missing" | "db" };
+  /** `denied` means the Keen is not on a shelf this caller may hand out. */
+  | { ok: false; error: "missing" | "db" | "denied" };
 
 export type TakeResult =
   | { ok: true; removed: boolean; count: number }
@@ -65,9 +54,9 @@ export async function keenHolders(keenId: string): Promise<string[]> {
   }
 }
 
-/** Profile ids that already own the Admin Keen, for the picker's badges. */
-export function adminKeenHolders(): Promise<string[]> {
-  return keenHolders(ADMIN_KEEN_ID);
+/** Profile ids that already own this Admin Keen, for the picker's badges. */
+export function adminKeenHolders(keenId: string = ADMIN_KEEN_ID): Promise<string[]> {
+  return keenHolders(keenId);
 }
 
 /** What one person owns, as ids and counts — the vault's "har den" badges. */
@@ -176,7 +165,19 @@ export async function takeKeen(profileId: string, username: string, keenId: stri
   }
 }
 
-/** Give the Admin Keen (once), keeping the older, narrower API alive. */
-export function giveAdminKeen(profileId: string, username: string): Promise<GrantResult> {
-  return giveKeen(profileId, username, ADMIN_KEEN_ID, ADMIN_KEEN_RARITY, "once");
+/**
+ * Give an Admin Keen (once).
+ *
+ * The id comes from the browser, so it is checked against the `admin` shelf
+ * before anything is written: without that an admin could ask this action for an
+ * owner-only Keen and hand it out from a console that must never be able to.
+ */
+export function giveAdminKeen(
+  profileId: string,
+  username: string,
+  keenId: string = ADMIN_KEEN_ID
+): Promise<GrantResult> {
+  const entry = KEEN_BY_ID[keenId];
+  if (!entry || entry.pack !== "admin") return Promise.resolve({ ok: false, error: "denied" });
+  return giveKeen(profileId, username, entry.id, entry.rarity, "once");
 }

@@ -26,7 +26,7 @@ import {
   adminCoinLedger,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
-import { keenArtSrc } from "../../lib/keen-catalogue";
+import { ADMIN_KEEN_ID, ADMIN_KEENS, keenArtSrc } from "../../lib/keen-catalogue";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
 import { HelpButton, HelpPanel } from "../../components/help-guide";
@@ -110,10 +110,13 @@ export default function AdminPage() {
   const [chats, setChats] = useState<any>(null);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
-  // Admin-Keen: who to give it to, whose name to search, and who already has it.
+  // Admin-Keens: which one the panel is handing out, who to give it to, whose
+  // name to search for, and who already has the selected one.
   const [kq, setKq] = useState("");
+  const [adminKeenId, setAdminKeenId] = useState(ADMIN_KEEN_ID);
   const [keenFor, setKeenFor] = useState<any>(null);
   const [holders, setHolders] = useState<string[]>([]);
+  const adminKeen = ADMIN_KEENS.find((k) => k.id === adminKeenId) ?? ADMIN_KEENS[0];
 
   // styled replacements for window.prompt()
   const [gift, setGift] = useState<{ user: any; amount: string } | null>(null);
@@ -184,10 +187,10 @@ export default function AdminPage() {
 
   // Loaded when the section is opened, and again after every grant, so the
   // badges never claim someone is missing a Keen they were just given.
-  const loadHolders = async (sess: S | null) => {
+  const loadHolders = async (sess: S | null, keenId: string = adminKeenId) => {
     if (!sess) return;
     try {
-      const r = await adminKeenHoldersList(sess);
+      const r = await adminKeenHoldersList(sess, keenId);
       if (r?.ok) setHolders(r.holders ?? []);
     } catch {
       /* leave the last known badges in place */
@@ -197,7 +200,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (section !== "keen" || !s) return;
     let alive = true;
-    adminKeenHoldersList(s)
+    // Clear first: the badges belong to one Keen, and a stale list would say
+    // someone already has the card you just switched to.
+    setHolders([]);
+    adminKeenHoldersList(s, adminKeenId)
       .then((r) => {
         if (alive && r?.ok) setHolders(r.holders ?? []);
       })
@@ -205,7 +211,7 @@ export default function AdminPage() {
     return () => {
       alive = false;
     };
-  }, [section, s]);
+  }, [section, s, adminKeenId]);
 
   async function refresh() {
     if (!s) return;
@@ -748,30 +754,56 @@ export default function AdminPage() {
                 <SectionHead
                   Icon={Gift}
                   tone="violet"
-                  title="Admin-Keen"
-                  note="En Keen som inte finns i något paket. Dela ut den härifrån — den hamnar i samlingen direkt."
+                  title="Admin-Keens"
+                  note="Keens som inte finns i något paket. Välj vilken du delar ut — den hamnar i samlingen direkt."
                 />
-                <div className="mt-4 flex flex-wrap items-center gap-5 rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
-                  {/* The picture the receiver will actually see, not a placeholder. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element -- local, fixed-size art */}
-                  <img
-                    src={keenArtSrc("omeisaurus")}
-                    alt="Omeisaurus"
-                    width={96}
-                    height={96}
-                    draggable={false}
-                    className="h-24 w-24 shrink-0 object-contain drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
-                  />
-                  <p className="max-w-md text-sm text-slate-400">
-                    <b className="text-purple-300">Omeisaurus</b> är en Mystisk Keen som inte finns i något paket — bara
-                    personal kan dela ut den, härifrån eller i ägarens valv. Välj personen, och den hamnar i samlingen direkt.
-                  </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {ADMIN_KEENS.map((k) => {
+                    const active = k.id === adminKeen.id;
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() => setAdminKeenId(k.id)}
+                        aria-pressed={active}
+                        className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${
+                          active
+                            ? "border-violet-400/70 bg-violet-500/15"
+                            : "border-white/[0.07] bg-slate-950/50 hover:border-violet-500/40"
+                        }`}
+                      >
+                        {/* The picture the receiver will actually see, not a placeholder. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element -- local, fixed-size art */}
+                        <img
+                          src={keenArtSrc(k.id)}
+                          alt={k.name}
+                          width={64}
+                          height={64}
+                          draggable={false}
+                          className="h-16 w-16 shrink-0 object-contain drop-shadow-[0_6px_18px_rgba(168,85,247,0.35)]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold text-white">{k.name}</span>
+                          <span className="block text-xs text-purple-300">Mystisk · trofé</span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {active ? "Vald — delas ut nedan" : "Tryck för att välja"}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+                <p className="mt-3 max-w-md text-sm text-slate-400">
+                  <b className="text-purple-300">{adminKeen.name}</b> är en Mystisk Keen som inte finns i något paket —
+                  bara personal kan dela ut den, härifrån eller i ägarens valv. Välj personen, och den hamnar i samlingen
+                  direkt.
+                </p>
 
                 {keenFor ? (
                   <div className="mt-4 rounded-2xl border border-purple-500/40 bg-purple-500/10 p-4">
                     <p className="text-sm font-bold text-white">
-                      Ge Admin-Keenen till <span className="text-purple-300">{keenFor.username}</span>?
+                      Ge <span className="text-purple-300">{adminKeen.name}</span> till{" "}
+                      <span className="text-purple-300">{keenFor.username}</span>?
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
                       Den läggs i personens samling direkt och går inte att ta tillbaka härifrån. Allt loggas.
@@ -786,8 +818,8 @@ export default function AdminPage() {
                         onClick={async () => {
                           const target = keenFor;
                           setKeenFor(null);
-                          await run(adminGiveAdminKeen(s, target.id, target.username));
-                          await loadHolders(s);
+                          await run(adminGiveAdminKeen(s, target.id, target.username, adminKeen.id));
+                          await loadHolders(s, adminKeen.id);
                         }}
                       />
                       <ToolButton label="Avbryt" Icon={Cross} tone="slate" onClick={() => setKeenFor(null)} />
@@ -821,7 +853,7 @@ export default function AdminPage() {
                                 )}
                               </p>
                               <ToolButton
-                                label={has ? "Har den" : "Ge Admin-Keen"}
+                                label={has ? "Har den" : "Ge den"}
                                 Icon={Gift}
                                 tone="violet"
                                 disabled={has || busy}
