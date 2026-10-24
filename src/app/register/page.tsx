@@ -11,6 +11,20 @@ import { authErrorSv } from "@/lib/auth-messages";
 import { GraduationCap, School, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** What /api/auth/signup answers with. */
+type SignupResponse =
+  | { ok: true; existing: true }
+  | {
+      ok: true;
+      existing: false;
+      userId: string;
+      hasSession: boolean;
+      /** True when Supabase's mail was down and the account was confirmed directly. */
+      noMail: boolean;
+      session: { access_token: string; refresh_token: string } | null;
+    }
+  | { ok: false; error: string };
+
 export default function RegisterPage() {
   const { supabase } = useSupabase();
   const router = useRouter();
@@ -21,6 +35,9 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  // Set once the account exists and the person is signed in, but the usual
+  // "check your email" screen would be a lie because no mail went out.
+  const [ready, setReady] = useState<{ noMail: boolean } | null>(null);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -41,39 +58,111 @@ export default function RegisterPage() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password });
-    if (error) {
-      setError(authErrorSv(error.message));
+    // The account is created by our own route, not by the browser calling
+    // supabase.co. A school network or a gateway hiccup used to turn the whole
+    // signup into "HTTP 504" before anything was made; the route retries once
+    // and answers in Swedish.
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    }).catch(() => null);
+    const signup = res ? ((await res.json().catch(() => null)) as SignupResponse | null) : null;
+    if (!res || !signup) {
+      setError("Kunde inte nå servern — kontrollera uppkopplingen och försök igen.");
+      setLoading(false);
+      return;
+    }
+    if (!signup.ok) {
+      setError(signup.error);
+      setLoading(false);
+      return;
+    }
+    if (signup.existing) {
+      setError("Den här e-postadressen har redan ett konto — logga in i stället.");
       setLoading(false);
       return;
     }
 
-    if (data.user) {
-      const made = await createProfile(data.user.id, username, role, email).catch(() => null);
-      if (!made) {
-        setError("Kunde inte skapa profilen — försök igen.");
-        setLoading(false);
-        return;
-      }
-      if (!made.ok) {
-        // createProfile removes the half-made account again, so drop the
-        // session too and let them correct the form.
-        await supabase.auth.signOut().catch(() => {});
-        setError(made.error);
-        setLoading(false);
-        return;
-      }
-    }
+    // Only possible if email confirmation is switched off; the route hands back
+    // the session it got, and the browser adopts it.
+    if (signup.session) await supabase.auth.setSession(signup.session).catch(() => {});
 
-    // With email confirmation switched on in Supabase there is no session yet.
-    if (!data.session) {
-      setSent(true);
+    const made = await createProfile(signup.userId, username, role, email).catch(() => null);
+    if (!made) {
+      setError("Kunde inte skapa profilen — försök igen.");
+      setLoading(false);
+      return;
+    }
+    if (!made.ok) {
+      // createProfile removes the half-made account again, so drop the
+      // session too and let them correct the form.
+      await supabase.auth.signOut().catch(() => {});
+      setError(made.error);
       setLoading(false);
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    if (signup.session) {
+      setReady({ noMail: signup.noMail });
+      setLoading(false);
+      return;
+    }
+
+    // The route had to confirm the account itself because Supabase could not
+    // send the mail. Sign in with what was typed and go straight in.
+    if (signup.noMail) {
+      const attempt = await supabase.auth
+        .signInWithPassword({ email: email.trim().toLowerCase(), password })
+        .catch(() => null);
+      if (!attempt || attempt.error) {
+        setError(authErrorSv(attempt?.error?.message || ""));
+        setLoading(false);
+        return;
+      }
+      setReady({ noMail: true });
+      setLoading(false);
+      return;
+    }
+
+    // With email confirmation switched on there is no session yet.
+    setSent(true);
+    setLoading(false);
+  }
+
+  if (ready) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
+        <Card className="animate-fade-up">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base text-slate-300">
+              {ready.noMail ? "Kontot är klart!" : "Välkommen in!"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-slate-300">
+            <p>
+              Du är inloggad som <b className="text-white" data-no-translate>{username}</b>.
+            </p>
+            {ready.noMail && (
+              <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+                Vi kunde inte skicka bekräftelsemejlet just nu, så kontot aktiverades direkt i stället. Inget mer
+                behövs — du kan börja spela med en gång.
+              </p>
+            )}
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={() => {
+                router.push("/dashboard");
+                router.refresh();
+              }}
+            >
+              Till QuizKeen
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (sent) {

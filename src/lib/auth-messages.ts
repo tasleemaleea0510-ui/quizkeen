@@ -19,6 +19,12 @@ export function authErrorSv(message: string): string {
   ) {
     return "Kunde inte nå servern. Kontrollera din internetuppkoppling och försök igen om en stund — funkar det fortfarande inte är QuizKeen tillfälligt nere.";
   }
+  // A gateway that never answered. Supabase's own message is literally "HTTP
+  // 504" — HTTP/2 carries no status text, so auth-js falls back to the code —
+  // and a proxy in front of it says "Gateway Timeout" or "Service Unavailable".
+  if (/http 5\d\d|gateway|service unavailable|timeout|timed out|econnreset|etimedout/.test(m)) {
+    return "Servern svarade inte just nu. Försök igen om en liten stund — inget konto skapades eller ändrades.";
+  }
   if (m.includes("already registered") || m.includes("already been registered") || m.includes("user already exists")) {
     return "Den här e-postadressen har redan ett konto — logga in i stället.";
   }
