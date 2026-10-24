@@ -112,7 +112,9 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
 
   useEffect(() => {
     if (!ref.current) return;
-    const wornKeenId = wornIdFromCookieString(document.cookie);
+    // Not a const: the waiting room lets you change Keens, and the runner has
+    // to be re-dressed without restarting the game or reloading the page.
+    let wornKeenId = wornIdFromCookieString(document.cookie);
     const myColor = colorIndexFor(username);
     // Same PIN, same course on every screen — and a different course in every
     // lobby, because the server picks the PIN at random.
@@ -530,8 +532,28 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
     };
     window.addEventListener("quizkeen-rx", onRx);
 
+    // Picked a different Keen in the waiting room: wear it here too, and the
+    // next position packet carries the new id so everyone else redraws you.
+    const onWear = () => {
+      wornKeenId = wornIdFromCookieString(document.cookie);
+      const scene = game.scene.getScene("LobbyScene") as LobbyScene;
+      if (!scene?.player) return;
+      const keen = wornKeenId ? KEEN_BY_ID[wornKeenId] : undefined;
+      if (keen) {
+        wearTexture(scene.player, keen);
+        return;
+      }
+      // Took it off: back to the coloured runner it started as.
+      scene.player.setTexture(`player-${myColor}`);
+      scene.player.setDisplaySize(48, 48);
+      const body = scene.player.body as Phaser.Physics.Arcade.Body | null;
+      if (body) body.setSize(48, 48, true);
+    };
+    window.addEventListener("quizkeen-wear", onWear);
+
     return () => {
       window.removeEventListener("quizkeen-rx", onRx);
+      window.removeEventListener("quizkeen-wear", onWear);
       game.destroy(true);
     };
   }, [pin, username]);
