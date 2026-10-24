@@ -9,6 +9,8 @@ import { CheckCircle2, XCircle, Trophy, Loader2, Layers3 } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
+import HeistPanel from "@/components/heist-panel";
+import type { HeistAction, HeistState } from "@/lib/game-modes";
 
 const COLORS = [
   "from-rose-500 to-rose-600 shadow-rose-900/40",
@@ -46,6 +48,12 @@ function GameInner() {
   const [sent, setSent] = useState(false);
   const [correct, setCorrect] = useState<number[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
+  // The heist layer, when the host picked one of the three modes. The board is
+  // whatever the host last broadcast — this screen never edits it itself.
+  const [heist, setHeist] = useState<HeistState | null>(null);
+  const [heistNote, setHeistNote] = useState<string | null>(null);
+  const [heistSending, setHeistSending] = useState(false);
+  const [myMint, setMyMint] = useState<number | null>(null);
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
@@ -88,9 +96,23 @@ function GameInner() {
     });
 
     game.on("broadcast", { event: "end" }, (msg) => {
-      const p = msg.payload as { scores: Record<string, number> };
+      const p = msg.payload as { scores: Record<string, number>; mint?: Record<string, number> };
       setScores(p.scores || {});
+      if (p.mint && typeof p.mint[name] === "number") setMyMint(p.mint[name]);
       setPhase("end");
+    });
+
+    // Every action is answered with a fresh board from the host, so the panel
+    // is never a local guess that disagrees with everyone else's screen.
+    game.on("broadcast", { event: "heist" }, (msg) => {
+      setHeist(msg.payload as HeistState);
+      setHeistSending(false);
+    });
+    game.on("broadcast", { event: "heist-note" }, (msg) => {
+      const p = msg.payload as { to?: string; text?: string };
+      if (p?.to !== name) return;
+      setHeistNote(p.text ?? null);
+      setHeistSending(false);
     });
 
     game.on("broadcast", { event: "state" }, (msg) => {
@@ -106,6 +128,7 @@ function GameInner() {
         setPhase("reveal");
       } else if (p.kind === "end") {
         setScores(p.scores || {});
+        if (p.mint && typeof p.mint[name] === "number") setMyMint(p.mint[name]);
         setPhase("end");
       }
     });
@@ -144,6 +167,17 @@ function GameInner() {
         acc: accountRef.current || undefined,
       },
     });
+  }
+
+  /** Send a raid or a purchase to the host. The host decides if it works. */
+  function heistAction(action: HeistAction) {
+    if (heistSending) return;
+    setHeistNote(null);
+    setHeistSending(true);
+    gameRef.current?.send({ type: "broadcast", event: "heist-action", payload: { name, action } });
+    // If the host's tab is asleep there is no answer at all; un-stick the
+    // buttons rather than leaving the panel spinning forever.
+    setTimeout(() => setHeistSending(false), 3000);
   }
 
   function pick(i: number) {
@@ -323,6 +357,18 @@ function GameInner() {
         </div>
       )}
 
+      {heist && (phase === "question" || phase === "reveal") && (
+        <div className="mt-6">
+          <HeistPanel
+            state={heist}
+            me={name}
+            note={heistNote}
+            pending={heistSending}
+            onAction={heistAction}
+          />
+        </div>
+      )}
+
       {phase === "end" && (
         <Card className="animate-fade-up border-white/10">
           <CardHeader className="text-center">
@@ -353,6 +399,15 @@ function GameInner() {
                 <span className="font-mono">{s} poäng</span>
               </div>
             ))}
+            {myMint !== null && (
+              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
+                <span>Du fick</span>
+                <span data-no-translate className="font-mono text-lg">
+                  {myMint}
+                </span>
+                <span>Mint</span>
+              </div>
+            )}
             <p className="pt-4 text-center text-xs text-slate-500">Tack för att du deltog i QuizKeen</p>
           </CardContent>
         </Card>

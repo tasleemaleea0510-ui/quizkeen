@@ -5,11 +5,31 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
-import { HOST_PRESENCE_CONFIG, LOBBY_PING, LOBBY_PONG, onlinePlayers } from "@/lib/presence";
+import {
+  HOST_PRESENCE_CONFIG,
+  LOBBY_PING,
+  LOBBY_PONG,
+  onlinePlayerEntries,
+} from "@/lib/presence";
 import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap } from "lucide-react";
+import KeenAvatar from "@/components/keens/keen-avatar";
+import { KEEN_BY_ID } from "@/lib/keens";
+import {
+  HEIST_MODES,
+  MODE_RULES,
+  addCorrect,
+  applyAction,
+  mintPayout,
+  newHeist,
+  nextRound,
+  standings,
+  type HeistAction,
+  type HeistState,
+  type ModeId,
+} from "@/lib/game-modes";
 
 type Q = { id: string; text: string; options: string[]; correctIndexes: number[] };
 
@@ -37,6 +57,10 @@ export default function HostPage() {
   // the game screen, so the presence list cannot be the yardstick for
   // "everyone has answered" — this frozen roster is.
   const [roster, setRoster] = useState<string[]>([]);
+  // Which economy the match runs. Classic is the plain quiz; the other three
+  // add the heist layer, and the host picks before the game starts.
+  const [mode, setMode] = useState<ModeId>("classic");
+  const [heist, setHeist] = useState<HeistState | null>(null);
 
   const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
@@ -53,11 +77,16 @@ export default function HostPage() {
   const qIndexRef = useRef(qIndex);
   const quizRef = useRef<{ title: string; questions: Q[] } | null>(null);
   const startedRef = useRef(false);
+  const modeRef = useRef<ModeId>("classic");
+  const heistRef = useRef<HeistState | null>(null);
+  // The Keen each lobby player wears, so the heist board draws real characters.
+  const keensRef = useRef<Record<string, string | null>>({});
 
   useEffect(() => { scoresRef.current = scores; }, [scores]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { qIndexRef.current = qIndex; }, [qIndex]);
   useEffect(() => { quizRef.current = quiz; }, [quiz]);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
   useEffect(() => {
     getQuiz(quizId)
@@ -65,12 +94,26 @@ export default function HostPage() {
       .catch(() => setMissing(true));
   }, [quizId]);
 
+  /** Push a heist snapshot to this screen and to every device in the game. */
+  function publishHeist(next: HeistState, note?: { to: string; text: string }) {
+    heistRef.current = next;
+    setHeist(next);
+    gameRef.current?.send({ type: "broadcast", event: "heist", payload: next });
+    if (note) gameRef.current?.send({ type: "broadcast", event: "heist-note", payload: note });
+  }
+
   useEffect(() => {
     const supabase = supabaseRef.current;
 
     let disposed = false;
     const lobby = supabase.channel(`lobby-${pin}`, { config: HOST_PRESENCE_CONFIG });
-    const syncPlayers = () => setPlayers(onlinePlayers(lobby.presenceState()));
+    const syncPlayers = () => {
+      const entries = onlinePlayerEntries(lobby.presenceState());
+      const keens: Record<string, string | null> = {};
+      for (const e of entries) keens[e.name] = e.keen;
+      keensRef.current = keens;
+      setPlayers(entries.map((e) => e.name));
+    };
     // join/leave arrive the moment someone joins, sync only afterwards
     lobby.on("presence", { event: "sync" }, syncPlayers);
     lobby.on("presence", { event: "join" }, syncPlayers);
@@ -112,10 +155,36 @@ export default function HostPage() {
       const picked = Array.isArray(choices) ? choices : typeof choice === "number" ? [choice] : [];
       answersRef.current[name] = { choices: picked, t: Date.now() };
       if (acc) accountRef.current[name] = acc;
+      // Link the seat to the account as soon as we learn it, so the Mint at the
+      // end reaches a real profile even though the roster only held nicknames.
+      const h = heistRef.current;
+      if (acc && h?.players[name]) {
+        h.players[name].account = acc;
+      }
       setAnswered(Object.keys(answersRef.current).length);
+    });
+    // A player raiding, fortifying or saving. The host is the only authority on
+    // the economy: the browser sends an intention, this decides the outcome.
+    game.on("broadcast", { event: "heist-action" }, (msg) => {
+      const { name, action } = (msg.payload ?? {}) as { name?: string; action?: HeistAction };
+      const h = heistRef.current;
+      if (!h || !name || !action) return;
+      if (phaseRef.current !== "question" && phaseRef.current !== "reveal") {
+        game.send({ type: "broadcast", event: "heist-note", payload: { to: name, text: "Matchen är inte igång." } });
+        return;
+      }
+      const result = applyAction(h, name, action, Date.now());
+      if (!result.ok) {
+        game.send({ type: "broadcast", event: "heist-note", payload: { to: name, text: result.error } });
+        return;
+      }
+      publishHeist(result.state);
     });
     game.on("broadcast", { event: "sync" }, () => {
       const qz = quizRef.current;
+      if (heistRef.current) {
+        game.send({ type: "broadcast", event: "heist", payload: heistRef.current });
+      }
       if (!qz) return;
       const ph = phaseRef.current;
       const i = qIndexRef.current;
@@ -184,6 +253,8 @@ export default function HostPage() {
     // "timer hit 0" watcher sees the previous question's 0 and reveals at once.
     setTimer(QUESTION_SECONDS);
     startRef.current = Date.now();
+    // A new round is when heist energy refills: the next correct answer pays.
+    if (heistRef.current) publishHeist(nextRound(heistRef.current));
     broadcast("question", { index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length });
     setPhase("question");
   }
@@ -194,7 +265,13 @@ export default function HostPage() {
     // Freeze the player list now: everyone about to leave the lobby for the
     // game screen is exactly who the first question should wait for.
     setRoster(players);
-    lobbyRef.current?.send({ type: "broadcast", event: "start", payload: {} });
+    const chosen = modeRef.current;
+    if (chosen !== "classic" && players.length > 0) {
+      // Every seat starts equal — the mode rules say so, and it is what makes a
+      // classroom match fair to someone who joined five seconds ago.
+      publishHeist(newHeist(chosen, players.map((name) => ({ name, keen: keensRef.current[name] ?? null }))));
+    }
+    lobbyRef.current?.send({ type: "broadcast", event: "start", payload: { mode: chosen } });
     setQIndex(0);
     setTimeout(() => sendQuestion(0), 3000);
   }
@@ -206,16 +283,19 @@ export default function HostPage() {
     revealedRef.current = true;
 
     const newScores = { ...scoresRef.current };
+    let nextHeist = heistRef.current;
     Object.entries(answersRef.current).forEach(([name, a]) => {
       // An exact set: on a multi-answer question, choosing some of the right
       // answers is not the same as knowing which ones they are.
       if (isExactAnswer(a.choices, q.correctIndexes)) {
         const speed = Math.max(0, 50 - Math.floor((a.t - startRef.current) / 400));
         newScores[name] = (newScores[name] || 0) + 100 + speed;
+        if (nextHeist) nextHeist = addCorrect(nextHeist, name);
       }
     });
     setScores(newScores);
     broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores });
+    if (nextHeist) publishHeist(nextHeist);
     setPhase("reveal");
   }
 
@@ -237,15 +317,34 @@ export default function HostPage() {
   }
 
   function finish() {
-    broadcast("end", { scores: scoresRef.current });
-    const top = Object.entries(scoresRef.current)
-      .sort((a, b) => b[1] - a[1])
-      .map(([display, s], i) => ({
-        username: accountRef.current[display] || display,
-        xp: s,
-        coins: [50, 30, 20][i] || 10,
-      }));
-    awardXP(top);
+    const finished = heistRef.current;
+    // Mint per display name, so the player's own screen can show what it earned.
+    const mintByName: Record<string, number> = {};
+    if (finished) {
+      // A heist match pays Mint by placement plus a capped raid bonus. The XP
+      // still comes from the quiz points, because those are the answers.
+      const payout = mintPayout(finished);
+      for (const [display, seat] of Object.entries(finished.players)) {
+        const paid = payout.find((p) => p.username === (seat.account ?? seat.name));
+        if (paid) mintByName[display] = paid.mint;
+      }
+      awardXP(
+        payout.map((p) => {
+          const seat = Object.values(finished.players).find((s) => (s.account ?? s.name) === p.username);
+          return { username: p.username, xp: seat ? scoresRef.current[seat.name] ?? 0 : 0, coins: p.mint };
+        })
+      );
+    } else {
+      const top = Object.entries(scoresRef.current)
+        .sort((a, b) => b[1] - a[1])
+        .map(([display, s], i) => ({
+          username: accountRef.current[display] || display,
+          xp: s,
+          coins: [50, 30, 20][i] || 10,
+        }));
+      awardXP(top);
+    }
+    broadcast("end", { scores: scoresRef.current, mint: mintByName });
     setPhase("end");
   }
 
@@ -266,6 +365,8 @@ export default function HostPage() {
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const total = quiz.questions.length;
   const progress = total > 0 ? ((qIndex + (phase === "lobby" ? 0 : 1)) / total) * 100 : 0;
+  const heistBoard = heist ? standings(heist) : [];
+  const heistRules = heist ? MODE_RULES[heist.mode] : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -302,15 +403,65 @@ export default function HostPage() {
             <span className="flex h-2 w-2 rounded-full bg-emerald-400 shadow-glow-sm" />
           </CardHeader>
           <CardContent>
-            <div className="flex min-h-[72px] flex-wrap gap-2 rounded-xl border border-white/5 bg-slate-950/60 p-4">
+            {/* Mode: the plain quiz, or one of the three heist economies. */}
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Spelläge</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => setMode("classic")}
+                className={`rounded-xl border p-3 text-left transition-colors ${
+                  mode === "classic"
+                    ? "border-indigo-400/60 bg-indigo-500/15"
+                    : "border-white/10 bg-slate-950/50 hover:border-white/25"
+                }`}
+              >
+                <span className="block text-sm font-extrabold text-white">Klassisk quiz</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">Bara frågor och poäng.</span>
+              </button>
+              {HEIST_MODES.map((m) => {
+                const r = MODE_RULES[m];
+                const active = mode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      active
+                        ? "border-indigo-400/60 bg-indigo-500/15"
+                        : "border-white/10 bg-slate-950/50 hover:border-white/25"
+                    }`}
+                  >
+                    <span className="block text-sm font-extrabold text-white">{r.name}</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{r.tagline}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {mode !== "classic" && (
+              <p className="mt-2 text-[11px] text-slate-500">
+                Alla börjar med {MODE_RULES[mode as keyof typeof MODE_RULES].startBalance} i{" "}
+                {MODE_RULES[mode as keyof typeof MODE_RULES].currency.toLowerCase()}. Rätt svar ger{" "}
+                {MODE_RULES[mode as keyof typeof MODE_RULES].correctBalance} — och matchen slutar med Mint.
+              </p>
+            )}
+
+            <div className="mt-4 flex min-h-[72px] flex-wrap gap-2 rounded-xl border border-white/5 bg-slate-950/60 p-4">
               {players.length === 0 && (
                 <span className="self-center text-sm text-slate-500">Väntar på att spelare ansluter...</span>
               )}
-              {players.map((p) => (
-                <span key={p} className="animate-pop rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200">
-                  {p}
-                </span>
-              ))}
+              {players.map((p) => {
+                const keen = keensRef.current[p] ? KEEN_BY_ID[keensRef.current[p] as string] : undefined;
+                return (
+                  <span
+                    key={p}
+                    className="flex animate-pop items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 text-sm font-medium text-slate-200"
+                  >
+                    {keen && <KeenAvatar keen={keen} size={22} />}
+                    {p}
+                  </span>
+                );
+              })}
             </div>
             <Button
               size="lg"
@@ -427,6 +578,59 @@ export default function HostPage() {
         </Card>
       )}
 
+      {/* The heist board: what the room is actually competing over. */}
+      {heist && heistRules && phase !== "lobby" && (
+        <Card className="mt-6 border-white/10">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-3">
+            <CardTitle className="text-sm font-bold">{heistRules.name} — ekonomi</CardTitle>
+            <span className="text-[11px] font-semibold text-slate-500">{heistRules.currency}</span>
+          </CardHeader>
+          <CardContent className="space-y-1.5 pt-3">
+            {heistBoard.map((p, i) => {
+              const seat = heist.players[p.name];
+              const keen = p.keen ? KEEN_BY_ID[p.keen] : undefined;
+              return (
+                <div key={p.name} className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2">
+                  <span className={`w-4 font-mono text-xs font-bold ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>
+                    {i + 1}
+                  </span>
+                  {keen ? (
+                    <KeenAvatar keen={keen} size={28} />
+                  ) : (
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-800 text-[10px] font-extrabold text-slate-400">
+                      {p.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{p.name}</span>
+                  {seat?.defenses.length > 0 && (
+                    <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-200">
+                      {seat.defenses.length} försvar
+                    </span>
+                  )}
+                  {heistRules.trace && seat && seat.trace >= heistRules.trace.exposed && (
+                    <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 text-[10px] font-bold text-rose-200">
+                      avslöjad
+                    </span>
+                  )}
+                  <span className="font-mono text-sm font-extrabold text-amber-300" data-no-translate>
+                    {p.balance.toLocaleString("sv-SE")}
+                  </span>
+                </div>
+              );
+            })}
+            {heist.events.length > 0 && (
+              <ul className="mt-2 space-y-0.5 border-t border-white/5 pt-2">
+                {heist.events.slice(0, 5).map((e) => (
+                  <li key={e.id} className="truncate text-[11px] text-slate-500">
+                    {e.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {phase === "end" && (
         <Card className="mt-6">
           <CardHeader className="text-center">
@@ -457,6 +661,11 @@ export default function HostPage() {
                 <span className="font-mono text-sm font-bold text-indigo-300">{s} poäng</span>
               </div>
             ))}
+            {heist && (
+              <p className="pt-3 text-center text-[11px] text-slate-500">
+                Mint betalas ut efter placering — {MODE_RULES[heist.mode].mint.first} till vinnaren.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
