@@ -536,5 +536,14 @@ export default function LobbyGame({ pin, username }: { pin: string; username: st
     };
   }, [pin, username]);
 
-  return <div ref={ref} className="w-full overflow-hidden rounded-xl border border-slate-800" />;
+  // The canvas is a fixed 800×300, so the frame has to be that wide too: a
+  // full-width border left a strip of empty card beside the game on a desktop
+  // and cut the right of it off on a phone. Capped at 800 and scaled down
+  // with the frame, the border always ends exactly where the game does.
+  return (
+    <div
+      ref={ref}
+      className="mx-auto w-full max-w-[800px] overflow-hidden rounded-xl border border-slate-800 [&>canvas]:block [&>canvas]:h-auto [&>canvas]:w-full"
+    />
+  );
 }
