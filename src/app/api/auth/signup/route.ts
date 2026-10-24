@@ -28,7 +28,10 @@ export const maxDuration = 10;
  * Creating a user through the admin API takes ~0.4 s, so the student is not
  * left staring at a spinner either.
  */
-const SIGNUP_TIMEOUT_MS = 4_000;
+// Short on purpose: the signup endpoint is known to hang while its mail is
+// broken, and the Hobby plan kills a function at 10 s. A warm registration has
+// to fit in the time left after this wait plus the fallback below.
+const SIGNUP_TIMEOUT_MS = 2_500;
 const GRANT_TIMEOUT_MS = 6_000;
 
 type GoTrueUser = {
