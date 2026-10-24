@@ -263,7 +263,7 @@ export async function getOwnerData(s: S) {
 export async function getAdminData(s: S) {
   try {
     if (!(await ok(s, "ADMIN"))) return null;
-    const [users, logRows, settings, gifts] = await Promise.all([
+    const [users, logRows, settings, gifts, blocks] = await Promise.all([
       prisma.profile.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
       prisma.adminSettings.findFirst({ select: { broadcast: true, broadcastUntil: true } }),
@@ -276,6 +276,11 @@ export async function getAdminData(s: S) {
           select: { targetId: true, createdAt: true },
         })
         .catch(() => [] as { targetId: string; createdAt: Date }[]),
+      // A banned account can come back as a new account; an IP block cannot.
+      // The row has to show that difference, and offer to lift it.
+      prisma.blockedIp
+        .findMany({ select: { ip: true, until: true } })
+        .catch(() => [] as { ip: string; until: Date | null }[]),
     ]);
     const until = settings?.broadcastUntil ?? null;
     const live = !!settings?.broadcast?.trim() && (!until || until.getTime() > Date.now());
@@ -285,9 +290,21 @@ export async function getAdminData(s: S) {
       if (giftReady.has(g.targetId)) continue;
       giftReady.set(g.targetId, new Date(g.createdAt.getTime() + GIFT_COOLDOWN_MS).toISOString());
     }
+    // A timed block that has run out is a row, not a block: the student app
+    // stops enforcing it on its own, so the console must not claim otherwise.
+    const blockedNow = new Map<string, string | null>();
+    for (const b of blocks) {
+      if (b.until && b.until.getTime() <= Date.now()) continue;
+      blockedNow.set(b.ip, b.until ? b.until.toISOString() : null);
+    }
     return {
       users: users
-        .map((u) => ({ ...withAddress(u, withheld), giftReadyAt: giftReady.get(u.id) ?? null }))
+        .map((u) => ({
+          ...withAddress(u, withheld),
+          giftReadyAt: giftReady.get(u.id) ?? null,
+          ipBlocked: !!u.lastIp && blockedNow.has(u.lastIp),
+          ipBlockedUntil: u.lastIp ? blockedNow.get(u.lastIp) ?? null : null,
+        }))
         .sort(byPinnedFirst),
       // The banner tab needs to show what is already on screen — otherwise an
       // admin opens it, sees an empty box, and assumes nothing is running.
@@ -804,6 +821,37 @@ export async function getIpHistory(s: S, id: string) {
  * is signed out at once, otherwise the block would only bite on their next
  * visit.
  */
+/**
+ * The part every IP block shares: write the row, throw out everyone sitting on
+ * that connection, and put it in the log.
+ *
+ * Kept apart from `blockIp` so the owner's tool and the red console's shortcut
+ * cannot drift — both write the same row, which the student app's door check
+ * reads. `role` is the acting code's role; it is what the log and `byName` say.
+ */
+async function writeIpBlock(ip: string, reason: string, minutes: number, role: string): Promise<string> {
+  const mins = whole(minutes, 0);
+  const until = mins > 0 ? new Date(Date.now() + Math.min(mins, 525_600) * 60_000) : null;
+  const body = (reason || "").trim().slice(0, 200) || null;
+
+  await prisma.blockedIp.upsert({
+    where: { ip },
+    create: { ip, reason: body, until, byName: role },
+    update: { reason: body, until, byName: role, createdAt: new Date() },
+  });
+
+  // Throw out everyone on that connection right now. The student app also
+  // polls the list every few seconds, so this is the fast path, not the only one.
+  const kicked = await prisma.profile.updateMany({
+    where: { lastIp: ip, role: { not: "OWNER" } },
+    data: { forceRelogin: true, liveRequested: false, livePeerId: null },
+  });
+
+  const length = until ? `${mins >= 1440 ? `${Math.round(mins / 1440)} dygn` : `${mins} min`}` : "tills vidare";
+  await log(`[${role}]`, `BLOCKERADE IP ${ip} (${length})${body ? `: ${body}` : ""} — ${kicked.count} konton utkastade`);
+  return `${ip} blockerad ${length}. ${people(kicked.count)} på den uppkopplingen kastades ut.`;
+}
+
 export async function blockIp(s: S, rawIp: string, reason: string, minutes: number) {
   return withAuth("OWNER", s, async () => {
     const ip = cleanAddress(rawIp);
@@ -815,29 +863,42 @@ export async function blockIp(s: S, rawIp: string, reason: string, minutes: numb
       return { ok: false, info: "Den adressen används av ett ägarkonto. Blockera den inte — du låser ute dig själv." };
     }
 
+    return { ok: true, info: await writeIpBlock(ip, reason, minutes, s.role) };
+  });
+}
+
+/**
+ * The red console's IP block: the same row as the owner's tool, made from one
+ * person's current address so nobody has to copy it.
+ *
+ * Capped where the owner's is not — an admin blocks for at most a day and never
+ * forever, matching their ban and mute ladder. A block covers the network, not
+ * the account, so it names the person in the log and says so before it is sent.
+ */
+export async function adminBlockIp(s: S, username: string, minutes: number, reason: string) {
+  return withAuth("ADMIN", s, async () => {
+    const guard = await targetGuard(s.role, username);
+    if (!guard.ok) return guard;
+
+    const u = await prisma.profile.findUnique({ where: { username }, select: { lastIp: true } });
+    const ip = cleanAddress(u?.lastIp);
+    if (!ip) {
+      return { ok: false, info: `${username} har ingen sparad adress än — be personen öppna QuizKeen en gång.` };
+    }
+    if (internalAddress(ip)) {
+      return { ok: false, info: "Det där är en intern adress (routern eller personens egen dator) — den kan inte blockeras." };
+    }
+    if ((await ownerAddresses()).has(ip)) {
+      return { ok: false, info: "Den adressen används av ett ägarkonto. Blockera den inte — ägaren blir utelåst." };
+    }
+
     const mins = whole(minutes, 0);
-    const until = mins > 0 ? new Date(Date.now() + Math.min(mins, 525_600) * 60_000) : null;
-    const body = (reason || "").trim().slice(0, 200) || null;
+    if (s.role !== "OWNER") {
+      if (mins <= 0) return { ok: false, info: "Bara ägaren kan blockera för alltid." };
+      if (mins > 1440) return { ok: false, info: "Max 1 dygn — be ägaren om mer!" };
+    }
 
-    await prisma.blockedIp.upsert({
-      where: { ip },
-      create: { ip, reason: body, until, byName: s.role },
-      update: { reason: body, until, byName: s.role, createdAt: new Date() },
-    });
-
-    // Throw out everyone on that connection right now. The student app also
-    // polls the list every few seconds, so this is the fast path, not the only one.
-    const kicked = await prisma.profile.updateMany({
-      where: { lastIp: ip, role: { not: "OWNER" } },
-      data: { forceRelogin: true, liveRequested: false, livePeerId: null },
-    });
-
-    const length = until ? `${mins >= 1440 ? `${Math.round(mins / 1440)} dygn` : `${mins} min`}` : "tills vidare";
-    await log("[OWNER]", `BLOCKERADE IP ${ip} (${length})${body ? `: ${body}` : ""} — ${kicked.count} konton utkastade`);
-    return {
-      ok: true,
-      info: `${ip} blockerad ${length}. ${people(kicked.count)} på den uppkopplingen kastades ut.`,
-    };
+    return { ok: true, info: await writeIpBlock(ip, reason, mins, s.role) };
   });
 }
 
@@ -849,6 +910,18 @@ export async function unblockIp(s: S, rawIp: string) {
     const res = await prisma.blockedIp.deleteMany({ where: { ip } });
     if (!res.count) return { ok: false, info: `${ip} var inte blockerad.` };
     await log("[OWNER]", `hävde IP-blocket på ${ip}`);
+    return { ok: true, info: `${ip} är inte längre blockerad.` };
+  });
+}
+
+/** The red console's Avblockera. Same row the owner's tool writes. */
+export async function adminUnblockIp(s: S, rawIp: string) {
+  return withAuth("ADMIN", s, async () => {
+    const ip = cleanAddress(rawIp) ?? String(rawIp ?? "").trim();
+    if (!ip) return { ok: false, info: "Ingen adress angiven." };
+    const res = await prisma.blockedIp.deleteMany({ where: { ip } });
+    if (!res.count) return { ok: false, info: `${ip} var inte blockerad.` };
+    await log(`[${s.role}]`, `hävde IP-blocket på ${ip}`);
     return { ok: true, info: `${ip} är inte längre blockerad.` };
   });
 }

@@ -6,6 +6,8 @@ import {
   getAdminData,
   adminBan,
   adminUnban,
+  adminBlockIp,
+  adminUnblockIp,
   adminRequestBan,
   adminGiveXP,
   adminGiveCoins,
@@ -117,6 +119,10 @@ export default function AdminPage() {
   const [gift, setGift] = useState<{ user: any; amount: string } | null>(null);
   const [mute, setMute] = useState<{ user: any; minutes: string } | null>(null);
   const [coinGift, setCoinGift] = useState<{ user: any; amount: string } | null>(null);
+  // IP-spärr: the address comes from the row, so the dialog only asks how long
+  // and why. Kept apart from the ban modal because its warning is different —
+  // this one covers the network, not just the account.
+  const [ipBan, setIpBan] = useState<{ user: any; minutes: string; reason: string } | null>(null);
   const [note, setNote] = useState<{ user: any; text: string } | null>(null);
   const [askFor, setAskFor] = useState<string | null>(null);
   const [askMin, setAskMin] = useState("2880");
@@ -368,6 +374,14 @@ export default function AdminPage() {
                                     <Ban className="h-3 w-3" /> BANNAD
                                   </span>
                                 )}
+                                {u.ipBlocked && (
+                                  <span
+                                    className="flex items-center gap-1 rounded-full bg-rose-600/20 px-2 py-0.5 text-[11px] font-bold text-rose-300"
+                                    title="Uppkopplingen är blockerad — ett nytt konto hjälper inte"
+                                  >
+                                    <Ban className="h-3 w-3" /> IP-SPÄRR
+                                  </span>
+                                )}
                               </p>
                               <p className="mt-1 text-xs text-slate-500" data-no-translate>
                                 {u.role} · Lv {u.level} · {u.xp} XP
@@ -442,6 +456,37 @@ export default function AdminPage() {
                                   setAskMin("2880");
                                 }}
                               />
+                            </ToolGroup>
+
+                            <ToolGroup title="IP-spärr" Icon={Ban} tone="rose">
+                              {u.ipBlocked ? (
+                                <ToolButton
+                                  label="Släpp IP"
+                                  Icon={Check}
+                                  tone="emerald"
+                                  variant="solid"
+                                  title={
+                                    u.ipBlockedUntil
+                                      ? `Adressen är blockerad till ${new Date(u.ipBlockedUntil).toLocaleString("sv-SE")}`
+                                      : "Adressen är blockerad tills vidare"
+                                  }
+                                  disabled={busy || !u.ip}
+                                  onClick={() => run(adminUnblockIp(s, u.ip))}
+                                />
+                              ) : (
+                                <ToolButton
+                                  label="IP-banna"
+                                  Icon={Ban}
+                                  tone="rose"
+                                  title={
+                                    u.ip
+                                      ? `Blockera uppkopplingen ${u.ip} — gäller hela nätet`
+                                      : "Ingen adress sparad för den här personen"
+                                  }
+                                  disabled={busy || !u.ip}
+                                  onClick={() => setIpBan({ user: u, minutes: "60", reason: "" })}
+                                />
+                              )}
                             </ToolGroup>
 
                             <ToolGroup title="Bevaka & verktyg" Icon={Video} tone="sky">
@@ -1007,6 +1052,65 @@ export default function AdminPage() {
           multiline
           tone="red"
         />
+      )}
+
+      {ipBan && (
+        <div className="fixed inset-0 z-[130] flex animate-cmd-fade items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md animate-cmd-pop rounded-3xl border border-rose-500/40 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-extrabold text-white">IP-spärr för {ipBan.user.username}</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Stänger{" "}
+              <b className="font-mono text-white" data-no-translate>
+                {ipBan.user.ip}
+              </b>{" "}
+              — hela uppkopplingen, inte bara kontot. Alla som sitter på nätet kastas ut direkt.
+            </p>
+            <p className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+              På ett skol- eller familjenät delar flera samma adress. Räcker en vanlig ban? Använd den först.
+            </p>
+            <label className="mt-4 block text-xs font-bold text-slate-400">
+              Hur länge? (max 1 dygn — ägaren kan mer)
+            </label>
+            <select
+              value={ipBan.minutes}
+              onChange={(e) => setIpBan({ ...ipBan, minutes: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white focus:border-rose-400 focus:outline-none"
+            >
+              <option value="60">1 tim</option>
+              <option value="1440">1 dygn</option>
+            </select>
+            <label className="mt-3 block text-xs font-bold text-slate-400">Varför? (syns för personen)</label>
+            <input
+              value={ipBan.reason}
+              onChange={(e) => setIpBan({ ...ipBan, reason: e.target.value })}
+              maxLength={200}
+              placeholder="T.ex. hot i chatten"
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-500 focus:border-rose-400 focus:outline-none"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIpBan(null)}
+                className="flex-1 rounded-lg border border-slate-700 py-2 font-bold text-slate-300 hover:bg-slate-800"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const mins = parseInt(ipBan.minutes, 10) || 60;
+                  const who = ipBan.user.username;
+                  const why = ipBan.reason;
+                  setIpBan(null);
+                  await run(adminBlockIp(s, who, mins, why));
+                }}
+                className="flex-1 rounded-lg bg-rose-600 py-2 font-bold text-white hover:bg-rose-500"
+              >
+                Blockera IP
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {askFor && (

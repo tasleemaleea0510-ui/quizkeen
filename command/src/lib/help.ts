@@ -788,6 +788,12 @@ const ADMIN: HelpDoc = {
               how: "Rutan frågar hur många minuter och varför. Tips: 2880 = 2 dagar · 10080 = 1 vecka · 0 = för alltid. Ägaren svarar under Ban-begäranden.||The dialog asks how many minutes and why. Tips: 2880 = 2 days · 10080 = 1 week · 0 = forever. The owner answers under Ban requests.",
             },
             {
+              name: "IP-banna (rosa)||IP-ban (rose)",
+              what: "Stänger personens uppkoppling i 1 tim eller 1 dygn — hela nätet, inte bara kontot.||Shuts the person's connection for 1 hour or 1 day — the whole network, not just the account.",
+              how: "Rutan visar adressen som stängs. Alla som sitter på nätet kastas ut direkt, och ett nytt konto där släpps inte in. Knappen blir Släpp IP när spärren är aktiv.||The dialog shows the address being shut. Everyone on that network is thrown out at once, and a new account there is not let in. The button becomes Release IP while the block is active.",
+              warn: "På skol- och familjenät delar många samma adress — då drabbas oskyldiga. Prova en vanlig ban först. Härifrån är taket 1 dygn; bara ägaren kan mer.||On school and family networks many people share one address, so innocent users are hit too. Try a normal ban first. The ceiling here is 1 day; only the owner can go further.",
+            },
+            {
               name: "Tysta (lila)||Mute (purple)",
               what: "Tystar chatten. En ruta frågar hur många minuter — 0 = för alltid. Personen ser själv en gul ruta i chatten som säger att de är tystade.||Mutes the chat. A dialog asks how many minutes — 0 = forever. The person sees a yellow notice in the chat saying they're muted.",
               how: "De kan läsa men inte skicka. En admin, säkerhet eller ägaren kan öppna chatten igen. Linjan till personalen är alltid öppen.||They can read but not send. An admin, security or the owner can unmute. The line to staff always stays open.",
