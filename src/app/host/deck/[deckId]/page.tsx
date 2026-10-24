@@ -107,8 +107,18 @@ export default function HostDeckPage() {
 
     const game = supabase.channel(`game-${pin}`);
     game.on("broadcast", { event: "answer" }, (msg) => {
-      const { name, choice, acc } = msg.payload as { name: string; choice: number; acc?: string };
-      answersRef.current[name] = { choice, t: Date.now() };
+      const { name, choice, choices, acc } = msg.payload as {
+        name: string;
+        choice?: number;
+        choices?: number[];
+        acc?: string;
+      };
+      // A battle card always has one answer, but the player screen now sends
+      // the pick as a list (quizzes can have several right answers), so take
+      // the first — or the legacy single number.
+      const picked = Array.isArray(choices) ? choices[0] : choice;
+      if (typeof picked !== "number") return;
+      answersRef.current[name] = { choice: picked, t: Date.now() };
       if (acc) accountRef.current[name] = acc;
     });
     game.on("broadcast", { event: "sync" }, () => {

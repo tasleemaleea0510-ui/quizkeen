@@ -6,10 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateGamePin } from "@/lib/utils";
 import { HOST_PRESENCE_CONFIG, LOBBY_PING, LOBBY_PONG, onlinePlayers } from "@/lib/presence";
+import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown } from "lucide-react";
+import { isExactAnswer } from "@/lib/quiz-draft";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap } from "lucide-react";
 
-type Q = { id: string; text: string; options: string[]; correctIndex: number };
+type Q = { id: string; text: string; options: string[]; correctIndexes: number[] };
+
+// How long a question stays open when nobody answers. The host can always end
+// it sooner, and it ends by itself the moment every player has answered.
+const QUESTION_SECONDS = 20;
 
 export default function HostPage() {
   const params = useParams();
@@ -21,12 +27,25 @@ export default function HostPage() {
   const [qIndex, setQIndex] = useState(0);
   const [players, setPlayers] = useState<string[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [timer, setTimer] = useState(20);
+  const [timer, setTimer] = useState(QUESTION_SECONDS);
+  // A deleted or mistyped quiz id used to leave the host on "Laddar…" forever.
+  const [missing, setMissing] = useState(false);
+  // Live count of answers on the current question (the ref above does not
+  // re-render, so the screen would otherwise sit on "0 har svarat").
+  const [answered, setAnswered] = useState(0);
+  // Who the game started with. The lobby empties the moment players move to
+  // the game screen, so the presence list cannot be the yardstick for
+  // "everyone has answered" — this frozen roster is.
+  const [roster, setRoster] = useState<string[]>([]);
 
   const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
   const gameRef = useRef<any>(null);
-  const answersRef = useRef<Record<string, { choice: number; t: number }>>({});
+  const answersRef = useRef<Record<string, { choices: number[]; t: number }>>({});
+  // Set while a question is being revealed, so the clock and the
+  // "everyone answered" watcher cannot score the same question twice.
+  const revealedRef = useRef(false);
+  const revealRef = useRef<() => void>(() => {});
   const accountRef = useRef<Record<string, string>>({});
   const startRef = useRef(0);
   const scoresRef = useRef<Record<string, number>>({});
@@ -41,7 +60,9 @@ export default function HostPage() {
   useEffect(() => { quizRef.current = quiz; }, [quiz]);
 
   useEffect(() => {
-    getQuiz(quizId).then((q) => setQuiz(q));
+    getQuiz(quizId)
+      .then((q) => (q ? setQuiz(q) : setMissing(true)))
+      .catch(() => setMissing(true));
   }, [quizId]);
 
   useEffect(() => {
@@ -80,9 +101,18 @@ export default function HostPage() {
 
     const game = supabase.channel(`game-${pin}`);
     game.on("broadcast", { event: "answer" }, (msg) => {
-      const { name, choice, acc } = msg.payload as { name: string; choice: number; acc?: string };
-      answersRef.current[name] = { choice, t: Date.now() };
+      const { name, choice, choices, acc } = msg.payload as {
+        name: string;
+        choice?: number;
+        choices?: number[];
+        acc?: string;
+      };
+      // `choices` is the current shape — a question may have several right
+      // answers — while `choice` is what the flashcard battle still sends.
+      const picked = Array.isArray(choices) ? choices : typeof choice === "number" ? [choice] : [];
+      answersRef.current[name] = { choices: picked, t: Date.now() };
       if (acc) accountRef.current[name] = acc;
+      setAnswered(Object.keys(answersRef.current).length);
     });
     game.on("broadcast", { event: "sync" }, () => {
       const qz = quizRef.current;
@@ -94,12 +124,12 @@ export default function HostPage() {
       if (ph === "question") {
         gameRef.current?.send({
           type: "broadcast", event: "state",
-          payload: { kind: "question", index: i, text: q.text, options: q.options },
+          payload: { kind: "question", index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length },
         });
       } else if (ph === "reveal") {
         gameRef.current?.send({
           type: "broadcast", event: "state",
-          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndex: q.correctIndex, scores: scoresRef.current },
+          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current },
         });
       } else if (ph === "end") {
         gameRef.current?.send({
@@ -118,21 +148,26 @@ export default function HostPage() {
     };
   }, [pin]);
 
+  // The clock still runs down, but it is no longer the only way out.
   useEffect(() => {
     if (phase !== "question") return;
-    setTimer(20);
-    const iv = setInterval(() => {
-      setTimer((t) => {
-        if (t <= 1) {
-          clearInterval(iv);
-          setTimeout(reveal, 0);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+    setTimer(QUESTION_SECONDS);
+    const iv = setInterval(() => setTimer((t) => Math.max(0, t - 1)), 1000);
     return () => clearInterval(iv);
   }, [phase, qIndex]);
+
+  useEffect(() => {
+    if (phase === "question" && timer === 0) revealRef.current();
+  }, [phase, timer]);
+
+  useEffect(() => {
+    if (phase !== "question") return;
+    if (roster.length === 0 || answered < roster.length) return;
+    // Everyone who started has answered: a short beat so the last click
+    // lands, then the result — nobody has to sit out the rest of the clock.
+    const t = setTimeout(() => revealRef.current(), 600);
+    return () => clearTimeout(t);
+  }, [phase, answered, roster.length]);
 
   function broadcast(event: string, payload: unknown) {
     gameRef.current?.send({ type: "broadcast", event, payload });
@@ -141,34 +176,54 @@ export default function HostPage() {
   function sendQuestion(i: number) {
     if (!quiz) return;
     const q = quiz.questions[i];
+    if (!q) return;
     answersRef.current = {};
+    revealedRef.current = false;
+    setAnswered(0);
+    // Reset the clock in the same render that opens the question, otherwise the
+    // "timer hit 0" watcher sees the previous question's 0 and reveals at once.
+    setTimer(QUESTION_SECONDS);
     startRef.current = Date.now();
-    broadcast("question", { index: i, text: q.text, options: q.options });
+    broadcast("question", { index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length });
     setPhase("question");
   }
 
   function startGame() {
     if (startedRef.current) return;
     startedRef.current = true;
+    // Freeze the player list now: everyone about to leave the lobby for the
+    // game screen is exactly who the first question should wait for.
+    setRoster(players);
     lobbyRef.current?.send({ type: "broadcast", event: "start", payload: {} });
     setQIndex(0);
     setTimeout(() => sendQuestion(0), 3000);
   }
 
   function reveal() {
-    if (!quiz) return;
-    const q = quiz.questions[qIndex];
+    if (phaseRef.current !== "question" || revealedRef.current) return;
+    const q = quizRef.current?.questions[qIndexRef.current];
+    if (!q) return;
+    revealedRef.current = true;
+
     const newScores = { ...scoresRef.current };
     Object.entries(answersRef.current).forEach(([name, a]) => {
-      if (a.choice === q.correctIndex) {
+      // An exact set: on a multi-answer question, choosing some of the right
+      // answers is not the same as knowing which ones they are.
+      if (isExactAnswer(a.choices, q.correctIndexes)) {
         const speed = Math.max(0, 50 - Math.floor((a.t - startRef.current) / 400));
         newScores[name] = (newScores[name] || 0) + 100 + speed;
       }
     });
     setScores(newScores);
-    broadcast("reveal", { correctIndex: q.correctIndex, scores: newScores });
+    broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores });
     setPhase("reveal");
   }
+
+  // The clock and the watcher run outside React's render, so they ask this ref
+  // for the newest reveal rather than capturing an old question.
+  useEffect(() => {
+    revealRef.current = reveal;
+  });
 
   function next() {
     if (!quiz) return;
@@ -192,6 +247,18 @@ export default function HostPage() {
       }));
     awardXP(top);
     setPhase("end");
+  }
+
+  if (missing) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center">
+        <p className="text-lg font-bold text-white">Quizzen hittades inte</p>
+        <p className="mt-1 text-sm text-slate-400">Den kan ha tagits bort. Välj en annan quiz i listan.</p>
+        <Link href="/dashboard/quizzes">
+          <Button className="mt-5">Mina quizar</Button>
+        </Link>
+      </div>
+    );
   }
 
   if (!quiz) return <div className="py-20 text-center text-slate-400">Laddar frågesport...</div>;
@@ -245,10 +312,20 @@ export default function HostPage() {
                 </span>
               ))}
             </div>
-            <Button size="lg" className="mt-6 w-full gap-2" onClick={startGame}>
+            <Button
+              size="lg"
+              className="mt-6 w-full gap-2"
+              onClick={startGame}
+              disabled={quiz.questions.length === 0}
+            >
               <Play className="h-5 w-5 fill-current" />
               <span>STARTA SPELET</span>
             </Button>
+            {quiz.questions.length === 0 && (
+              <p className="mt-3 text-center text-sm font-medium text-amber-300">
+                Quizzen har inga frågor än. Lägg till minst en innan du startar.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -268,13 +345,35 @@ export default function HostPage() {
             <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/5">
               <div
                 className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${timer <= 5 ? "bg-rose-500" : "bg-amber-400"}`}
-                style={{ width: `${(timer / 20) * 100}%` }}
+                style={{ width: `${(timer / QUESTION_SECONDS) * 100}%` }}
               />
             </div>
             <p className="text-2xl font-bold leading-relaxed text-white sm:text-3xl">{quiz.questions[qIndex].text}</p>
-            <p className="mt-4 flex items-center gap-1.5 text-sm text-slate-400">
-              <Users className="h-4 w-4" />
-              <span>{Object.keys(answersRef.current).length} svar registrerade</span>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-1.5 text-sm text-slate-400">
+                <Users className="h-4 w-4" />
+                <span>
+                  <b className="text-slate-200" data-no-translate>
+                    {answered}
+                  </b>
+                  {roster.length > 0 ? ` av ${roster.length}` : ""} har svarat
+                </span>
+              </p>
+              {roster.length > 0 && answered >= roster.length && (
+                <span className="flex animate-fade-in items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-300">
+                  <Zap className="h-3 w-3" />
+                  Alla har svarat
+                </span>
+              )}
+            </div>
+
+            <Button className="mt-5 w-full gap-2" variant="secondary" onClick={() => revealRef.current()}>
+              <SkipForward className="h-4 w-4" />
+              <span>Visa rätt svar nu</span>
+            </Button>
+            <p className="mt-2 text-center text-[11px] text-slate-500">
+              Går vidare av sig själv när alla har svarat — eller direkt när du trycker. Annars avslutas frågan
+              när klockan når 0.
             </p>
           </CardContent>
         </Card>
@@ -283,9 +382,21 @@ export default function HostPage() {
       {phase === "reveal" && (
         <Card className="mt-6">
           <CardHeader className="border-b border-white/5 pb-3">
-            <div className="flex items-center gap-2 text-lg font-bold text-emerald-400">
-              <CheckCircle2 className="h-5 w-5" />
-              <span>Rätt svar: {quiz.questions[qIndex].options[quiz.questions[qIndex].correctIndex]}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-emerald-400">
+                <CheckCircle2 className="h-5 w-5" />
+                <span>{quiz.questions[qIndex].correctIndexes.length > 1 ? "Rätta svar" : "Rätt svar"}</span>
+              </span>
+              <span className="flex flex-wrap gap-1.5">
+                {quiz.questions[qIndex].correctIndexes.map((ci) => (
+                  <span
+                    key={ci}
+                    className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-sm font-bold text-emerald-200"
+                  >
+                    {quiz.questions[qIndex].options[ci]}
+                  </span>
+                ))}
+              </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-4">

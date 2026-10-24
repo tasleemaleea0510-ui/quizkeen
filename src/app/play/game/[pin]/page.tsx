@@ -2,9 +2,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3 } from "lucide-react";
+import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
 
@@ -22,7 +24,13 @@ const SHAPES = [
   <svg key="s" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>,
 ];
 
-type Question = { index: number; text: string; options: string[] };
+type Question = { index: number; text: string; options: string[]; correctCount?: number };
+
+/** The right answers, from either payload shape — the flashcard battle sends one. */
+function correctList(p: { correctIndexes?: number[]; correctIndex?: number }): number[] {
+  if (Array.isArray(p.correctIndexes)) return p.correctIndexes;
+  return typeof p.correctIndex === "number" ? [p.correctIndex] : [];
+}
 
 function GameInner() {
   const params = useParams();
@@ -32,8 +40,11 @@ function GameInner() {
 
   const [question, setQuestion] = useState<Question | null>(null);
   const [phase, setPhase] = useState<"waiting" | "question" | "reveal" | "end">("waiting");
-  const [choice, setChoice] = useState<number | null>(null);
-  const [correctIndex, setCorrectIndex] = useState<number | null>(null);
+  // A question with one right answer locks in on the first tap; one with
+  // several invites you to tick them all and then press Svara.
+  const [picked, setPicked] = useState<number[]>([]);
+  const [sent, setSent] = useState(false);
+  const [correct, setCorrect] = useState<number[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
 
   const phaseRef = useRef(phase);
@@ -65,13 +76,13 @@ function GameInner() {
 
     game.on("broadcast", { event: "question" }, (msg) => {
       setQuestion(msg.payload as Question);
-      setChoice(null);
+      resetAnswer();
       setPhase("question");
     });
 
     game.on("broadcast", { event: "reveal" }, (msg) => {
-      const p = msg.payload as { correctIndex: number; scores: Record<string, number> };
-      setCorrectIndex(p.correctIndex);
+      const p = msg.payload as { correctIndexes?: number[]; correctIndex?: number; scores: Record<string, number> };
+      setCorrect(correctList(p));
       setScores(p.scores || {});
       setPhase("reveal");
     });
@@ -85,11 +96,12 @@ function GameInner() {
     game.on("broadcast", { event: "state" }, (msg) => {
       const p = msg.payload as any;
       if (p.kind === "question") {
-        setQuestion({ index: p.index, text: p.text, options: p.options });
+        setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
+        resetAnswer();
         setPhase("question");
       } else if (p.kind === "reveal") {
-        setQuestion({ index: p.index, text: p.text, options: p.options });
-        setCorrectIndex(p.correctIndex);
+        setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
+        setCorrect(correctList(p));
         setScores(p.scores || {});
         setPhase("reveal");
       } else if (p.kind === "end") {
@@ -110,19 +122,50 @@ function GameInner() {
     };
   }, [pin]);
 
-  function answer(i: number) {
-    if (choice !== null) return;
-    setChoice(i);
+  function resetAnswer() {
+    setPicked([]);
+    setSent(false);
+    setCorrect([]);
+  }
+
+  /** Send the answer now: one tap on a single-answer question, Svara on many. */
+  function submit(choices: number[]) {
+    if (sent || choices.length === 0) return;
+    setSent(true);
+    setPicked(choices);
     gameRef.current?.send({
       type: "broadcast",
       event: "answer",
-      payload: { name, choice: i, acc: accountRef.current || undefined },
+      payload: {
+        name,
+        choices,
+        // The flashcard battle still reads a single number.
+        choice: choices[0],
+        acc: accountRef.current || undefined,
+      },
+    });
+  }
+
+  function pick(i: number) {
+    if (sent) return;
+    const need = question?.correctCount ?? 1;
+    if (need <= 1) {
+      submit([i]);
+      return;
+    }
+    setPicked((prev) => {
+      if (prev.includes(i)) return prev.filter((x) => x !== i);
+      if (prev.length >= need) return prev;
+      return [...prev, i];
     });
   }
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
 
   const myScore = scores[name] ?? scores[accountRef.current] ?? 0;
+  const need = question?.correctCount ?? 1;
+  // Only an exact set counts: all the right answers and nothing else.
+  const isRight = correct.length > 0 && isExactAnswer(picked, correct);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -149,21 +192,30 @@ function GameInner() {
       {phase === "question" && question && (
         <div className="animate-fade-up space-y-6">
           <div className="text-center">
-            <span className="mx-auto mb-3 inline-flex items-center rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-indigo-300">
-              Fråga #{question.index + 1}
-            </span>
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-indigo-300">
+                Fråga #{question.index + 1}
+              </span>
+              {need > 1 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
+                  <Layers3 className="h-3.5 w-3.5" />
+                  Välj {need} rätta svar
+                </span>
+              )}
+            </div>
             <h1 className="font-display text-2xl font-extrabold leading-tight text-white sm:text-3xl">{question.text}</h1>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             {question.options.map((opt, i) => {
-              const selected = choice === i;
-              const dimmed = choice !== null && !selected;
+              const selected = picked.includes(i);
+              const dimmed = sent && !selected;
               return (
                 <button
                   key={i}
-                  onClick={() => answer(i)}
-                  disabled={choice !== null}
+                  onClick={() => pick(i)}
+                  disabled={sent}
+                  aria-pressed={need > 1 ? selected : undefined}
                   style={{ animationDelay: `${i * 70}ms` }}
                   className={`flex animate-fade-up items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br p-6 text-left text-lg font-bold text-white shadow-raise transition-all duration-200 ${COLORS[i % 4]} ${
                     selected ? "scale-[0.98] ring-4 ring-white/80" : dimmed ? "opacity-40" : "hover:-translate-y-0.5 hover:brightness-110"
@@ -178,7 +230,26 @@ function GameInner() {
             })}
           </div>
 
-          {choice !== null && (
+          {need > 1 && !sent && (
+            <div className="space-y-2">
+              <Button
+                size="lg"
+                className="w-full gap-2"
+                onClick={() => submit(picked)}
+                disabled={picked.length !== need}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>
+                  Svara ({picked.length} av {need} valda)
+                </span>
+              </Button>
+              <p className="text-center text-xs text-slate-500">
+                Frågan har {need} rätta svar — markera alla innan du skickar.
+              </p>
+            </div>
+          )}
+
+          {sent && (
             <div className="flex animate-fade-in items-center justify-center gap-2 text-sm font-medium text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
               <span>Svaret är registrerat! Väntar på resultatet...</span>
@@ -198,7 +269,7 @@ function GameInner() {
           `}</style>
 
           <div className="flex items-center justify-center">
-            {choice === correctIndex ? (
+            {isRight ? (
               // A hit: a ring flies out of the badge and the badge stamps in.
               <div className="relative">
                 <span
@@ -222,7 +293,7 @@ function GameInner() {
           </div>
 
           <div className="qk-scene mx-auto w-full max-w-xl">
-            <div className={`qk-card3d relative h-64 w-full ${revealFlip ? "qk-flipped" : ""}`}>
+            <div className={`qk-card3d relative h-72 w-full ${revealFlip ? "qk-flipped" : ""}`}>
               <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-6 shadow-card">
                 <div className="text-center">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-indigo-300">Fråga</p>
@@ -231,8 +302,16 @@ function GameInner() {
               </div>
               <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-6 shadow-card">
                 <div className="text-center">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-300">Rätt svar</p>
-                  <p className="text-2xl font-bold text-white">{question.options[correctIndex!]}</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-300">
+                    {correct.length > 1 ? "Rätta svar" : "Rätt svar"}
+                  </p>
+                  <div className="space-y-1">
+                    {correct.map((ci) => (
+                      <p key={ci} className="text-xl font-bold leading-tight text-white sm:text-2xl">
+                        {question.options[ci]}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

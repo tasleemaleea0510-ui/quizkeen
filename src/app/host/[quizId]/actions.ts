@@ -11,8 +11,13 @@ export async function getQuiz(quizId: string) {
     title: quiz.title,
     questions: quiz.questions.map((q) => {
       const options = q.answers.map((a) => a.text);
-      const correctIndex = q.answers.findIndex((a) => a.isCorrect);
-      return { id: q.id, text: q.text, options, correctIndex };
+      // A question may have more than one right answer, so the whole set is
+      // sent: the host scores an exact match and the game reveals all of them.
+      const correctIndexes = q.answers.reduce<number[]>((acc, a, i) => {
+        if (a.isCorrect) acc.push(i);
+        return acc;
+      }, []);
+      return { id: q.id, text: q.text, options, correctIndexes };
     }),
   };
 }
