@@ -9,6 +9,7 @@ import WornKeen from "@/components/keens/worn-keen";
 import { getNavUser } from "@/app/system/actions";
 import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { isGameScreen } from "@/lib/game-screen";
 import { School, BarChart3, Layers, Sparkles, Settings, LogOut, Zap } from "lucide-react";
 
 export default function Navbar() {
@@ -33,6 +34,12 @@ export default function Navbar() {
       cancelled = true;
     };
   }, [session]);
+
+  // A running game is played on a projector and on phones, so the site's own
+  // chrome steps aside — the game draws its own bar with the Keen, the score and
+  // the fullscreen switch, and a second sticky bar above it would eat the screen.
+  // The deck host keeps the navbar because that page has no bar of its own.
+  if (isGameScreen(pathname)) return null;
 
   const theme = ROLE_THEME[me?.role ?? "STUDENT"];
 

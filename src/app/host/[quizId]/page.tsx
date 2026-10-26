@@ -404,9 +404,10 @@ export default function HostPage() {
       {/* The room wears the mode's colour, so the back row can see the pick. */}
       <div aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-[360px] opacity-60 blur-3xl ${art.glow}`} />
 
-      {/* The site navbar is sticky too, so this bar scrolls with the page rather
-          than hiding underneath it. */}
-      <header className="border-b border-white/10 bg-slate-950/70">
+      {/* The site navbar and footer are hidden on this route, so this bar is the
+          one thing at the top of the projector — and it stays there while the
+          host scrolls the board. */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1500px] items-center gap-3 px-3 py-2.5 sm:px-6">
           {mascot && <KeenAvatar keen={mascot} size={32} className="shrink-0" />}
           <div className="min-w-0 flex-1 leading-tight">

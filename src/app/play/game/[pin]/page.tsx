@@ -201,8 +201,9 @@ function GameInner() {
 
   return (
     <div className="min-h-screen pb-8">
-      {/* A game fills the screen: your Keen and score sit in their own bar. */}
-      <header className="border-b border-white/10 bg-slate-950/70">
+      {/* A game fills the screen: the site navbar is hidden here, so your Keen,
+          your score and the fullscreen switch are the whole top bar. */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2 sm:px-4">
           <WornBuddy
             label="Du spelar som"
