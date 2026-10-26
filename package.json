@@ -12,14 +12,14 @@
     "autocommit": "node scripts/auto-git.mjs"
   },
   "dependencies": {
-    "peerjs": "^1.5.4",
     "@prisma/client": "^5.14.0",
-    "@supabase/ssr": "^0.3.0",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.43.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.378.0",
-    "phaser": "^3.80.1",
     "next": "14.2.3",
+    "peerjs": "^1.5.4",
+    "phaser": "^3.80.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.3.0",
