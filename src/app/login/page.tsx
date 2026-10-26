@@ -4,10 +4,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useSupabase } from "@/components/providers";
 import { signInWithName } from "./actions";
 import { ArrowRight, User, Zap } from "lucide-react";
 
 export default function LoginPage() {
+  const { supabase } = useSupabase();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +24,17 @@ export default function LoginPage() {
         setError(result.message);
         return;
       }
-      // A full reload rather than a client-side push: the session was written
-      // as a cookie by the server action, and every provider on the app needs
-      // to read it from the top anyway.
+
+      // The session is handed to the browser client, which is the thing that
+      // owns the cookie jar. Relying on the action's own Set-Cookie was why a
+      // successful sign-in landed straight back on this page.
+      const { error: sessionError } = await supabase.auth.setSession(result.session);
+      if (sessionError) {
+        setError("Inloggningen lyckades men sessionen kunde inte sparas. Försök igen.");
+        return;
+      }
+
+      // A full reload so every server component reads the new cookie.
       window.location.href = "/dashboard";
     });
   }

@@ -4,7 +4,9 @@ import { hasServiceRoleKey, supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createClient } from "@/lib/supabase/server";
 import { authErrorSv } from "@/lib/auth-messages";
 
-export type LoginResult = { ok: true } | { ok: false; message: string };
+export type LoginResult =
+  | { ok: true; session: { access_token: string; refresh_token: string } }
+  | { ok: false; message: string };
 
 /** One line for every failure, so the form never says which half was wrong. */
 const WRONG = "Fel namn eller lösenord. Kontrollera stavningen och försök igen.";
@@ -18,6 +20,11 @@ const WRONG = "Fel namn eller lösenord. Kontrollera stavningen och försök ige
  * "wrong name or password" and nothing else — so a name that does not exist
  * cannot be told apart from one with the wrong password, and no one can walk
  * the form to harvest addresses.
+ *
+ * The session comes back to the caller instead of being left to cookie writes
+ * from the action: the browser client is the thing that has to hold it, and a
+ * cookie set here did not survive the round trip, which is why signing in used
+ * to bounce straight back to the form.
  */
 export async function signInWithName(identifier: string, password: string): Promise<LoginResult> {
   const typed = identifier.trim();
@@ -43,13 +50,19 @@ export async function signInWithName(identifier: string, password: string): Prom
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.session) {
     // "Invalid login credentials" is what Supabase says for a wrong password;
     // the generic line also covers a mistyped email so the two paths match.
-    const wrong = /invalid login credentials|invalid grant/i.test(error.message);
+    const wrong = !error || /invalid login credentials|invalid grant/i.test(error.message);
     return { ok: false, message: wrong ? WRONG : authErrorSv(error.message) };
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    session: {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    },
+  };
 }
