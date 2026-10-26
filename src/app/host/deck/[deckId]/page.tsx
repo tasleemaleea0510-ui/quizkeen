@@ -245,7 +245,7 @@ export default function HostDeckPage() {
       </div>
 
       {phase === "lobby" && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-8 border-white/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-indigo-400" />
@@ -270,7 +270,7 @@ export default function HostDeckPage() {
       )}
 
       {phase === "question" && q && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-8 border-white/10">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Kort {qIndex + 1}/{questionsRef.current.length}</span>
@@ -286,7 +286,7 @@ export default function HostDeckPage() {
       )}
 
       {phase === "reveal" && q && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-8 border-white/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-400">
               <CheckCircle2 className="h-5 w-5" />
@@ -318,7 +318,7 @@ export default function HostDeckPage() {
       )}
 
       {phase === "end" && (
-        <Card className="mt-8 border-slate-800">
+        <Card className="mt-8 border-white/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-400">
               <Trophy className="h-5 w-5" />

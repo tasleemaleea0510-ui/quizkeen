@@ -69,7 +69,7 @@ export default async function AnalyticsPage() {
                     name="message" 
                     defaultValue={room.message ?? ""} 
                     placeholder="Klass-meddelande (syns live för eleverna)" 
-                    className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500" 
+                    className="flex-1 rounded-xl border border-white/12 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500" 
                   />
                   <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-500 gap-1.5 font-semibold">
                     <Send className="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@ export default async function AnalyticsPage() {
                     const done = e.student.completions.filter((c) => assignmentIds.includes(c.assignmentId)).length;
                     const slacking = room.assignments.length > 0 && done === 0;
                     return (
-                      <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                      <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3">
                         <div>
                           <p className="font-bold text-white flex items-center gap-2">
                             <span>{e.student.username}</span>

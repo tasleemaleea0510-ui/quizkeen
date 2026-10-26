@@ -36,7 +36,7 @@ export default async function KeensLayout({ children }: { children: React.ReactN
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-      <section className="relative isolate mb-4 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 px-4 py-5 backdrop-blur-xl sm:px-6">
+      <section className="relative isolate mb-4 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] px-4 py-5 backdrop-blur-xl sm:px-6">
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10"
@@ -75,8 +75,8 @@ export default async function KeensLayout({ children }: { children: React.ReactN
               <Sparkles className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Keens</h1>
-              <p className="truncate text-xs text-slate-400">
+              <h1 className="page-title">Keens</h1>
+              <p className="mt-1 truncate text-sm text-slate-400">
                 Samla {TOTAL_KEENS} figurer · öppna paket · handla i marknaden
               </p>
             </div>
@@ -84,7 +84,7 @@ export default async function KeensLayout({ children }: { children: React.ReactN
 
           <div className="flex items-center gap-3">
             {/* The collection as a ring: the number in the middle is what you own. */}
-            <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-950/50 px-3 py-2 backdrop-blur-xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-2 backdrop-blur-xl">
               <div className="relative grid h-14 w-14 place-items-center">
                 <svg viewBox="0 0 56 56" className="h-14 w-14 -rotate-90">
                   <defs>

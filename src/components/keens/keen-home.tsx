@@ -43,7 +43,7 @@ export function PackRail({ owned }: { owned: Record<string, number> }) {
             <Link
               key={pack.id}
               href="/keens/packs"
-              className="group relative w-[9.75rem] shrink-0 snap-start rounded-2xl border border-white/5 bg-slate-900/50 p-2.5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/30 hover:shadow-raise"
+              className="group relative w-[9.75rem] shrink-0 snap-start rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/30 hover:shadow-raise"
             >
               <PackArt
                 pack={pack}
@@ -170,7 +170,7 @@ export function NextSteps({ state }: { state: KeenState }) {
             <Link
               key={step.key}
               href={step.href}
-              className="group relative isolate overflow-hidden rounded-2xl border border-white/5 bg-slate-900/50 p-3.5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-raise"
+              className="group relative isolate overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15 hover:shadow-raise"
             >
               <span
                 aria-hidden

@@ -201,7 +201,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
   return (
     <div className="space-y-6">
       {/* ── wallet + duplicate cash-out ───────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="grid h-11 w-11 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/10">
             <Coins className="h-5 w-5 text-amber-300" />
@@ -336,7 +336,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
       </section>
 
       {/* ── filters ───────────────────────────────────────────────────────── */}
-      <div className="space-y-3 rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -344,19 +344,19 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Sök i marknaden…"
-              className="h-10 w-full rounded-xl border border-slate-700/80 bg-slate-950/60 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+              className="h-10 w-full rounded-xl border border-white/12 bg-white/[0.03] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
             />
           </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="h-10 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
+            className="h-10 rounded-xl border border-white/12 bg-white/[0.03] px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
           >
             <option value="sallhet">Sortera: sällsynthet</option>
             <option value="pris">Sortera: lägsta pris</option>
             <option value="namn">Sortera: namn</option>
           </select>
-          <div className="flex rounded-xl border border-slate-700/80 bg-slate-950/60 p-1">
+          <div className="flex rounded-xl border border-white/12 bg-white/[0.03] p-1">
             {(
               [
                 ["alla", "Alla", Store],
@@ -409,7 +409,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
 
       {/* ── the shop ──────────────────────────────────────────────────────── */}
       {list.length === 0 ? (
-        <p className="rounded-2xl border border-white/5 bg-slate-900/40 px-6 py-12 text-center text-sm text-slate-400">
+        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-12 text-center text-sm text-slate-400">
           Inga Keens matchar filtret.
         </p>
       ) : (
@@ -491,7 +491,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
       )}
 
       {/* ── leaderboard ───────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
         <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
           <Trophy className="h-3.5 w-3.5 text-amber-400" /> Bästa samlarna
         </h2>
@@ -502,7 +502,7 @@ export default function MarketClient({ state, top }: { state: KeenState; top: Ke
             {top.map((row, i) => (
               <li
                 key={row.id}
-                className="flex items-center gap-3 rounded-xl border border-white/5 bg-slate-950/40 px-3 py-2 animate-keen-rise"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 animate-keen-rise"
                 style={{ animationDelay: `${i * 45}ms` }}
               >
                 <span

@@ -386,7 +386,7 @@ function GameInner() {
                   className={`flex animate-row-in items-center justify-between rounded-xl px-4 py-3 transition-colors ${
                     n === name
                       ? "bg-gradient-to-r from-indigo-600 to-violet-600 font-bold text-white shadow-glow-sm"
-                      : "border border-white/5 bg-slate-900/60 text-slate-300"
+                      : "border border-white/10 bg-white/[0.05] text-slate-300"
                   }`}
                 >
                   <div className="flex items-center gap-3">

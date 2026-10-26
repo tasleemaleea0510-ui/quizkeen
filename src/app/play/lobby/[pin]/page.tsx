@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 const LobbyGame = dynamic(() => import("@/components/lobby-game"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[300px] w-full items-center justify-center rounded-xl border border-white/5 bg-slate-900/40 text-sm text-slate-500">
+    <div className="flex h-[300px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm text-slate-500">
       Laddar minispelet...
     </div>
   ),
@@ -228,7 +228,7 @@ function LobbyInner() {
                     className={`relative flex animate-pop flex-col items-center gap-2 rounded-2xl border px-2 pb-2.5 pt-4 ${
                       isMe
                         ? "border-indigo-400/50 bg-indigo-500/10 shadow-glow-sm"
-                        : "border-white/10 bg-slate-950/40"
+                        : "border-white/10 bg-white/[0.02]"
                     }`}
                   >
                     {isMe && (
@@ -261,7 +261,7 @@ function LobbyInner() {
           your whole collection in one strip, and whatever you pick is the
           character the lobby and the minigame draw for you. */}
       {ownedLoaded && ownedSorted.length > 0 && (
-        <section className="mt-8 rounded-2xl border border-white/10 bg-slate-900/40 p-3">
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-amber-300" />
@@ -309,7 +309,7 @@ function LobbyInner() {
                   className={`group relative flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-xl border px-1 pb-1.5 pt-2 transition-all duration-150 disabled:opacity-60 ${
                     active
                       ? "border-indigo-400 bg-indigo-500/20 ring-2 ring-indigo-400/40"
-                      : "border-white/10 bg-slate-950/40 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/5"
+                      : "border-white/10 bg-white/[0.02] hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/5"
                   }`}
                 >
                   <KeenAvatar keen={keen} size={48} />

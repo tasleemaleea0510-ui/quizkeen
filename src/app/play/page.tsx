@@ -74,11 +74,11 @@ export default function PlayPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow">
+        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-[0_14px_34px_-14px_rgba(99,102,241,0.95)] ring-1 ring-inset ring-white/20">
           <Gamepad2 className="h-6 w-6 text-white" />
         </span>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Gå med i ett spel</h1>
-        <p className="mt-1.5 text-sm text-slate-400">Ange spelets PIN-kod och ditt namn för att delta.</p>
+        <h1 className="page-title">Gå med i ett spel</h1>
+        <p className="mt-2 text-sm text-slate-400">Ange spelets PIN-kod och ditt namn för att delta.</p>
       </div>
 
       <Card className="animate-fade-up">

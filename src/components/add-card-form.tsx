@@ -19,7 +19,7 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
   }
 
   return (
-    <form action={submit} className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <form action={submit} className="mt-10 rounded-2xl border border-white/10 bg-white/[0.05] p-6">
       <h2 className="text-base font-bold text-white flex items-center gap-2">
         <Plus className="h-4 w-4 text-indigo-400" />
         <span>Lägg till ett kort</span>
@@ -30,14 +30,14 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
           onChange={(e) => setFront(e.target.value)} 
           required 
           placeholder="Fråga / Term (framsida)" 
-          className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none text-sm" 
+          className="rounded-xl border border-white/12 bg-white/[0.05] px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none text-sm" 
         />
         <input 
           value={correct} 
           onChange={(e) => setCorrect(e.target.value)} 
           required 
           placeholder="Rätt svar / Definition" 
-          className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none text-sm" 
+          className="rounded-xl border border-white/12 bg-white/[0.05] px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none text-sm" 
         />
       </div>
 
@@ -50,7 +50,7 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
                   value={w}
                   onChange={(e) => setWrongs((arr) => arr.map((x, idx) => (idx === i ? e.target.value : x)))}
                   placeholder={`Alternativt svar ${i + 1}`}
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none text-sm"
+                  className="flex-1 rounded-xl border border-white/12 bg-white/[0.05] px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none text-sm"
                 />
                 {wrongs.length > 1 && (
                   <button 
@@ -83,7 +83,7 @@ export default function AddCardForm({ collectionId, username }: { collectionId: 
           </div>
         </>
       ) : (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs text-slate-300">
             Vill du starta en strid med de här gloskorten? Lägg till svarsalternativ så att spelarna har val att välja mellan.
           </p>

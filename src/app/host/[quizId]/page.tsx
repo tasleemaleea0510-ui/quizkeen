@@ -513,7 +513,7 @@ export default function HostPage() {
               </div>
               <GameModePicker value={mode} onChange={setMode} />
               {roundRules && (
-                <div className="mt-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3 text-[12px] leading-relaxed text-slate-400">
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-slate-400">
                   <p>
                     <b className="text-slate-200">{roundRules.name}</b> — {roundRules.tagline} Alla börjar med{" "}
                     <b className="text-slate-200" data-no-translate>
@@ -615,7 +615,7 @@ export default function HostPage() {
                       ))}
                     </div>
 
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-4">
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
                       <p className="flex items-center gap-1.5 text-sm text-slate-400">
                         <Users className="h-4 w-4" />
                         <span>
@@ -675,7 +675,7 @@ export default function HostPage() {
                             className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 text-base font-bold ${
                               right
                                 ? "border-2 border-emerald-400/70 bg-emerald-500/15 text-emerald-100"
-                                : "border border-white/10 bg-slate-900/50 text-slate-400"
+                                : "border border-white/10 bg-white/[0.04] text-slate-400"
                             }`}
                           >
                             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/25 text-xs font-extrabold">
@@ -726,7 +726,7 @@ export default function HostPage() {
                           className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
                             i === 0
                               ? "border border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-transparent"
-                              : "border border-white/5 bg-slate-900/60"
+                              : "border border-white/10 bg-white/[0.05]"
                           }`}
                         >
                           <span
@@ -769,7 +769,7 @@ export default function HostPage() {
             <aside className="min-w-0 space-y-4 lg:sticky lg:top-16 lg:self-start">
               {heist && heistRules ? (
                 <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-3">
+                  <CardHeader className="flex flex-row items-center justify-between border-b border-white/10 py-3">
                     <CardTitle className="flex items-center gap-2 text-sm font-bold">
                       <Coins className="h-4 w-4 text-amber-300" />
                       <span>{heistRules.name}</span>
@@ -783,7 +783,7 @@ export default function HostPage() {
                       return (
                         <div
                           key={p.name}
-                          className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2"
+                          className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2"
                         >
                           <span
                             className={`w-4 shrink-0 font-mono text-xs font-bold ${
@@ -818,7 +818,7 @@ export default function HostPage() {
                       );
                     })}
                     {heist.events.length > 0 && (
-                      <ul className="mt-2 space-y-0.5 border-t border-white/5 pt-2">
+                      <ul className="mt-2 space-y-0.5 border-t border-white/10 pt-2">
                         {heist.events.slice(0, 6).map((e) => (
                           <li key={e.id} className="truncate text-[11px] text-slate-500">
                             {e.text}
@@ -830,7 +830,7 @@ export default function HostPage() {
                 </Card>
               ) : (
                 <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="border-b border-white/5 py-3">
+                  <CardHeader className="border-b border-white/10 py-3">
                     <CardTitle className="flex items-center gap-2 text-sm font-bold">
                       <Trophy className="h-4 w-4 text-amber-300" />
                       <span>Ställning</span>
@@ -842,7 +842,7 @@ export default function HostPage() {
                       return (
                         <div
                           key={name}
-                          className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2"
+                          className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2"
                         >
                           <span
                             className={`w-4 shrink-0 font-mono text-xs font-bold ${

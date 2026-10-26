@@ -6,6 +6,11 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    // Class names kept in plain modules — the answer tints and a few game
+    // palettes live here. Without this line Tailwind never sees them, so the
+    // answer tiles on the front page and in a live game rendered with no
+    // colour at all while the classes sat right there in the source.
+    "./src/lib/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {

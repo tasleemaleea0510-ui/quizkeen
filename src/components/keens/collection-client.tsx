@@ -264,7 +264,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
             type="button"
             disabled={wearing}
             onClick={() => toggleWear(worn)}
-            className="shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-slate-500 disabled:opacity-50"
+            className="shrink-0 rounded-xl border border-white/12 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-slate-500 disabled:opacity-50"
           >
             Ta av
           </button>
@@ -295,7 +295,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
       {/* ── progress ─────────────────────────────────────────────────────── */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl sm:col-span-2">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:col-span-2">
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Samlade Keens</p>
@@ -321,7 +321,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
           {/* The pack you are closest to finishing: the shortest path to a
               complete set, said out loud instead of left as homework. */}
           {nearest && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-950/40 px-3 py-2">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
               <span className="flex items-center gap-2 text-[11px] font-bold text-slate-300">
                 <Package className="h-3.5 w-3.5 text-indigo-300" />
                 Närmast komplett: {nearest.pack.emoji} {nearest.pack.name}
@@ -339,7 +339,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
           )}
         </div>
 
-        <div className="flex flex-col justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl">
+        <div className="flex flex-col justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dubbletter</p>
             <p data-no-translate className="font-display text-2xl font-extrabold text-amber-300">
@@ -364,7 +364,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
       </div>
 
       {/* ── filters ──────────────────────────────────────────────────────── */}
-      <div className="space-y-3 rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -372,13 +372,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Sök Keen…"
-              className="h-10 w-full rounded-xl border border-slate-700/80 bg-slate-950/60 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+              className="h-10 w-full rounded-xl border border-white/12 bg-white/[0.03] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
             />
           </div>
           <select
             value={pack}
             onChange={(e) => setPack(e.target.value as Keen["pack"] | "ALLA")}
-            className="h-10 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
+            className="h-10 rounded-xl border border-white/12 bg-white/[0.03] px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
           >
             <option value="ALLA">Alla paket</option>
             {packOptions.map((p) => (
@@ -390,13 +390,13 @@ export default function CollectionClient({ state }: { state: KeenState }) {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="h-10 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
+            className="h-10 rounded-xl border border-white/12 bg-white/[0.03] px-3 text-sm text-white focus:border-indigo-400 focus:outline-none"
           >
             <option value="sallhet">Sortera: sällsynthet</option>
             <option value="namn">Sortera: namn</option>
             <option value="antal">Sortera: antal</option>
           </select>
-          <div className="flex rounded-xl border border-slate-700/80 bg-slate-950/60 p-1">
+          <div className="flex rounded-xl border border-white/12 bg-white/[0.03] p-1">
             {([
               ["alla", "Alla"],
               ["agda", "Ägda"],
@@ -451,7 +451,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
       {/* ── grid ─────────────────────────────────────────────────────────── */}
       {list.length === 0 ? (
-        <p className="rounded-2xl border border-white/5 bg-slate-900/40 px-6 py-12 text-center text-sm text-slate-400">
+        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-12 text-center text-sm text-slate-400">
           Inga Keens matchar filtret.
         </p>
       ) : (
@@ -478,7 +478,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
 
       {/* ── recent pulls ─────────────────────────────────────────────────── */}
       {state.recent.length > 0 && (
-        <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
           <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
             <Sparkles className="h-3.5 w-3.5" /> Senaste öppningar
           </p>
@@ -489,7 +489,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               return (
                 <div
                   key={`${r.keenId}-${i}`}
-                  className="flex shrink-0 items-center gap-2 rounded-xl border border-white/5 bg-slate-950/50 px-2.5 py-1.5"
+                  className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-2.5 py-1.5"
                   title={`${keen.name} · ${RARITY_META[keen.rarity].label}${r.refund ? ` · +${r.refund} mynt` : ""}`}
                 >
                   <KeenAvatar keen={keen} size={30} />
@@ -559,7 +559,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
             {selectedBio && (
               <p
                 className={cn(
-                  "mt-3 rounded-2xl border border-white/5 bg-slate-950/40 px-3 py-2 text-xs leading-snug",
+                  "mt-3 rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs leading-snug",
                   selectedOwned > 0 ? "italic text-slate-300" : "text-slate-500"
                 )}
               >
@@ -567,7 +567,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               </p>
             )}
 
-            <dl className="mt-3 space-y-1.5 rounded-2xl border border-white/5 bg-slate-950/50 p-3 text-left text-xs">
+            <dl className="mt-3 space-y-1.5 rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-left text-xs">
               <div className="flex justify-between">
                 <dt className="text-slate-400">Paket</dt>
                 <dd className="font-semibold text-slate-200">
@@ -673,7 +673,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
                         title={have ? k.name : "Inte hittad än"}
                         className={cn(
                           "shrink-0 rounded-xl border p-1 transition-colors",
-                          have ? RARITY_META[k.rarity].ring : "border-white/5",
+                          have ? RARITY_META[k.rarity].ring : "border-white/10",
                           "hover:border-white/40"
                         )}
                       >
@@ -733,7 +733,7 @@ export default function CollectionClient({ state }: { state: KeenState }) {
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-500"
+                className="rounded-xl border border-white/12 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-500"
               >
                 Stäng
               </button>
@@ -803,7 +803,7 @@ function Spotlight({
               <Sparkles className="h-3.5 w-3.5" /> Dagens Keen
             </span>
             <span
-              className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/60 px-2 py-0.5 text-[10px] font-bold text-slate-400"
+              className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-bold text-slate-400"
               title="Dagens Keen byts vid midnatt UTC"
             >
               <Clock className="h-3 w-3 text-fuchsia-300" />
@@ -868,7 +868,7 @@ function Spotlight({
             <button
               type="button"
               onClick={onOpen}
-              className="rounded-full border border-slate-700 px-3.5 py-1.5 text-[11px] font-bold text-slate-300 transition-colors hover:border-slate-500"
+              className="rounded-full border border-white/12 px-3.5 py-1.5 text-[11px] font-bold text-slate-300 transition-colors hover:border-slate-500"
             >
               Visa detaljer
             </button>
@@ -888,7 +888,7 @@ function Spotlight({
  */
 function RankTrack({ rank }: { rank: ReturnType<typeof collectorRank> }) {
   return (
-    <section className="rounded-2xl border border-white/5 bg-slate-900/40 p-4 backdrop-blur-xl">
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -914,7 +914,7 @@ function RankTrack({ rank }: { rank: ReturnType<typeof collectorRank> }) {
                 "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-extrabold transition-colors",
                 current && "border-amber-400/60 bg-amber-500/15 text-amber-200 shadow-glow-sm",
                 !current && done && "border-indigo-400/30 bg-indigo-500/10 text-indigo-200",
-                !done && "border-white/5 text-slate-600"
+                !done && "border-white/10 text-slate-600"
               )}
             >
               {done ? <Crown className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}

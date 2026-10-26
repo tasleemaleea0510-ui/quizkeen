@@ -15,7 +15,7 @@ export default function KeensTabs({ freeReady, dupes }: { freeReady: boolean; du
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2 rounded-2xl border border-white/5 bg-slate-900/50 p-1.5 backdrop-blur-xl">
+    <nav className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 backdrop-blur-xl">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         const Icon = tab.icon;

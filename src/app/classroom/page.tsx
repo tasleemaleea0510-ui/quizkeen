@@ -66,21 +66,21 @@ export default async function ClassroomPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-          <School className="h-5 w-5" />
+      <div className="mb-6 flex flex-wrap items-center gap-3.5">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-blue-400/30 bg-blue-500/15 text-blue-300">
+          <School className="h-6 w-6" />
         </div>
-        <div>
-          <h1 className="text-3xl font-extrabold text-white flex items-center gap-2">
+        <div className="min-w-0">
+          <h1 className="page-title flex flex-wrap items-center gap-2.5">
             <span>Klassrum</span>
             {isTeacher && (
-              <span className="text-xs font-semibold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/30 bg-blue-500/15 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-blue-200">
                 <GraduationCap className="h-3.5 w-3.5" />
                 <span>Lärarläge</span>
               </span>
             )}
           </h1>
-          <p className="text-xs text-slate-400">Hantera klasser, läxor och elever</p>
+          <p className="mt-1 text-sm text-slate-400">Hantera klasser, läxor och elever</p>
         </div>
       </div>
 
@@ -134,8 +134,8 @@ export default async function ClassroomPage() {
               const privateQuizzes = myQuizzes.filter((q) => q.isPrivate && q.classroomId === room.id);
               const publicQuizzes = myQuizzes.filter((q) => !q.isPrivate);
               return (
-                <Card key={room.id} className="border-slate-800">
-                  <CardHeader className="pb-3 border-b border-slate-800/80">
+                <Card key={room.id} className="border-white/10">
+                  <CardHeader className="pb-3 border-b border-white/10">
                     <CardTitle className="flex items-center justify-between text-base">
                       <span className="flex items-center gap-2">
                         <School className="h-4 w-4 text-blue-400" />
@@ -161,31 +161,31 @@ export default async function ClassroomPage() {
                     <div className="flex flex-wrap gap-1.5">
                       {room.enrollments.length === 0 && <p className="text-xs text-slate-500">Inga elever anslutna än — dela koden ovan.</p>}
                       {room.enrollments.map((e) => (
-                        <span key={e.id} className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300">
+                        <span key={e.id} className="rounded-lg border border-white/10 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300">
                           {e.student.username}
                         </span>
                       ))}
                     </div>
 
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
                       <p className="text-xs font-semibold uppercase tracking-wider text-blue-400 mb-2 flex items-center gap-1.5">
                         <BookOpen className="h-3.5 w-3.5" />
                         <span>Skapa läxa</span>
                       </p>
                       <form action={createAssignment} className="space-y-2.5">
                         <input type="hidden" name="classroomId" value={room.id} />
-                        <select name="quizId" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white">
+                        <select name="quizId" className="w-full rounded-lg border border-white/12 bg-slate-950 px-3 py-1.5 text-xs text-white">
                           {myQuizzes.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
                         </select>
                         <div className="flex flex-wrap items-center gap-2">
-                          <select name="studentId" className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-white">
+                          <select name="studentId" className="rounded-lg border border-white/12 bg-slate-950 px-2.5 py-1 text-xs text-white">
                             <option value="">Hela klassen</option>
                             {room.enrollments.map((e) => (
                               <option key={e.id} value={e.studentId}>{e.student.username}</option>
                             ))}
                           </select>
-                          <input type="date" name="dueDate" className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-white" />
-                          <input type="number" name="bonusXP" defaultValue={20} placeholder="XP" className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white" />
+                          <input type="date" name="dueDate" className="rounded-lg border border-white/12 bg-slate-950 px-2.5 py-1 text-xs text-white" />
+                          <input type="number" name="bonusXP" defaultValue={20} placeholder="XP" className="w-20 rounded-lg border border-white/12 bg-slate-950 px-2 py-1 text-xs text-white" />
                           <label className="flex items-center gap-1 text-xs text-slate-300">
                             <input type="checkbox" name="provlage" />
                             <span>Prov-läge</span>
@@ -197,7 +197,7 @@ export default async function ClassroomPage() {
                       </form>
                     </div>
 
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                           <BookOpen className="h-3.5 w-3.5" />
@@ -216,7 +216,7 @@ export default async function ClassroomPage() {
                       <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
                         {room.assignments.length === 0 && <p className="text-xs text-slate-500">Inga läxor tilldelade ännu.</p>}
                         {room.assignments.map((a) => (
-                          <div key={a.id} className="flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-300 border border-slate-800/80">
+                          <div key={a.id} className="flex items-center justify-between rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-300 border border-white/10">
                             <div className="flex items-center gap-2">
                               <span>{a.title}</span>
                               {a.provlage && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400 border border-amber-500/20">PROV</span>}
@@ -234,7 +234,7 @@ export default async function ClassroomPage() {
                       </div>
                     </div>
 
-                    <details className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <details className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                       <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
                         <Lock className="h-3.5 w-3.5" />
                         <span>Klass-låsta quizar ({privateQuizzes.length})</span>
@@ -242,7 +242,7 @@ export default async function ClassroomPage() {
                       <form action={setQuizPrivate} className="mt-2.5 flex gap-2">
                         <input type="hidden" name="classroomId" value={room.id} />
                         <input type="hidden" name="on" value="1" />
-                        <select name="quizId" className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-white">
+                        <select name="quizId" className="flex-1 rounded-lg border border-white/12 bg-slate-950 px-2.5 py-1 text-xs text-white">
                           {publicQuizzes.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
                         </select>
                         <Button type="submit" size="sm" variant="outline" className="text-xs">Lås</Button>
@@ -267,7 +267,7 @@ export default async function ClassroomPage() {
         </>
       ) : (
         <>
-          <Card className="mt-6 border-slate-800">
+          <Card className="mt-6 border-white/10">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-indigo-400" />
@@ -286,8 +286,8 @@ export default async function ClassroomPage() {
           </Card>
 
           {myClasses.map((e) => (
-            <div key={e.id} className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div key={e.id} className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div className="flex items-center gap-2.5">
                   <School className="h-5 w-5 text-indigo-400" />
                   <h2 className="text-xl font-bold text-white">{e.classroom.name}</h2>
@@ -304,7 +304,7 @@ export default async function ClassroomPage() {
                   <p className="text-xs text-slate-500 py-3">Inga aktiva läxor för tillfället.</p>
                 )}
                 {e.classroom.assignments.filter((a) => !a.targetStudentId || a.targetStudentId === user.id).map((a) => (
-                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3">
+                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-white">{a.title}</p>
@@ -337,7 +337,7 @@ export default async function ClassroomPage() {
               </h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {e.classroom.owner.flashcardsCreated.map((c) => (
-                  <Link key={c.id} href={`/flashcards/${c.id}`} className="rounded-xl border border-slate-800 bg-slate-950/60 px-3.5 py-2 text-xs font-medium text-slate-300 hover:border-indigo-500/40 transition-colors flex items-center gap-1.5">
+                  <Link key={c.id} href={`/flashcards/${c.id}`} className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-medium text-slate-300 hover:border-indigo-500/40 transition-colors flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5 text-indigo-400" />
                     <span>{c.title}</span>
                   </Link>
@@ -347,7 +347,7 @@ export default async function ClassroomPage() {
             </div>
           ))}
           {myClasses.length === 0 && (
-            <div className="mt-8 py-12 text-center text-sm text-slate-500 rounded-2xl border border-dashed border-slate-800">
+            <div className="mt-8 py-12 text-center text-sm text-slate-500 rounded-2xl border border-dashed border-white/10">
               Du är inte med i något klassrum än. Be din lärare om en join-kod!
             </div>
           )}

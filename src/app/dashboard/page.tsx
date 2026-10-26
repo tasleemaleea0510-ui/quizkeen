@@ -121,14 +121,14 @@ export default async function DashboardPage() {
 
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-3xl border border-blue-500/25 bg-blue-500/[0.06] p-6 backdrop-blur-xl">
+        <div className="rounded-[26px] border border-blue-400/25 bg-gradient-to-br from-blue-600/20 via-blue-500/[0.06] to-transparent p-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/20 text-blue-400">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-display text-3xl font-extrabold text-white">Lärarpanel — {profile.username}</h1>
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
+              <h1 className="page-title">Lärarpanel — {profile.username}</h1>
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
                 <Lock className="h-3.5 w-3.5 text-slate-500" />
                 <span>Klassrumsöversikt och administrativ kontroll.</span>
               </p>
@@ -249,7 +249,11 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-extrabold text-white">
+          <span className="eyebrow mb-2">
+            <Sparkles className="h-3.5 w-3.5" />
+            Din översikt
+          </span>
+          <h1 className="page-title flex flex-wrap items-baseline gap-2">
             Hej, <span className={me.cls}>{profile.username}</span>
           </h1>
           <p className="mt-1 text-sm text-slate-400">{subtitle}</p>

@@ -126,7 +126,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
 
           <div className="flex flex-col items-stretch gap-2 sm:w-56">
             {live.dailyBonusDisabled ? (
-              <span className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-sm font-semibold text-slate-400">
+              <span className="flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-slate-800/60 px-4 py-3 text-sm font-semibold text-slate-400">
                 <Lock className="h-4 w-4" /> Inte tillgängligt
               </span>
             ) : (
@@ -168,7 +168,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
         </div>
 
         {HIDDEN_PACKS.length > 0 && (
-          <p className="rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
+          <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
             Fler temapaket är inte till salu just nu — deras Keens finns kvar i samlingen och går att köpa i marknaden.
           </p>
         )}
@@ -189,7 +189,7 @@ export default function PacksClient({ state }: { state: KeenState }) {
         </div>
       </section>
 
-      <p className="flex items-start gap-2 rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
+      <p className="flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-400">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
         Dubbletter betalar tillbaka sig själva direkt: får du en Keen du redan har får du mynt tillbaka — säljvärdet för
         den sällsyntheten. Öppna fler paket på en gång för fler chanser!
@@ -251,7 +251,7 @@ function PackTile({
 
   return (
     <div
-      className="group relative isolate overflow-hidden rounded-3xl border border-white/5 bg-slate-900/50 p-4 backdrop-blur-xl transition-all duration-300 hover:border-indigo-400/30 hover:shadow-raise animate-keen-rise"
+      className="group relative isolate overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition-all duration-300 hover:border-indigo-400/30 hover:shadow-raise animate-keen-rise"
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <span
@@ -328,7 +328,7 @@ function PackTile({
 
       {/* the chase card: the rarest Keen here you have not found yet */}
       {chase && (
-        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/5 bg-slate-950/50 p-2">
+        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-slate-950/50 p-2">
           <KeenAvatar
             keen={chase}
             size={40}

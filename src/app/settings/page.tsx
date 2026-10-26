@@ -34,13 +34,13 @@ export default async function SettingsPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-          <Settings className="h-5 w-5" />
+      <div className="flex items-center gap-3.5">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-indigo-400/30 bg-indigo-500/15 text-indigo-300">
+          <Settings className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold text-white">Inställningar</h1>
-          <p className="text-xs text-slate-400">Hantera konto, lösenord och profiluppgifter</p>
+          <h1 className="page-title">Inställningar</h1>
+          <p className="mt-1 text-sm text-slate-400">Hantera konto, lösenord och profiluppgifter</p>
         </div>
       </div>
 

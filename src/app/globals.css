@@ -65,12 +65,30 @@
     @apply bg-gradient-to-r from-indigo-400 via-violet-400 to-sky-400 bg-clip-text text-transparent;
   }
 
+  /* The hover for anything clickable that is not a button: the front page's
+     cards lift a little and warm up towards indigo. */
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-400/40 hover:shadow-glow-sm;
+    @apply transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/40 hover:bg-white/[0.06] hover:shadow-[0_28px_60px_-32px_rgba(99,102,241,0.55)];
   }
 
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-slate-200 backdrop-blur;
+  }
+
+  /* A page's small label and its one big heading. Used instead of inventing a
+     new title style on every screen. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wider text-indigo-200;
+  }
+
+  .page-title {
+    @apply font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl;
+  }
+
+  /* A panel that is not a <Card>: a hero band, a banner, a strip. */
+  .surface {
+    @apply rounded-[24px] border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 28px 60px -40px rgba(0, 0, 0, 0.95);
   }
 
   .answer-tile {

@@ -63,7 +63,7 @@ export function WornBuddy({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-900/50 px-3 py-2 backdrop-blur-xl",
+        "flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 backdrop-blur-xl",
         className
       )}
     >
