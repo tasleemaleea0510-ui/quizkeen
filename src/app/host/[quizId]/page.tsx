@@ -14,11 +14,13 @@ import {
 import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
+import FullscreenButton from "@/components/fullscreen-button";
+import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
+import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
 import {
-  HEIST_MODES,
   MODE_RULES,
   addCorrect,
   applyAction,
@@ -36,6 +38,23 @@ type Q = { id: string; text: string; options: string[]; correctIndexes: number[]
 // How long a question stays open when nobody answers. The host can always end
 // it sooner, and it ends by itself the moment every player has answered.
 const QUESTION_SECONDS = 20;
+
+/**
+ * Send on a realtime channel, and never let it stop the match.
+ *
+ * `channel.send()` throws when the socket has not finished joining yet — which
+ * happens exactly when a host opens the lobby and presses Start quickly. An
+ * unguarded send there aborted the whole start, so the room sat in the lobby
+ * forever. A dropped packet is recoverable (players ask for `sync` again); a
+ * stuck host is not.
+ */
+function safeSend(channel: any, message: unknown) {
+  try {
+    channel?.send(message as any);
+  } catch {
+    // Not joined yet, or the socket dropped — the next broadcast catches up.
+  }
+}
 
 export default function HostPage() {
   const params = useParams();
@@ -98,8 +117,8 @@ export default function HostPage() {
   function publishHeist(next: HeistState, note?: { to: string; text: string }) {
     heistRef.current = next;
     setHeist(next);
-    gameRef.current?.send({ type: "broadcast", event: "heist", payload: next });
-    if (note) gameRef.current?.send({ type: "broadcast", event: "heist-note", payload: note });
+    safeSend(gameRef.current, { type: "broadcast", event: "heist", payload: next });
+    if (note) safeSend(gameRef.current, { type: "broadcast", event: "heist-note", payload: note });
   }
 
   useEffect(() => {
@@ -125,7 +144,7 @@ export default function HostPage() {
     });
     // Answer students who type the PIN, so joining does not depend on presence.
     lobby.on("broadcast", { event: LOBBY_PING }, () => {
-      lobby.send({ type: "broadcast", event: LOBBY_PONG, payload: { pin } });
+      safeSend(lobby, { type: "broadcast", event: LOBBY_PONG, payload: { pin } });
     });
     const joinLobby = () => {
       lobby.subscribe((status: string) => {
@@ -170,12 +189,12 @@ export default function HostPage() {
       const h = heistRef.current;
       if (!h || !name || !action) return;
       if (phaseRef.current !== "question" && phaseRef.current !== "reveal") {
-        game.send({ type: "broadcast", event: "heist-note", payload: { to: name, text: "Matchen är inte igång." } });
+        safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Matchen är inte igång." } });
         return;
       }
       const result = applyAction(h, name, action, Date.now());
       if (!result.ok) {
-        game.send({ type: "broadcast", event: "heist-note", payload: { to: name, text: result.error } });
+        safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: result.error } });
         return;
       }
       publishHeist(result.state);
@@ -183,7 +202,7 @@ export default function HostPage() {
     game.on("broadcast", { event: "sync" }, () => {
       const qz = quizRef.current;
       if (heistRef.current) {
-        game.send({ type: "broadcast", event: "heist", payload: heistRef.current });
+        safeSend(game, { type: "broadcast", event: "heist", payload: heistRef.current });
       }
       if (!qz) return;
       const ph = phaseRef.current;
@@ -191,17 +210,17 @@ export default function HostPage() {
       const q = qz.questions[i];
       if (!q) return;
       if (ph === "question") {
-        gameRef.current?.send({
+        safeSend(gameRef.current, {
           type: "broadcast", event: "state",
           payload: { kind: "question", index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length },
         });
       } else if (ph === "reveal") {
-        gameRef.current?.send({
+        safeSend(gameRef.current, {
           type: "broadcast", event: "state",
           payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current },
         });
       } else if (ph === "end") {
-        gameRef.current?.send({
+        safeSend(gameRef.current, {
           type: "broadcast", event: "state",
           payload: { kind: "end", scores: scoresRef.current },
         });
@@ -239,7 +258,7 @@ export default function HostPage() {
   }, [phase, answered, roster.length]);
 
   function broadcast(event: string, payload: unknown) {
-    gameRef.current?.send({ type: "broadcast", event, payload });
+    safeSend(gameRef.current, { type: "broadcast", event, payload });
   }
 
   function sendQuestion(i: number) {
@@ -271,7 +290,7 @@ export default function HostPage() {
       // classroom match fair to someone who joined five seconds ago.
       publishHeist(newHeist(chosen, players.map((name) => ({ name, keen: keensRef.current[name] ?? null }))));
     }
-    lobbyRef.current?.send({ type: "broadcast", event: "start", payload: { mode: chosen } });
+    safeSend(lobbyRef.current, { type: "broadcast", event: "start", payload: { mode: chosen } });
     setQIndex(0);
     setTimeout(() => sendQuestion(0), 3000);
   }
@@ -368,307 +387,493 @@ export default function HostPage() {
   const heistBoard = heist ? standings(heist) : [];
   const heistRules = heist ? MODE_RULES[heist.mode] : null;
 
+  // The mascot and colour of the mode the room is about to play.
+  const art = MODE_CARDS.find((c) => c.id === mode) ?? MODE_CARDS[0];
+  const mascot = KEEN_BY_ID[art.keen];
+  const modeName = mode === "classic" ? "Klassisk quiz" : MODE_RULES[mode].name;
+  const roundRules = mode === "classic" ? null : MODE_RULES[mode];
+
+  /** The Keen a player is wearing, from the heist seat first, then the lobby. */
+  const keenFor = (name: string) => {
+    const id = heist?.players[name]?.keen ?? keensRef.current[name] ?? null;
+    return id ? KEEN_BY_ID[id] : undefined;
+  };
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Spel-PIN — dela denna kod</p>
-        <p className="my-1 font-mono text-6xl font-extrabold tracking-[0.2em] text-transparent sm:text-7xl">
-          <span className="text-gradient animate-gradient-pan bg-[length:200%_auto]">{pin}</span>
-        </p>
-        <p className="text-sm font-medium text-slate-400">{quiz.title}</p>
-      </div>
+    <div className="relative min-h-screen pb-10">
+      {/* The room wears the mode's colour, so the back row can see the pick. */}
+      <div aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-[360px] opacity-60 blur-3xl ${art.glow}`} />
 
-      {phase !== "lobby" && (
-        <div className="mt-8">
-          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-400">
-            <span>Fråga {Math.min(qIndex + 1, total)} av {total}</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {phase === "lobby" && (
-        <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4 text-indigo-400" />
-              <span>Spelare i lobbyn ({players.length})</span>
-            </CardTitle>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 shadow-glow-sm" />
-          </CardHeader>
-          <CardContent>
-            {/* Mode: the plain quiz, or one of the three heist economies. */}
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Spelläge</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <button
-                type="button"
-                onClick={() => setMode("classic")}
-                className={`rounded-xl border p-3 text-left transition-colors ${
-                  mode === "classic"
-                    ? "border-indigo-400/60 bg-indigo-500/15"
-                    : "border-white/10 bg-slate-950/50 hover:border-white/25"
-                }`}
-              >
-                <span className="block text-sm font-extrabold text-white">Klassisk quiz</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">Bara frågor och poäng.</span>
-              </button>
-              {HEIST_MODES.map((m) => {
-                const r = MODE_RULES[m];
-                const active = mode === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={`rounded-xl border p-3 text-left transition-colors ${
-                      active
-                        ? "border-indigo-400/60 bg-indigo-500/15"
-                        : "border-white/10 bg-slate-950/50 hover:border-white/25"
-                    }`}
-                  >
-                    <span className="block text-sm font-extrabold text-white">{r.name}</span>
-                    <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{r.tagline}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {mode !== "classic" && (
-              <p className="mt-2 text-[11px] text-slate-500">
-                Alla börjar med {MODE_RULES[mode as keyof typeof MODE_RULES].startBalance} i{" "}
-                {MODE_RULES[mode as keyof typeof MODE_RULES].currency.toLowerCase()}. Rätt svar ger{" "}
-                {MODE_RULES[mode as keyof typeof MODE_RULES].correctBalance} — och matchen slutar med Mint.
-              </p>
-            )}
-
-            <div className="mt-4 flex min-h-[72px] flex-wrap gap-2 rounded-xl border border-white/5 bg-slate-950/60 p-4">
-              {players.length === 0 && (
-                <span className="self-center text-sm text-slate-500">Väntar på att spelare ansluter...</span>
-              )}
-              {players.map((p) => {
-                const keen = keensRef.current[p] ? KEEN_BY_ID[keensRef.current[p] as string] : undefined;
-                return (
-                  <span
-                    key={p}
-                    className="flex animate-pop items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 text-sm font-medium text-slate-200"
-                  >
-                    {keen && <KeenAvatar keen={keen} size={22} />}
-                    {p}
-                  </span>
-                );
-              })}
-            </div>
-            <Button
-              size="lg"
-              className="mt-6 w-full gap-2"
-              onClick={startGame}
-              disabled={quiz.questions.length === 0}
-            >
-              <Play className="h-5 w-5 fill-current" />
-              <span>STARTA SPELET</span>
-            </Button>
-            {quiz.questions.length === 0 && (
-              <p className="mt-3 text-center text-sm font-medium text-amber-300">
-                Quizzen har inga frågor än. Lägg till minst en innan du startar.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {phase === "question" && (
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-3">
-            <span className="text-sm font-semibold text-slate-400">
-              Fråga {qIndex + 1} av {total}
-            </span>
-            <div className="flex items-center gap-1.5 rounded-full bg-slate-800 px-3 py-1 font-mono text-xs font-bold text-amber-400">
-              <Clock className="h-3.5 w-3.5" />
-              <span>{timer}s</span>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/5">
-              <div
-                className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${timer <= 5 ? "bg-rose-500" : "bg-amber-400"}`}
-                style={{ width: `${(timer / QUESTION_SECONDS) * 100}%` }}
-              />
-            </div>
-            <p className="text-2xl font-bold leading-relaxed text-white sm:text-3xl">{quiz.questions[qIndex].text}</p>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-1.5 text-sm text-slate-400">
-                <Users className="h-4 w-4" />
-                <span>
-                  <b className="text-slate-200" data-no-translate>
-                    {answered}
-                  </b>
-                  {roster.length > 0 ? ` av ${roster.length}` : ""} har svarat
-                </span>
-              </p>
-              {roster.length > 0 && answered >= roster.length && (
-                <span className="flex animate-fade-in items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-300">
-                  <Zap className="h-3 w-3" />
-                  Alla har svarat
-                </span>
-              )}
-            </div>
-
-            <Button className="mt-5 w-full gap-2" variant="secondary" onClick={() => revealRef.current()}>
-              <SkipForward className="h-4 w-4" />
-              <span>Visa rätt svar nu</span>
-            </Button>
-            <p className="mt-2 text-center text-[11px] text-slate-500">
-              Går vidare av sig själv när alla har svarat — eller direkt när du trycker. Annars avslutas frågan
-              när klockan når 0.
+      {/* The site navbar is sticky too, so this bar scrolls with the page rather
+          than hiding underneath it. */}
+      <header className="border-b border-white/10 bg-slate-950/70">
+        <div className="mx-auto flex w-full max-w-[1500px] items-center gap-3 px-3 py-2.5 sm:px-6">
+          {mascot && <KeenAvatar keen={mascot} size={32} className="shrink-0" />}
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-sm font-extrabold text-white">{quiz.title}</p>
+            <p className="truncate text-[11px] font-semibold text-slate-400">
+              {modeName}
+              {roundRules ? ` · ${roundRules.currency}` : " · frågor och poäng"}
             </p>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          {phase !== "lobby" && (
+            <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300 sm:inline">
+              Fråga <span data-no-translate>{Math.min(qIndex + 1, total)}</span> / <span data-no-translate>{total}</span>
+            </span>
+          )}
+          <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-extrabold tracking-widest text-indigo-200">
+            <span data-no-translate>{pin}</span>
+          </span>
+          <FullscreenButton />
+        </div>
+      </header>
 
-      {phase === "reveal" && (
-        <Card className="mt-6">
-          <CardHeader className="border-b border-white/5 pb-3">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-              <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-emerald-400">
-                <CheckCircle2 className="h-5 w-5" />
-                <span>{quiz.questions[qIndex].correctIndexes.length > 1 ? "Rätta svar" : "Rätt svar"}</span>
-              </span>
-              <span className="flex flex-wrap gap-1.5">
-                {quiz.questions[qIndex].correctIndexes.map((ci) => (
-                  <span
-                    key={ci}
-                    className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-sm font-bold text-emerald-200"
+      <div className="relative mx-auto w-full max-w-[1500px] px-3 pt-5 sm:px-6">
+        {phase === "lobby" && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+            {/* The PIN comes first on a phone: it is what the room needs to see. */}
+            <aside className="order-1 lg:order-2 lg:sticky lg:top-16 lg:self-start">
+              <Card className="overflow-hidden border-white/10">
+                <CardContent className="pt-5">
+                  <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Spel-PIN — dela denna kod
+                  </p>
+                  <p className="my-1 text-center font-mono text-6xl font-extrabold tracking-[0.15em]">
+                    <span className="text-gradient animate-gradient-pan bg-[length:200%_auto]" data-no-translate>
+                      {pin}
+                    </span>
+                  </p>
+                  <p className="truncate text-center text-sm font-medium text-slate-400">{quiz.title}</p>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-sm font-bold text-white">
+                      <Users className="h-4 w-4 text-indigo-400" />
+                      <span>Spelare</span>
+                      <span className="font-mono text-slate-400" data-no-translate>
+                        ({players.length})
+                      </span>
+                    </p>
+                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-glow-sm" />
+                      Live
+                    </span>
+                  </div>
+
+                  <div className="mt-2 grid max-h-[300px] grid-cols-2 gap-2 overflow-y-auto pr-1">
+                    {players.map((p) => {
+                      const keen = keenFor(p);
+                      return (
+                        <span
+                          key={p}
+                          className="flex animate-pop items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-2 py-1.5"
+                        >
+                          {keen ? (
+                            <KeenAvatar keen={keen} size={30} />
+                          ) : (
+                            <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg bg-slate-800 text-xs font-extrabold text-slate-400">
+                              {p.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0 truncate text-sm font-semibold text-slate-200">{p}</span>
+                        </span>
+                      );
+                    })}
+                    {players.length === 0 && (
+                      <p className="col-span-2 rounded-2xl border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
+                        Väntar på att spelare ansluter...
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    size="lg"
+                    className="mt-4 h-14 w-full gap-2 text-base font-extrabold"
+                    onClick={startGame}
+                    disabled={quiz.questions.length === 0}
                   >
-                    {quiz.questions[qIndex].options[ci]}
-                  </span>
-                ))}
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2 pt-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Topp 5 ställning</p>
-            {leaderboard.slice(0, 5).map(([name, s], i) => (
-              <div key={name} className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/60 px-4 py-2.5">
-                <span className="flex items-center gap-2.5 font-medium text-slate-200">
-                  <span className={`w-5 font-mono text-sm font-bold ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>{i + 1}</span>
-                  {name}
-                </span>
-                <span className="font-mono text-sm font-bold text-indigo-300">{s} poäng</span>
+                    <Play className="h-5 w-5 fill-current" />
+                    <span>STARTA SPELET</span>
+                  </Button>
+                  {quiz.questions.length === 0 && (
+                    <p className="mt-3 text-center text-sm font-medium text-amber-300">
+                      Quizzen har inga frågor än. Lägg till minst en innan du startar.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </aside>
+
+            <section className="order-2 lg:order-1">
+              <div className="mb-3">
+                <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">Välj spel-läge</h1>
+                <p className="mt-0.5 text-sm text-slate-400">
+                  Samma frågor, fyra sätt att spela. Läget går att byta fram till start.
+                </p>
               </div>
-            ))}
-            <Button className="mt-6 w-full gap-2" onClick={next}>
-              {qIndex + 1 < total ? (
-                <>
-                  <span>Nästa fråga</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  <span>Visa slutresultat</span>
-                  <Trophy className="h-4 w-4" />
-                </>
+              <GameModePicker value={mode} onChange={setMode} />
+              {roundRules && (
+                <div className="mt-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3 text-[12px] leading-relaxed text-slate-400">
+                  <p>
+                    <b className="text-slate-200">{roundRules.name}</b> — {roundRules.tagline} Alla börjar med{" "}
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.startBalance.toLocaleString("sv-SE")}
+                    </b>{" "}
+                    {roundRules.currency.toLowerCase()}, ett rätt svar ger{" "}
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.correctBalance}
+                    </b>
+                    {roundRules.maxEnergy > 0 && (
+                      <>
+                        {" "}
+                        och {roundRules.energyName.toLowerCase()} laddas på till max{" "}
+                        <b className="text-slate-200" data-no-translate>
+                          {roundRules.maxEnergy}
+                        </b>
+                      </>
+                    )}
+                    .
+                  </p>
+                  <p className="mt-1">
+                    Placering 1–3 ger{" "}
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.mint.first}/{roundRules.mint.second}/{roundRules.mint.third}
+                    </b>{" "}
+                    Mint, övriga{" "}
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.mint.rest}
+                    </b>
+                    . Ett lyckat rån mot en ny rival ger +
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.mint.perRaid}
+                    </b>{" "}
+                    Mint, högst +
+                    <b className="text-slate-200" data-no-translate>
+                      {roundRules.mint.bonusCap}
+                    </b>
+                    .
+                  </p>
+                </div>
               )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            </section>
+          </div>
+        )}
 
-      {/* The heist board: what the room is actually competing over. */}
-      {heist && heistRules && phase !== "lobby" && (
-        <Card className="mt-6 border-white/10">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-3">
-            <CardTitle className="text-sm font-bold">{heistRules.name} — ekonomi</CardTitle>
-            <span className="text-[11px] font-semibold text-slate-500">{heistRules.currency}</span>
-          </CardHeader>
-          <CardContent className="space-y-1.5 pt-3">
-            {heistBoard.map((p, i) => {
-              const seat = heist.players[p.name];
-              const keen = p.keen ? KEEN_BY_ID[p.keen] : undefined;
-              return (
-                <div key={p.name} className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2">
-                  <span className={`w-4 font-mono text-xs font-bold ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>
-                    {i + 1}
-                  </span>
-                  {keen ? (
-                    <KeenAvatar keen={keen} size={28} />
-                  ) : (
-                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-800 text-[10px] font-extrabold text-slate-400">
-                      {p.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{p.name}</span>
-                  {seat?.defenses.length > 0 && (
-                    <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-200">
-                      {seat.defenses.length} försvar
-                    </span>
-                  )}
-                  {heistRules.trace && seat && seat.trace >= heistRules.trace.exposed && (
-                    <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 text-[10px] font-bold text-rose-200">
-                      avslöjad
-                    </span>
-                  )}
-                  <span className="font-mono text-sm font-extrabold text-amber-300" data-no-translate>
-                    {p.balance.toLocaleString("sv-SE")}
-                  </span>
+        {phase !== "lobby" && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+            <main className="min-w-0 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">Framsteg</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-              );
-            })}
-            {heist.events.length > 0 && (
-              <ul className="mt-2 space-y-0.5 border-t border-white/5 pt-2">
-                {heist.events.slice(0, 5).map((e) => (
-                  <li key={e.id} className="truncate text-[11px] text-slate-500">
-                    {e.text}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {phase === "end" && (
-        <Card className="mt-6">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/20 text-amber-400">
-              <Trophy className="h-7 w-7" />
-            </div>
-            <CardTitle className="font-display text-2xl font-bold">Slutresultat</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {leaderboard.map(([name, s], i) => (
-              <div
-                key={name}
-                className={`flex items-center justify-between rounded-xl px-4 py-2.5 ${
-                  i === 0
-                    ? "border border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-transparent"
-                    : "border border-white/5 bg-slate-900/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`w-5 text-center font-mono text-sm font-bold ${
-                    i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"
-                  }`}>
-                    {i + 1}
-                  </span>
-                  {i === 0 && <Crown className="h-4 w-4 text-amber-400" />}
-                  <span className="font-medium text-slate-200">{name}</span>
-                </div>
-                <span className="font-mono text-sm font-bold text-indigo-300">{s} poäng</span>
+                <span className="shrink-0 font-mono text-xs font-bold text-slate-400" data-no-translate>
+                  {Math.round(progress)} %
+                </span>
               </div>
-            ))}
-            {heist && (
-              <p className="pt-3 text-center text-[11px] text-slate-500">
-                Mint betalas ut efter placering — {MODE_RULES[heist.mode].mint.first} till vinnaren.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+
+              {phase === "question" && (
+                <Card className="overflow-hidden border-white/10">
+                  <div className="h-2.5 w-full bg-white/5">
+                    <div
+                      className={`h-full transition-[width] duration-1000 ease-linear ${
+                        timer <= 5 ? "bg-rose-500" : "bg-amber-400"
+                      }`}
+                      style={{ width: `${(timer / QUESTION_SECONDS) * 100}%` }}
+                    />
+                  </div>
+                  <CardContent className="px-5 py-6 sm:px-8">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-200">
+                        Fråga <span data-no-translate>{qIndex + 1}</span> av <span data-no-translate>{total}</span>
+                      </span>
+                      <div className="flex items-center gap-1.5 rounded-full bg-slate-800 px-3 py-1 font-mono text-sm font-bold text-amber-400">
+                        <Clock className="h-4 w-4" />
+                        <span data-no-translate>{timer}s</span>
+                      </div>
+                    </div>
+
+                    <h2 className="mt-5 text-3xl font-extrabold leading-tight text-white sm:text-4xl xl:text-5xl">
+                      {quiz.questions[qIndex].text}
+                    </h2>
+
+                    {/* The four tiles, exactly as they sit on every phone. */}
+                    <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
+                      {quiz.questions[qIndex].options.map((opt, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-3 rounded-2xl bg-gradient-to-br px-4 py-3.5 text-base font-bold text-white shadow-raise ${ANSWER_TINTS[i % 4]}`}
+                        >
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/25 text-xs font-extrabold">
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          <span className="leading-snug">{opt}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-4">
+                      <p className="flex items-center gap-1.5 text-sm text-slate-400">
+                        <Users className="h-4 w-4" />
+                        <span>
+                          <b className="text-slate-200" data-no-translate>
+                            {answered}
+                          </b>
+                          {roster.length > 0 ? ` av ${roster.length}` : ""} har svarat
+                        </span>
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {roster.length > 0 && answered >= roster.length && (
+                          <span className="flex animate-fade-in items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-300">
+                            <Zap className="h-3 w-3" />
+                            Alla har svarat
+                          </span>
+                        )}
+                        <Button className="gap-2" variant="secondary" onClick={() => revealRef.current()}>
+                          <SkipForward className="h-4 w-4" />
+                          <span>Visa rätt svar nu</span>
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Går vidare av sig själv när alla har svarat — eller direkt när du trycker. Annars avslutas frågan
+                      när klockan når 0.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {phase === "reveal" && (
+                <Card className="overflow-hidden border-white/10">
+                  <CardContent className="px-5 py-6 sm:px-8">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-emerald-400">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span>{quiz.questions[qIndex].correctIndexes.length > 1 ? "Rätta svar" : "Rätt svar"}</span>
+                      </span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {quiz.questions[qIndex].correctIndexes.map((ci) => (
+                          <span
+                            key={ci}
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-sm font-bold text-emerald-200"
+                          >
+                            {quiz.questions[qIndex].options[ci]}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+                      {quiz.questions[qIndex].options.map((opt, i) => {
+                        const right = quiz.questions[qIndex].correctIndexes.includes(i);
+                        return (
+                          <div
+                            key={i}
+                            className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 text-base font-bold ${
+                              right
+                                ? "border-2 border-emerald-400/70 bg-emerald-500/15 text-emerald-100"
+                                : "border border-white/10 bg-slate-900/50 text-slate-400"
+                            }`}
+                          >
+                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/25 text-xs font-extrabold">
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            <span className="leading-snug">{opt}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <Button className="mt-6 h-12 w-full gap-2 text-base" onClick={next}>
+                      {qIndex + 1 < total ? (
+                        <>
+                          <span>Nästa fråga</span>
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      ) : (
+                        <>
+                          <span>Visa slutresultat</span>
+                          <Trophy className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {phase === "end" && (
+                <Card className="border-white/10">
+                  <CardHeader className="text-center">
+                    <div className="mx-auto mb-2 grid h-16 w-16 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/20 text-amber-300">
+                      <Trophy className="h-8 w-8" />
+                    </div>
+                    <CardTitle className="font-display text-3xl font-extrabold">Slutresultat</CardTitle>
+                    {heistRules && (
+                      <p className="mt-1 text-sm text-slate-400">
+                        {heistRules.name} — Mint betalas ut efter placering.
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-2.5">
+                    {leaderboard.map(([name, s], i) => {
+                      const keen = keenFor(name);
+                      return (
+                        <div
+                          key={name}
+                          className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+                            i === 0
+                              ? "border border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-transparent"
+                              : "border border-white/5 bg-slate-900/60"
+                          }`}
+                        >
+                          <span
+                            className={`w-5 text-center font-mono text-sm font-bold ${
+                              i === 0
+                                ? "text-amber-400"
+                                : i === 1
+                                  ? "text-slate-300"
+                                  : i === 2
+                                    ? "text-amber-600"
+                                    : "text-slate-500"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          {i === 0 && <Crown className="h-4 w-4 shrink-0 text-amber-400" />}
+                          {keen && <KeenAvatar keen={keen} size={30} className="shrink-0" />}
+                          <span className="min-w-0 flex-1 truncate font-medium text-slate-200">{name}</span>
+                          <span className="shrink-0 font-mono text-sm font-bold text-indigo-300" data-no-translate>
+                            {s} p
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {leaderboard.length === 0 && (
+                      <p className="py-4 text-center text-sm text-slate-500">Ingen spelade den här matchen.</p>
+                    )}
+                    {heistRules && (
+                      <p className="pt-2 text-center text-[11px] text-slate-500">
+                        Mint: {heistRules.mint.first} till vinnaren, {heistRules.mint.second} till andra,{" "}
+                        {heistRules.mint.third} till tredje, {heistRules.mint.rest} till övriga.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </main>
+
+            {/* What the room is competing over: the economy, or the points. */}
+            <aside className="min-w-0 space-y-4 lg:sticky lg:top-16 lg:self-start">
+              {heist && heistRules ? (
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-3">
+                    <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                      <Coins className="h-4 w-4 text-amber-300" />
+                      <span>{heistRules.name}</span>
+                    </CardTitle>
+                    <span className="text-[11px] font-semibold text-slate-500">{heistRules.currency}</span>
+                  </CardHeader>
+                  <CardContent className="max-h-[62vh] space-y-1.5 overflow-y-auto pt-3">
+                    {heistBoard.map((p, i) => {
+                      const seat = heist.players[p.name];
+                      const keen = p.keen ? KEEN_BY_ID[p.keen] : undefined;
+                      return (
+                        <div
+                          key={p.name}
+                          className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2"
+                        >
+                          <span
+                            className={`w-4 shrink-0 font-mono text-xs font-bold ${
+                              i === 0 ? "text-amber-400" : "text-slate-500"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          {keen ? (
+                            <KeenAvatar keen={keen} size={28} />
+                          ) : (
+                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-800 text-[10px] font-extrabold text-slate-400">
+                              {p.name.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{p.name}</span>
+                          {seat?.defenses.length > 0 && (
+                            <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-200">
+                              <Shield className="h-3 w-3" />
+                              <span data-no-translate>{seat.defenses.length}</span>
+                            </span>
+                          )}
+                          {heistRules.trace && seat && seat.trace >= heistRules.trace.exposed && (
+                            <span className="shrink-0 rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 text-[10px] font-bold text-rose-200">
+                              avslöjad
+                            </span>
+                          )}
+                          <span className="shrink-0 font-mono text-sm font-extrabold text-amber-300" data-no-translate>
+                            {p.balance.toLocaleString("sv-SE")}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {heist.events.length > 0 && (
+                      <ul className="mt-2 space-y-0.5 border-t border-white/5 pt-2">
+                        {heist.events.slice(0, 6).map((e) => (
+                          <li key={e.id} className="truncate text-[11px] text-slate-500">
+                            {e.text}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="overflow-hidden border-white/10">
+                  <CardHeader className="border-b border-white/5 py-3">
+                    <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                      <Trophy className="h-4 w-4 text-amber-300" />
+                      <span>Ställning</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="max-h-[62vh] space-y-1.5 overflow-y-auto pt-3">
+                    {leaderboard.map(([name, s], i) => {
+                      const keen = keenFor(name);
+                      return (
+                        <div
+                          key={name}
+                          className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-slate-900/60 px-3 py-2"
+                        >
+                          <span
+                            className={`w-4 shrink-0 font-mono text-xs font-bold ${
+                              i === 0 ? "text-amber-400" : "text-slate-500"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          {keen ? (
+                            <KeenAvatar keen={keen} size={26} />
+                          ) : (
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-slate-800 text-[10px] font-extrabold text-slate-400">
+                              {name.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{name}</span>
+                          <span className="shrink-0 font-mono text-sm font-bold text-indigo-300" data-no-translate>
+                            {s} p
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {leaderboard.length === 0 && (
+                      <p className="px-2 py-4 text-center text-sm text-slate-500">Inga poäng än.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </aside>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -105,7 +105,7 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
   vault: {
     id: "vault",
     name: "Vault Raiders",
-    tagline: "Fyll valvet, rånа grannen, bygg larm.",
+    tagline: "Fyll valvet, råna grannen, bygg larm.",
     currency: "Valvmynt",
     currencyShort: "mynt",
     startBalance: 1000,
