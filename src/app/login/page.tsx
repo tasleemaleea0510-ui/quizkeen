@@ -8,6 +8,29 @@ import { useSupabase } from "@/components/providers";
 import { signInWithName } from "./actions";
 import { ArrowRight, User, Zap } from "lucide-react";
 
+/**
+ * Drop every auth cookie the browser is holding, including half-written chunks
+ * ("…-auth-token.0", ".1") and copies set for a parent domain.
+ *
+ * A long-lived browser can end up with two cookies of the same name, and the
+ * server then reads the stale one while the browser shows the fresh one — the
+ * sign-in lands on /dashboard and is billed back to /login in the same breath.
+ * Clearing the jar before a new session is written removes that whole class of
+ * failure, and costs nothing when there is nothing to clear.
+ */
+function clearStaleAuthCookies() {
+  const host = window.location.hostname;
+  const domains = [host, `.${host}`, `.${host.replace(/^[^.]+\\./, "")}`];
+  for (const part of document.cookie.split("; ")) {
+    const name = part.split("=")[0];
+    if (!name || !name.startsWith("sb-") || !name.includes("-auth-token")) continue;
+    for (const domain of domains) {
+      document.cookie = `${name}=; path=/; max-age=0`;
+      document.cookie = `${name}=; path=/; max-age=0; domain=${domain}`;
+    }
+  }
+}
+
 export default function LoginPage() {
   const { supabase } = useSupabase();
   const [identifier, setIdentifier] = useState("");
@@ -19,6 +42,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
+      clearStaleAuthCookies();
       const result = await signInWithName(identifier, password);
       if (!result.ok) {
         setError(result.message);
@@ -34,8 +58,9 @@ export default function LoginPage() {
         return;
       }
 
-      // A full reload so every server component reads the new cookie.
-      window.location.href = "/dashboard";
+      // A full reload so every server component reads the new cookie;
+      // `replace` keeps the login form out of the back button's history.
+      window.location.replace("/dashboard");
     });
   }
 

@@ -55,7 +55,10 @@ export async function createClient() {
       try {
         const b64 = sessionJson.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
         const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
-        if (payload && payload.sub) {
+        // An expired token is not a signed-in visitor: letting it through here
+        // produced pages that rendered as "logged in" while every write failed.
+        const expired = typeof payload?.exp === "number" && payload.exp * 1000 < Date.now();
+        if (payload && payload.sub && !expired) {
           return {
             data: {
               user: {
