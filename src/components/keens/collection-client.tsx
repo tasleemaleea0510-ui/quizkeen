@@ -784,17 +784,32 @@ function Spotlight({
 
   return (
     <section
-      className={cn("relative isolate overflow-hidden rounded-3xl border p-5 backdrop-blur-xl", meta.ring)}
+      className={cn(
+        "relative isolate overflow-hidden rounded-[28px] border bg-white/[0.04] p-5 backdrop-blur-xl",
+        meta.ring
+      )}
     >
+      {/* The tint is a normal child: a negative-z layer would paint behind the
+          section's own background and vanish. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{ background: `radial-gradient(120% 110% at 88% 0%, ${meta.from}33, transparent 60%)` }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(120% 110% at 88% 0%, ${meta.from}2e, transparent 62%)` }}
       />
 
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <div className="flex shrink-0 items-center gap-4">
-          <KeenAvatar keen={keen} size={128} className={cn(have && meta.glow)} />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+        <div className="grid shrink-0 place-items-center">
+          {/* the pedestal, so the artwork never floats on bare black */}
+          <div className="relative grid h-[152px] w-[152px] place-items-center">
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-[34px] border border-white/10"
+              style={{
+                backgroundImage: `radial-gradient(120% 120% at 50% 18%, ${meta.from}4d, ${meta.from}14 62%, transparent 88%)`,
+              }}
+            />
+            <KeenAvatar keen={keen} size={124} className={cn("relative", have && meta.glow)} />
+          </div>
         </div>
 
         <div className="min-w-0 flex-1">

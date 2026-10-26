@@ -1,61 +1,101 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useSupabase } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authErrorSv } from "@/lib/auth-messages";
-import { Zap } from "lucide-react";
+import { signInWithName } from "./actions";
+import { ArrowRight, User, Zap } from "lucide-react";
 
 export default function LoginPage() {
-  const { supabase } = useSupabase();
-  const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  async function handleLogin(e: React.FormEvent) {
+  function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
+    startTransition(async () => {
+      const result = await signInWithName(identifier, password);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      // A full reload rather than a client-side push: the session was written
+      // as a cookie by the server action, and every provider on the app needs
+      // to read it from the top anyway.
+      window.location.href = "/dashboard";
     });
-    if (error) {
-      setError(authErrorSv(error.message));
-      setLoading(false);
-    } else {
-      router.push("/dashboard");
-      router.refresh();
-    }
   }
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow">
+        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-[0_14px_34px_-14px_rgba(99,102,241,0.95)] ring-1 ring-inset ring-white/20">
           <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
         </span>
         <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Välkommen tillbaka!</h1>
-        <p className="mt-1.5 text-sm text-slate-400">Logga in för att fortsätta spela och tävla.</p>
+        <p className="mt-2 text-sm text-slate-400">Logga in med ditt namn — e-post funkar också.</p>
       </div>
+
       <Card className="animate-fade-up">
         <CardHeader className="pb-4">
           <CardTitle className="text-base text-slate-300">Konto</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-3.5">
-            <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div>
+              <label
+                htmlFor="login-name"
+                className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400"
+              >
+                Namn eller e-post
+              </label>
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Input
+                  id="login-name"
+                  placeholder="Abdullah"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  required
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="login-password"
+                className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400"
+              >
+                Lösenord
+              </label>
+              <Input
+                id="login-password"
+                type="password"
+                placeholder="Ditt lösenord"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+
             {error && (
-              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
+              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {error}
+              </p>
             )}
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Loggar in..." : "Logga in"}
+
+            <Button type="submit" size="lg" className="w-full gap-2" disabled={pending}>
+              {pending ? "Loggar in..." : "Logga in"}
+              {!pending && <ArrowRight className="h-4 w-4" />}
             </Button>
           </form>
           <p className="mt-5 text-center text-sm text-slate-400">
