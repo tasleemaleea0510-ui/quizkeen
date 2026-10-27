@@ -12,7 +12,7 @@ import {
   type HeistAction,
   type HeistState,
 } from "@/lib/game-modes";
-import { Coins, Crosshair, Loader2, Shield, Sparkles, Swords, Zap } from "lucide-react";
+import { Coins, Crosshair, Gift, Loader2, Rocket, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 /**
  * The heist panel — what a player does between two questions.
@@ -101,6 +101,65 @@ export default function HeistPanel({
       </CardHeader>
 
       <CardContent className="space-y-3 pt-3">
+        {/* Gold Quest: one face-down chest a round, and nobody knows what is in it. */}
+        {rules.chests && (
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <Gift className="h-3.5 w-3.5" />
+              Öppna en kista
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[0, 1, 2].map((i) => {
+                const ready = profile.chestRound !== state.round;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={pending || !ready}
+                    onClick={() => onAction({ kind: "chest" })}
+                    className="group relative overflow-hidden rounded-xl border border-amber-400/30 bg-gradient-to-b from-amber-500/25 to-amber-900/20 px-2 py-2.5 text-center transition-all hover:border-amber-300/70 hover:from-amber-400/35 disabled:opacity-40"
+                  >
+                    <Gift className="mx-auto h-5 w-5 text-amber-200 transition-transform duration-200 group-hover:scale-110" />
+                    <span className="mt-1 block text-[10px] font-extrabold uppercase tracking-wider text-amber-100/80">
+                      Kista {i + 1}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[10px] font-semibold text-slate-500">
+              {profile.chestRound === state.round
+                ? "Öppnad — nästa fråga ger en ny kista."
+                : "Mynt, stöld, byte med ledaren eller ingenting alls."}
+            </p>
+          </div>
+        )}
+
+        {/* Crypto Hack: the button that doubles the wallet, once. */}
+        {rules.powers && (
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {rules.powers.map((p) => {
+              const used = p.once && profile.doubled;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={pending || used || profile.balance < p.cost}
+                  onClick={() => onAction({ kind: "power", power: p.id })}
+                  className="rounded-xl border border-sky-400/30 bg-sky-500/10 px-2.5 py-2 text-left transition-colors hover:border-sky-300/60 hover:bg-sky-500/20 disabled:opacity-45"
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-extrabold text-sky-100">
+                    <Rocket className="h-3.5 w-3.5" />
+                    {p.name}
+                    {used && <span className="text-[10px] font-bold text-slate-400">använd</span>}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] leading-snug text-sky-200/60">{p.blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Targets */}
         <div>
           <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">

@@ -6,12 +6,15 @@
  */
 import assert from "node:assert/strict";
 import {
+  CHEST_STEAL_CAP,
   MODE_RULES,
   addCorrect,
   applyAction,
+  chestOpen,
   decayTrace,
   mintPayout,
   newHeist,
+  nextRound,
   standings,
   type HeistState,
 } from "../src/lib/game-modes.ts";
@@ -43,6 +46,18 @@ function raid(state: HeistState, who: string, target: string, now: number, style
 function setBalance(state: HeistState, who: string, balance: number) {
   state.players[who].balance = balance;
   return state;
+}
+
+/** A draw that returns the given values in order, so a chest is predictable. */
+function seq(...values: number[]) {
+  let i = 0;
+  return () => values[Math.min(i++, values.length - 1)];
+}
+
+function openChest(state: HeistState, who: string, rng: () => number) {
+  const out = applyAction(state, who, { kind: "chest" }, 1000, rng);
+  assert.equal(out.ok, true, "the chest should open");
+  return (out as { ok: true; state: HeistState }).state;
 }
 
 console.log("\nVault Raiders");
@@ -173,6 +188,57 @@ check("buying a shield needs the coins and stacks nothing", () => {
   assert.equal(broke.players.Alva.balance, 100, "a failed purchase must not charge");
 });
 
+console.log("\nGold Quest chests");
+check("a chest pays its coins", () => {
+  const h = openChest(newHeist("vault", seats), "Alva", seq(0));
+  assert.equal(h.players.Alva.balance, 1300);
+  assert.equal(chestOpen(h, "Alva"), false);
+});
+
+check("one chest a round, and the next round has a fresh one", () => {
+  const h = openChest(newHeist("vault", seats), "Alva", seq(0));
+  const again = applyAction(h, "Alva", { kind: "chest" }, 1000, seq(0));
+  assert.equal(again.ok, false, "a second chest in the same round is refused");
+  const later = applyAction(nextRound(h), "Alva", { kind: "chest" }, 1000, seq(0));
+  assert.equal(later.ok, true);
+});
+
+check("a steal chest robs a rival, capped", () => {
+  const h = newHeist("vault", seats);
+  setBalance(h, "Bo", 3000);
+  // 0.4 lands on the steal row, then 0 picks the first rival.
+  const next = openChest(h, "Alva", seq(0.4, 0));
+  assert.equal(next.players.Bo.balance, 3000 - CHEST_STEAL_CAP);
+  assert.equal(next.players.Alva.balance, 1000 + CHEST_STEAL_CAP);
+});
+
+check("a swap chest trades purses with a rival", () => {
+  const h = newHeist("vault", seats);
+  setBalance(h, "Alva", 800);
+  setBalance(h, "Bo", 4000);
+  // 0.6 lands on the swap row, then 0 picks the first rival.
+  const next = openChest(h, "Alva", seq(0.6, 0));
+  assert.equal(next.players.Alva.balance, 4000);
+  assert.equal(next.players.Bo.balance, 800);
+});
+
+check("a shield chest hands over a laser grid", () => {
+  const next = openChest(newHeist("vault", seats), "Alva", seq(0.75));
+  assert.deepEqual(next.players.Alva.defenses, ["grid"]);
+});
+
+check("the empty chest costs nothing", () => {
+  const next = openChest(newHeist("vault", seats), "Alva", seq(0.99));
+  assert.equal(next.players.Alva.balance, 1000);
+});
+
+check("the other modes have no chests", () => {
+  for (const mode of ["crypto", "pirate"] as const) {
+    const out = applyAction(newHeist(mode, seats), "Alva", { kind: "chest" }, 1000);
+    assert.equal(out.ok, false);
+  }
+});
+
 console.log("\nCrypto Clash");
 check("a landed hack adds fifteen trace", () => {
   let h = newHeist("crypto", seats);
@@ -206,6 +272,21 @@ check("an extra tool slot is sold once", () => {
   assert.equal(h.players.Alva.maxEnergy, 5);
   const second = applyAction(h, "Alva", { kind: "fortify", defense: "slot" }, 1000);
   assert.equal(second.ok, false);
+});
+
+check("doubling doubles the wallet, once a match", () => {
+  const first = applyAction(newHeist("crypto", seats), "Alva", { kind: "power", power: "double" }, 1000);
+  assert.equal(first.ok, true);
+  const h = (first as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.balance, 2000);
+  const again = applyAction(h, "Alva", { kind: "power", power: "double" }, 1000);
+  assert.equal(again.ok, false);
+  assert.equal(h.players.Alva.balance, 2000, "the refused press must not pay again");
+});
+
+check("a power-up from another mode is refused", () => {
+  const out = applyAction(newHeist("vault", seats), "Alva", { kind: "power", power: "double" }, 1000);
+  assert.equal(out.ok, false);
 });
 
 check("the trace cleaner wipes thirty points", () => {

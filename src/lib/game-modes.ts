@@ -53,6 +53,38 @@ export type RaidStyle = {
   verb: string;
 };
 
+/**
+ * A face-down chest, Gold Quest style.
+ *
+ * Three identical chests sit in front of the player and only the draw decides
+ * what was in the one they tapped. That gamble — a jackpot, a robbery, a swap
+ * with the leader or nothing at all — is what makes the mode loud in a
+ * classroom, so the chest is worth more drama than any single raid.
+ */
+export type ChestKind = "gold" | "steal" | "swap" | "shield" | "dud";
+
+export type ChestOutcome = {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Relative chance; the table does not have to add up to 100. */
+  weight: number;
+  kind: ChestKind;
+  /** Coins for `gold`, percent of the rival's purse for `steal`. */
+  value?: number;
+};
+
+/** A one-tap power-up, Crypto Hack style. */
+export type Power = {
+  id: string;
+  name: string;
+  blurb: string;
+  cost: number;
+  effect: "double";
+  /** Only one use per match. */
+  once: boolean;
+};
+
 export type ModeRules = {
   id: HeistMode;
   name: string;
@@ -72,6 +104,10 @@ export type ModeRules = {
   raidCap: number;
   /** Pirate Heist picks one of these instead of a standard raid. */
   styles?: RaidStyle[];
+  /** Vault Raiders: the face-down chests opened once a round. */
+  chests?: ChestOutcome[];
+  /** Crypto Clash: the power-ups beyond a plain hack. */
+  powers?: Power[];
   /** Crypto Clash only: trace added on a landed and a blocked hack, and the
    *  level at which everyone can see you have been hacking. */
   trace?: { success: number; fail: number; exposed: number };
@@ -101,6 +137,29 @@ const PIRATE_DEFENSES: Defense[] = [
   { id: "cargo", name: "Låst lastutrymme", cost: 500, kind: "protect", value: 500, blurb: "500 guld ligger utanför rånarnas räckhåll." },
 ];
 
+const VAULT_CHESTS: ChestOutcome[] = [
+  { id: "pouch", name: "Liten påse", blurb: "300 mynt rakt ner i valvet.", weight: 26, kind: "gold", value: 300 },
+  { id: "chest", name: "Full kista", blurb: "600 mynt — jackpot.", weight: 9, kind: "gold", value: 600 },
+  { id: "steal", name: "Stöld", blurb: "Rånar en slumpad rival.", weight: 24, kind: "steal", value: 20 },
+  { id: "swap", name: "Byte", blurb: "Byter saldo med en slumpad rival.", weight: 8, kind: "swap" },
+  { id: "shield", name: "Sköld", blurb: "Ett gratis lasergrid.", weight: 16, kind: "shield" },
+  { id: "empty", name: "Tom kista", blurb: "Ingenting alls. Otur.", weight: 17, kind: "dud" },
+];
+
+const CRYPTO_POWERS: Power[] = [
+  {
+    id: "double",
+    name: "Dubbla",
+    blurb: "Fördubblar din crypto — bara en gång per match.",
+    cost: 0,
+    effect: "double",
+    once: true,
+  },
+];
+
+/** A chest theft never takes more than this, so one lucky tap cannot end a match. */
+export const CHEST_STEAL_CAP = 400;
+
 export const MODE_RULES: Record<HeistMode, ModeRules> = {
   vault: {
     id: "vault",
@@ -117,6 +176,7 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
     raidCost: 2,
     raidPct: 15,
     raidCap: 500,
+    chests: VAULT_CHESTS,
     defenses: VAULT_DEFENSES,
     mint: { first: 100, second: 70, third: 50, rest: 30, perRaid: 10, bonusCap: 30 },
   },
@@ -136,6 +196,7 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
     raidPct: 12,
     raidCap: 600,
     trace: { success: 15, fail: 25, exposed: 70 },
+    powers: CRYPTO_POWERS,
     defenses: CRYPTO_DEFENSES,
     mint: { first: 120, second: 80, third: 50, rest: 30, perRaid: 5, bonusCap: 25 },
   },
@@ -189,6 +250,10 @@ export type HeistPlayer = {
   protectedUntil: number;
   /** Mästernyckel: the next raid costs one energy less. */
   raidDiscount: number;
+  /** The round a chest was last opened in; -1 means none yet. */
+  chestRound: number;
+  /** Crypto Clash: "Dubbla" is a once-a-match button. */
+  doubled: boolean;
 };
 
 export type HeistEvent = { id: string; at: number; text: string };
@@ -204,6 +269,8 @@ export type HeistState = {
 export type HeistAction =
   | { kind: "raid"; target: string; style?: string }
   | { kind: "fortify"; defense: string }
+  | { kind: "chest" }
+  | { kind: "power"; power: string }
   | { kind: "save" };
 
 export type ActionResult = { ok: true; state: HeistState } | { ok: false; error: string };
@@ -247,6 +314,8 @@ export function newHeist(
       raided: [],
       protectedUntil: 0,
       raidDiscount: 0,
+      chestRound: -1,
+      doubled: false,
     };
   }
   return { mode, round: 0, players, events: [] };
@@ -304,6 +373,31 @@ export function protectedGold(mode: HeistMode, player: HeistPlayer): number {
     const d = defenseById(mode, id);
     return d?.kind === "protect" ? sum + (d.value ?? 0) : sum;
   }, 0);
+}
+
+/** True when this player still has a chest to open this round. */
+export function chestOpen(state: HeistState, name: string): boolean {
+  const player = state.players[name];
+  if (!player || !MODE_RULES[state.mode].chests) return false;
+  return player.chestRound !== state.round;
+}
+
+/** Weighted draw. `r` is 0–1 so the tests can force a branch. */
+function drawChest(chests: ChestOutcome[], r: number): ChestOutcome {
+  const total = chests.reduce((sum, c) => sum + c.weight, 0);
+  let roll = r * total;
+  for (const chest of chests) {
+    roll -= chest.weight;
+    if (roll < 0) return chest;
+  }
+  return chests[chests.length - 1];
+}
+
+/** One of the other seats, chosen by the draw. */
+function randomRival(state: HeistState, name: string, r: number): HeistPlayer | undefined {
+  const rivals = Object.values(state.players).filter((p) => p.name !== name);
+  if (rivals.length === 0) return undefined;
+  return rivals[Math.min(rivals.length - 1, Math.floor(r * rivals.length))];
 }
 
 /** The defense that answers an incoming raid: a block first, then a reduction. */
@@ -388,6 +482,87 @@ export function applyAction(
       for (let i = 0; i < charges; i += 1) me.defenses.push(defense.id);
       pushEvent(next, `${name} köpte ${defense.name}.`, now);
     }
+    return { ok: true, state: next };
+  }
+
+  // ── Gold Quest chest ───────────────────────────────────────────────────
+  if (action.kind === "chest") {
+    const chests = rules.chests;
+    if (!chests) return { ok: false, error: "Det här läget har inga kistor." };
+    // One tap a round: without this a player could sit on the chest button and
+    // gamble the whole match away between two questions.
+    if (me.chestRound === next.round) {
+      return { ok: false, error: "Du har redan öppnat en kista den här rundan." };
+    }
+    me.chestRound = next.round;
+
+    const outcome = drawChest(chests, rng());
+
+    if (outcome.kind === "gold") {
+      const coins = outcome.value ?? 0;
+      me.balance += coins;
+      pushEvent(next, `${name} öppnade ${outcome.name}: +${coins} ${rules.currencyShort}.`, now);
+    } else if (outcome.kind === "steal") {
+      const victim = randomRival(next, name, rng());
+      if (!victim) {
+        pushEvent(next, `${name} öppnade ${outcome.name} men det fanns ingen att råna.`, now);
+      } else {
+        const steal = Math.max(
+          0,
+          Math.min(CHEST_STEAL_CAP, Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
+        );
+        victim.balance -= steal;
+        me.balance += steal;
+        pushEvent(
+          next,
+          steal > 0
+            ? `${name} öppnade ${outcome.name} och rånade ${victim.name}: ${steal} ${rules.currencyShort}.`
+            : `${name} öppnade ${outcome.name} men ${victim.name} hade tomt valv.`,
+          now
+        );
+      }
+    } else if (outcome.kind === "swap") {
+      const rival = randomRival(next, name, rng());
+      if (!rival) {
+        pushEvent(next, `${name} öppnade ${outcome.name} men ingen fanns att byta med.`, now);
+      } else {
+        const mine = me.balance;
+        me.balance = rival.balance;
+        rival.balance = mine;
+        pushEvent(
+          next,
+          `${name} bytte saldo med ${rival.name} — sitter nu på ${me.balance} ${rules.currencyShort}.`,
+          now
+        );
+      }
+    } else if (outcome.kind === "shield") {
+      // A grid is only worth holding one at a time; a second one pays out in
+      // coins instead of stacking into an unraidable vault.
+      if (me.defenses.includes("grid")) {
+        me.balance += 300;
+        pushEvent(next, `${name} hade redan ett lasergrid — kistan gav 300 ${rules.currencyShort} i stället.`, now);
+      } else {
+        me.defenses.push("grid");
+        pushEvent(next, `${name} hittade ett lasergrid i kistan.`, now);
+      }
+    } else {
+      pushEvent(next, `${name} öppnade en tom kista.`, now);
+    }
+    return { ok: true, state: next };
+  }
+
+  // ── Crypto Hack power-up ───────────────────────────────────────────────
+  if (action.kind === "power") {
+    const power = rules.powers?.find((p) => p.id === action.power);
+    if (!power) return { ok: false, error: "Den power-upen finns inte i det här läget." };
+    if (power.once && me.doubled) return { ok: false, error: `Du har redan använt ${power.name} en gång.` };
+    if (me.balance < power.cost) {
+      return { ok: false, error: `Du behöver ${power.cost} ${rules.currencyShort} för ${power.name}.` };
+    }
+    me.balance -= power.cost;
+    if (power.effect === "double") me.balance *= 2;
+    me.doubled = true;
+    pushEvent(next, `${name} använde ${power.name}: ${me.balance} ${rules.currencyShort}.`, now);
     return { ok: true, state: next };
   }
 

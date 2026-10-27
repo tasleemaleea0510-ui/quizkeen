@@ -38,7 +38,7 @@ export const MODE_CARDS: ModeCard[] = [
   },
   {
     id: "vault",
-    kicker: "Valv och rån",
+    kicker: "Kistor och rån",
     keen: "chubbypig",
     bg: "from-amber-400 via-orange-500 to-rose-600",
     glow: "bg-amber-500/20",
@@ -46,7 +46,7 @@ export const MODE_CARDS: ModeCard[] = [
   },
   {
     id: "crypto",
-    kicker: "Hacka och spår",
+    kicker: "Hacka och dubbla",
     keen: "invader",
     bg: "from-cyan-400 via-sky-500 to-indigo-700",
     glow: "bg-sky-500/20",

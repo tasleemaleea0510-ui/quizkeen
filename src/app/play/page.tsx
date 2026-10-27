@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LOBBY_PING, LOBBY_PONG, lobbyIsLive } from "@/lib/presence";
-import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User } from "lucide-react";
+import Link from "next/link";
+import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User, BookOpen } from "lucide-react";
 
 export default function PlayPage() {
   const router = useRouter();
@@ -141,6 +142,23 @@ export default function PlayPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* The quiet option: the same questions, no room and no clock. */}
+      <Link
+        href="/study"
+        className="group mt-4 flex items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-indigo-300/40 hover:bg-white/[0.07]"
+      >
+        <span className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm">
+            <BookOpen className="h-5 w-5 text-white" />
+          </span>
+          <span>
+            <span className="block text-sm font-extrabold text-white">Study — spela själv</span>
+            <span className="block text-xs text-slate-400">Dina quiz och gloskort i ditt eget tempo.</span>
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-indigo-300 transition-transform group-hover:translate-x-0.5" />
+      </Link>
     </div>
   );
 }

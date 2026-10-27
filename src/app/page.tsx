@@ -33,7 +33,7 @@ const MODES = [
   {
     name: "Vault Raiders",
     kicker: "Raid & försvara",
-    text: "Svara rätt och fyll ditt valv, raid:a en kompis — eller köp ett lasergitter innan någon raid:ar dig.",
+    text: "Svara rätt och fyll ditt valv, öppna en kista varje runda — jackpot, stöld eller byte med ledaren — och köp ett lasergitter innan någon raid:ar dig.",
     mint: "100 Mint",
     keenId: "chubbypig",
     card: "from-amber-500/25 via-amber-500/[0.06] to-transparent",
@@ -45,7 +45,7 @@ const MODES = [
   {
     name: "Crypto Clash",
     kicker: "Hack & spåra",
-    text: "Mina Crypto med rätta svar, hacka andra plånböcker och håll din trace låg så ingen kan peka ut dig.",
+    text: "Mina Crypto med rätta svar, dubbla plånboken en gång per match, hacka andras wallets och håll din trace låg.",
     mint: "120 Mint",
     keenId: "invader",
     card: "from-sky-500/25 via-sky-500/[0.06] to-transparent",
@@ -141,7 +141,8 @@ export default function Home() {
               Keen-samling — och slåss om förstaplatsen i{" "}
               <strong className="font-bold text-slate-200">Vault Raiders</strong>,{" "}
               <strong className="font-bold text-slate-200">Crypto Clash</strong> och{" "}
-              <strong className="font-bold text-slate-200">Pirate Heist</strong>.
+              <strong className="font-bold text-slate-200">Pirate Heist</strong>. Och när provet närmar sig finns{" "}
+              <strong className="font-bold text-slate-200">Study</strong> — solo, i ditt eget tempo.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -267,6 +268,7 @@ export default function Home() {
                     "Vault Raiders",
                     "Crypto Clash",
                     "Pirate Heist",
+                    "Study",
                     "XP & mynt",
                     "Keens",
                     "Mint",
