@@ -16,6 +16,7 @@ import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
+import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
 import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
@@ -28,6 +29,7 @@ import {
   newHeist,
   nextRound,
   standings,
+  type ChestReveal as ChestRevealData,
   type HeistAction,
   type HeistState,
   type ModeId,
@@ -80,6 +82,10 @@ export default function HostPage() {
   // add the heist layer, and the host picks before the game starts.
   const [mode, setMode] = useState<ModeId>("classic");
   const [heist, setHeist] = useState<HeistState | null>(null);
+  // The chest pull the room is watching right now. A chest is the one event in
+  // Vault Raiders that everybody should see at the same moment, so the host
+  // shows it too instead of leaving it on the puller's phone.
+  const [chestReveal, setChestReveal] = useState<ChestRevealData | null>(null);
 
   const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
@@ -197,6 +203,12 @@ export default function HostPage() {
         safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: result.error } });
         return;
       }
+      // A chest is the room's moment: the board goes out first, then the pull
+      // goes up on every screen — the puller's, the other players', and this one.
+      if (result.reveal) {
+        setChestReveal(result.reveal);
+        safeSend(game, { type: "broadcast", event: "heist-reveal", payload: result.reveal });
+      }
       publishHeist(result.state);
     });
     game.on("broadcast", { event: "sync" }, () => {
@@ -274,6 +286,8 @@ export default function HostPage() {
     startRef.current = Date.now();
     // A new round is when heist energy refills: the next correct answer pays.
     if (heistRef.current) publishHeist(nextRound(heistRef.current));
+    // Last question's chest should not still be hanging over the projector.
+    setChestReveal(null);
     broadcast("question", { index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length });
     setPhase("question");
   }
@@ -875,6 +889,9 @@ export default function HostPage() {
           </div>
         )}
       </div>
+
+      {/* What the room just watched someone pull out of a chest. */}
+      {chestReveal && <ChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
     </div>
   );
 }

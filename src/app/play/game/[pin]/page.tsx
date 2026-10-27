@@ -10,9 +10,16 @@ import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
 import HeistPanel from "@/components/heist-panel";
+import { ChestPick, ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
 import { ANSWER_TINTS as COLORS } from "@/lib/answer-tints";
-import type { HeistAction, HeistState } from "@/lib/game-modes";
+import {
+  MODE_RULES,
+  chestOpen,
+  type ChestReveal as ChestRevealData,
+  type HeistAction,
+  type HeistState,
+} from "@/lib/game-modes";
 
 const SHAPES = [
   <svg key="t" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><path d="M12 3l9 17H3z" /></svg>,
@@ -49,6 +56,12 @@ function GameInner() {
   const [heistNote, setHeistNote] = useState<string | null>(null);
   const [heistSending, setHeistSending] = useState(false);
   const [myMint, setMyMint] = useState<number | null>(null);
+  // The chest pull, put on this screen by the host. Everyone gets it: the
+  // person who tapped and the eleven people watching them.
+  const [chestReveal, setChestReveal] = useState<ChestRevealData | null>(null);
+  // The round this player waved the chest away, so the picker does not nag
+  // twice about the same question.
+  const [chestSkipped, setChestSkipped] = useState<number | null>(null);
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
@@ -107,6 +120,10 @@ function GameInner() {
       const p = msg.payload as { to?: string; text?: string };
       if (p?.to !== name) return;
       setHeistNote(p.text ?? null);
+      setHeistSending(false);
+    });
+    game.on("broadcast", { event: "heist-reveal" }, (msg) => {
+      setChestReveal(msg.payload as ChestRevealData);
       setHeistSending(false);
     });
 
@@ -198,6 +215,17 @@ function GameInner() {
   // The heist panel runs beside the question on a laptop and underneath it on a
   // phone, so a match is played on one screen instead of two stacked cards.
   const showHeist = Boolean(heist) && (phase === "question" || phase === "reveal");
+  // Vault Raiders hands out one chest a question. It opens between questions —
+  // during the reveal, never during the clock — because a chest is the one
+  // decision in a match that is yours alone, and it should not cost you an
+  // answer. If you would rather open it yourself, the panel still has the
+  // three boxes for the rest of the round.
+  const canPickChest =
+    heist !== null &&
+    heist.mode === "vault" &&
+    phase === "reveal" &&
+    chestOpen(heist, name) &&
+    chestSkipped !== heist.round;
 
   return (
     <div className="min-h-screen pb-8">
@@ -427,6 +455,23 @@ function GameInner() {
           </aside>
         )}
       </div>
+
+      {/* The pick. Always on top of the question, because it is the one thing a
+          player does without the rest of the room watching their answers. */}
+      {canPickChest && heist && !chestReveal && (
+        <ChestPick
+          name={name}
+          keenId={heist.players[name]?.keen ?? null}
+          legend={MODE_RULES[heist.mode].chests?.map((c) => c.name) ?? []}
+          question={(question?.index ?? 0) + 1}
+          pending={heistSending}
+          onPick={(chest) => heistAction({ kind: "chest", chest })}
+          onSkip={() => setChestSkipped(heist.round)}
+        />
+      )}
+
+      {/* And what was inside, on every screen at once. */}
+      {chestReveal && <ChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
     </div>
   );
 }

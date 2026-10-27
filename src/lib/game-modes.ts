@@ -74,6 +74,32 @@ export type ChestOutcome = {
   value?: number;
 };
 
+/**
+ * What a chest pull did, handed back by the rules so the room can watch it.
+ *
+ * A chest is the loudest thing in Vault Raiders, and half the fun is that
+ * everyone sees the pull rather than just the person who tapped. The host
+ * broadcasts one of these to every screen, which is why it is structured data
+ * and not a sentence.
+ */
+export type ChestReveal = {
+  /** Who opened it. */
+  name: string;
+  keen: string | null;
+  /** Which of the three chests was tapped, 0–2. */
+  chest: number;
+  kind: ChestKind;
+  /** What was inside: "Full kista", "Byte", "Tom kista". */
+  title: string;
+  blurb: string;
+  /** What it did to the opener's purse — negative on a bad swap. */
+  delta: number;
+  /** The rival involved, when the chest robbed or traded with someone. */
+  rival?: string;
+  /** The feed line, so a screen can print the same sentence the host wrote. */
+  text: string;
+};
+
 /** A one-tap power-up, Crypto Hack style. */
 export type Power = {
   id: string;
@@ -269,11 +295,14 @@ export type HeistState = {
 export type HeistAction =
   | { kind: "raid"; target: string; style?: string }
   | { kind: "fortify"; defense: string }
-  | { kind: "chest" }
+  /** `chest` is which of the three was tapped, 0–2. */
+  | { kind: "chest"; chest?: number }
   | { kind: "power"; power: string }
   | { kind: "save" };
 
-export type ActionResult = { ok: true; state: HeistState } | { ok: false; error: string };
+export type ActionResult =
+  | { ok: true; state: HeistState; reveal?: ChestReveal }
+  | { ok: false; error: string };
 
 export type Standings = { name: string; keen: string | null; balance: number; raids: number; correct: number }[];
 
@@ -494,9 +523,19 @@ export function applyAction(
     if (me.chestRound === next.round) {
       return { ok: false, error: "Du har redan öppnat en kista den här rundan." };
     }
+    // Which of the three chests was tapped, and not just decoration. Each box
+    // gets its own draw, so the three really do hold different things and the
+    // tap is the decision; a caller that sends no index gets the first box.
+    const chest = typeof action.chest === "number" ? Math.min(2, Math.max(0, Math.floor(action.chest))) : 0;
     me.chestRound = next.round;
 
-    const outcome = drawChest(chests, rng());
+    let roll = rng();
+    for (let i = 0; i < chest; i += 1) roll = rng();
+    const outcome = drawChest(chests, roll);
+    // Measured rather than assumed: a swap can leave the opener poorer than
+    // they started, and the reveal has to say so out loud.
+    const before = me.balance;
+    let rival: string | undefined;
 
     if (outcome.kind === "gold") {
       const coins = outcome.value ?? 0;
@@ -507,6 +546,7 @@ export function applyAction(
       if (!victim) {
         pushEvent(next, `${name} öppnade ${outcome.name} men det fanns ingen att råna.`, now);
       } else {
+        rival = victim.name;
         const steal = Math.max(
           0,
           Math.min(CHEST_STEAL_CAP, Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
@@ -522,16 +562,17 @@ export function applyAction(
         );
       }
     } else if (outcome.kind === "swap") {
-      const rival = randomRival(next, name, rng());
-      if (!rival) {
+      const partner = randomRival(next, name, rng());
+      if (!partner) {
         pushEvent(next, `${name} öppnade ${outcome.name} men ingen fanns att byta med.`, now);
       } else {
+        rival = partner.name;
         const mine = me.balance;
-        me.balance = rival.balance;
-        rival.balance = mine;
+        me.balance = partner.balance;
+        partner.balance = mine;
         pushEvent(
           next,
-          `${name} bytte saldo med ${rival.name} — sitter nu på ${me.balance} ${rules.currencyShort}.`,
+          `${name} bytte saldo med ${partner.name} — sitter nu på ${me.balance} ${rules.currencyShort}.`,
           now
         );
       }
@@ -548,7 +589,21 @@ export function applyAction(
     } else {
       pushEvent(next, `${name} öppnade en tom kista.`, now);
     }
-    return { ok: true, state: next };
+
+    const reveal: ChestReveal = {
+      name,
+      keen: me.keen,
+      chest,
+      kind: outcome.kind,
+      title: outcome.name,
+      blurb: outcome.blurb,
+      delta: me.balance - before,
+      rival,
+      // The branch above already wrote the sentence, so a screen never has to
+      // invent its own wording for what happened.
+      text: next.events[0]?.text ?? "",
+    };
+    return { ok: true, state: next, reveal };
   }
 
   // ── Crypto Hack power-up ───────────────────────────────────────────────

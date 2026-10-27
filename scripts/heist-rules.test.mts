@@ -16,6 +16,7 @@ import {
   newHeist,
   nextRound,
   standings,
+  type ChestReveal,
   type HeistState,
 } from "../src/lib/game-modes.ts";
 
@@ -58,6 +59,13 @@ function openChest(state: HeistState, who: string, rng: () => number) {
   const out = applyAction(state, who, { kind: "chest" }, 1000, rng);
   assert.equal(out.ok, true, "the chest should open");
   return (out as { ok: true; state: HeistState }).state;
+}
+
+/** Open a named chest and keep the whole result, reveal included. */
+function pullChest(state: HeistState, who: string, chest: number, rng: () => number) {
+  const out = applyAction(state, who, { kind: "chest", chest }, 1000, rng);
+  assert.equal(out.ok, true, "the chest should open");
+  return out as { ok: true; state: HeistState; reveal?: ChestReveal };
 }
 
 console.log("\nVault Raiders");
@@ -230,6 +238,43 @@ check("a shield chest hands over a laser grid", () => {
 check("the empty chest costs nothing", () => {
   const next = openChest(newHeist("vault", seats), "Alva", seq(0.99));
   assert.equal(next.players.Alva.balance, 1000);
+});
+
+check("each of the three chests holds its own thing", () => {
+  // One tap chooses between three draws that were already rolled, so the tap is
+  // a real decision rather than the same box with three labels on it.
+  const kinds = [0, 1, 2].map(
+    (chest) => pullChest(newHeist("vault", seats), "Alva", chest, seq(0, 0.4, 0.6)).reveal?.kind
+  );
+  assert.deepEqual(kinds, ["gold", "steal", "swap"]);
+});
+
+check("a chest index outside the three is clamped, not trusted", () => {
+  const out = pullChest(newHeist("vault", seats), "Alva", 9, seq(0.4, 0.6, 0.75));
+  assert.equal(out.reveal?.chest, 2);
+});
+
+check("the pull is handed back so the room can watch it", () => {
+  const h = newHeist("vault", seats);
+  setBalance(h, "Bo", 3000);
+  // Draw one is the pouch, so box two is the steal, then 0 picks the first rival.
+  const out = pullChest(h, "Alva", 1, seq(0, 0.4, 0));
+  assert.equal(out.reveal?.name, "Alva");
+  assert.equal(out.reveal?.chest, 1);
+  assert.equal(out.reveal?.kind, "steal");
+  assert.equal(out.reveal?.rival, "Bo");
+  assert.equal(out.reveal?.delta, CHEST_STEAL_CAP);
+  assert.equal(out.reveal?.text, out.state.events[0].text, "the reveal quotes the feed line");
+  assert.equal(out.state.players.Bo.balance, 3000 - CHEST_STEAL_CAP);
+});
+
+check("a swap reports a loss when it trades down", () => {
+  const h = newHeist("vault", seats);
+  setBalance(h, "Alva", 5000);
+  setBalance(h, "Bo", 400);
+  const out = pullChest(h, "Alva", 0, seq(0.6, 0));
+  assert.equal(out.reveal?.kind, "swap");
+  assert.equal(out.reveal?.delta, -4600, "the reveal must not pretend a bad swap paid");
 });
 
 check("the other modes have no chests", () => {

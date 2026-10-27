@@ -116,7 +116,9 @@ export default function HeistPanel({
                     key={i}
                     type="button"
                     disabled={pending || !ready}
-                    onClick={() => onAction({ kind: "chest" })}
+                    // The tap picks a specific box, so the three are not the same
+                    // button three times: the rules draw against the index.
+                    onClick={() => onAction({ kind: "chest", chest: i })}
                     className="group relative overflow-hidden rounded-xl border border-amber-400/30 bg-gradient-to-b from-amber-500/25 to-amber-900/20 px-2 py-2.5 text-center transition-all hover:border-amber-300/70 hover:from-amber-400/35 disabled:opacity-40"
                   >
                     <Gift className="mx-auto h-5 w-5 text-amber-200 transition-transform duration-200 group-hover:scale-110" />
