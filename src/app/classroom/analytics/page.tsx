@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import PageHeader, { HeaderStat } from "@/components/page-header";
+import Progress from "@/components/ui/progress";
 import { giveStudentXP, warnStudent, setClassMessage } from "../actions";
 import { 
   BarChart3, 
@@ -12,7 +14,9 @@ import {
   FileText, 
   AlertTriangle, 
   Award,
-  Clock
+  Clock,
+  Users,
+  Target
 } from "lucide-react";
 
 export default async function AnalyticsPage() {
@@ -31,24 +35,51 @@ export default async function AnalyticsPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
-          <BarChart3 className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold text-white flex items-center gap-2">
-            Klass-analytics
-            <span className="text-sm font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <GraduationCap className="h-3.5 w-3.5" /> Lärarläge
-            </span>
-          </h1>
-          <p className="text-xs text-slate-400">Översikt över elevernas aktivitet, läxor och resultat</p>
-        </div>
-      </div>
+  const students = rooms.reduce((n, r) => n + r.enrollments.length, 0);
+  const assignments = rooms.reduce((n, r) => n + r.assignments.length, 0);
+  const handedIn = rooms.reduce(
+    (n, r) => n + r.enrollments.reduce((m, e) => m + e.student.completions.length, 0),
+    0
+  );
+  const expected = students * assignments;
+  const handInRate = expected ? Math.round((handedIn / expected) * 100) : 0;
+  const needHelp = rooms.reduce(
+    (n, r) =>
+      n +
+      r.enrollments.filter(
+        (e) => r.assignments.length > 0 && e.student.completions.filter((c) => r.assignments.some((a) => a.id === c.assignmentId)).length === 0
+      ).length,
+    0
+  );
 
-      {rooms.length === 0 && <p className="mt-6 text-slate-400">Inga klassrum ännu — skapa ett först!</p>}
+  return (
+    <div data-accent="sky" className="mx-auto max-w-6xl px-4 py-10">
+      <PageHeader
+        accent="sky"
+        eyebrow="Analys · lärarläge"
+        icon={BarChart3}
+        title={
+          <>
+            Hur går det för <span className="text-shine">klassen</span>?
+          </>
+        }
+        lead="Realtidssiffror per klass: hur många som lämnat in, vem som ligger efter och vilka som behöver en knuff. Sänd ett klassmeddelande direkt härifrån — eleverna ser det live."
+        chips={
+          <>
+            <HeaderStat icon={School} label="klasser" value={rooms.length} />
+            <HeaderStat icon={Users} label="elever" value={students} tone="violet" />
+            <HeaderStat icon={FileText} label="läxor" value={assignments} tone="sky" />
+            <HeaderStat icon={Target} label="inlämnat" value={`${handInRate}%`} tone="emerald" />
+            <HeaderStat icon={Clock} label="ligger efter" value={needHelp} tone="amber" />
+          </>
+        }
+      />
+
+      {rooms.length === 0 && (
+        <p className="mt-6 rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-400">
+          Inga klassrum ännu — skapa ett först!
+        </p>
+      )}
       
       <div className="mt-8 space-y-8">
         {rooms.map((room) => {
@@ -84,7 +115,7 @@ export default async function AnalyticsPage() {
                     const slacking = room.assignments.length > 0 && done === 0;
                     return (
                       <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-bold text-white flex items-center gap-2">
                             <span>{e.student.username}</span>
                             {slacking && (
@@ -93,9 +124,13 @@ export default async function AnalyticsPage() {
                               </span>
                             )}
                           </p>
+                          {/* The level bar is computed from XP, so a staff reset in
+                              the console shows up here as level 1 immediately. */}
+                          <div className="mt-2 max-w-xs">
+                            <Progress xp={e.student.xp} />
+                          </div>
                           <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                            <span>Lv {e.student.level}</span>
-                            <span>{e.student.xp} XP</span>
+                            <span data-no-translate>{e.student.xp} XP</span>
                             <span className="flex items-center gap-1">
                               <FileText className="h-3 w-3 text-slate-500" />
                               {done}/{room.assignments.length} läxor

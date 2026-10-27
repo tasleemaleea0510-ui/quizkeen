@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { updateUsername, updatePassword } from "./actions";
 import ColorForm from "./color-form";
+import PageHeader, { HeaderStat } from "@/components/page-header";
+import LevelRing from "@/components/motion/level-ring";
+import { levelFor, levelTitle } from "@/lib/levels";
 import { ROLE_THEME } from "@/lib/roles";
 import { Settings, User, BarChart3, Key, Edit3, Save, Coins, Zap, Award, Palette } from "lucide-react";
 
@@ -33,16 +36,37 @@ export default async function SettingsPage({
   const isRate = !!searchParams.err && /rate|limit|many|attempt/i.test(searchParams.err);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
-      <div className="flex items-center gap-3.5">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-indigo-400/30 bg-indigo-500/15 text-indigo-300">
-          <Settings className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="page-title">Inställningar</h1>
-          <p className="mt-1 text-sm text-slate-400">Hantera konto, lösenord och profiluppgifter</p>
-        </div>
-      </div>
+    <div data-accent="indigo" className="mx-auto max-w-3xl px-4 py-10">
+      <PageHeader
+        accent="indigo"
+        eyebrow="Inställningar"
+        icon={Settings}
+        title={
+          <>
+            Ditt <span className="text-shine">konto</span>
+          </>
+        }
+        lead="Namn, lösenord, färg och statistik. Ändringar slår igenom direkt — inget att spara någon annanstans."
+        chips={
+          <>
+            <HeaderStat icon={Award} label="nivå" value={levelFor(profile.xp)} tone="violet" />
+            <HeaderStat icon={Zap} label="XP" value={profile.xp.toLocaleString("sv-SE")} tone="emerald" />
+            <HeaderStat icon={Coins} label="mynt" value={profile.coins.toLocaleString("sv-SE")} tone="amber" />
+          </>
+        }
+      />
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr]">
+        <aside className="surface p-5">
+          <p className="stat-label">Din nivå</p>
+          <LevelRing xp={profile.xp} size={104} className="mt-3" />
+          <p className="mt-4 text-sm font-bold text-white">{levelTitle(levelFor(profile.xp))}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            XP kommer från spel, läxor, repetition och uppdrag — nivån räknas alltid ut från den.
+          </p>
+        </aside>
+
+        <div className="space-y-6">
 
       {msg && (
         <div
@@ -93,7 +117,7 @@ export default async function SettingsPage({
         <CardContent className="flex flex-wrap gap-8 text-2xl font-extrabold">
           <div className="flex items-center gap-2 text-indigo-400">
             <Award className="h-5 w-5" />
-            <span>Lv {profile.level}</span>
+            <span>Lv {levelFor(profile.xp)}</span>
           </div>
           <div className="flex items-center gap-2 text-emerald-400">
             <Zap className="h-5 w-5" />
@@ -152,6 +176,8 @@ export default async function SettingsPage({
           </form>
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }

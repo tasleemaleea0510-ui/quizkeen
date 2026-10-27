@@ -86,8 +86,21 @@ function ago(iso: string | null): string {
  * app/system/moderation.ts). Everything a role may not do is simply absent:
  * security sees three ban lengths, an admin sees a day, the owner sees forever.
  */
-export default function StaffPanel({ role }: { role: StaffRole }) {
-  const [open, setOpen] = useState(false);
+export default function StaffPanel({
+  role,
+  /**
+   * Open on mount and hide the floating trigger.
+   *
+   * `/system/staff` is the same panel as a page: a laptop-sized place to work
+   * through a class, reached from the header. Keeping one implementation means
+   * the two surfaces can never disagree about what a role may do.
+   */
+  autoOpen = false,
+}: {
+  role: StaffRole;
+  autoOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(autoOpen);
   const [data, setData] = useState<ModerationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
@@ -158,6 +171,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
 
   return (
     <>
+      {!autoOpen && (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -175,6 +189,7 @@ export default function StaffPanel({ role }: { role: StaffRole }) {
         <Shield className="h-4 w-4" />
         <span className="hidden sm:inline">Moderering</span>
       </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-[120] flex justify-end">

@@ -14,8 +14,15 @@ import {
 import KeenAvatar from "@/components/keens/keen-avatar";
 import Reveal from "@/components/motion/reveal";
 import Tilt from "@/components/motion/tilt";
+import Spotlight from "@/components/motion/spotlight";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
-import { KEEN_BY_ID } from "@/lib/keens";
+import { KEEN_BY_ID, TOTAL_KEENS } from "@/lib/keens";
+import { readBoard } from "@/lib/leaderboard";
+import { levelFor } from "@/lib/levels";
+import { Brain, Flame, TrendingUp, Trophy as TrophyIcon } from "lucide-react";
+
+// The front page reads the live board, so it must not be baked at build time.
+export const dynamic = "force-dynamic";
 
 /**
  * The front page.
@@ -101,10 +108,15 @@ const STEPS = [
   { title: "Kör matchen", text: "Frågor, minispel och en mode-final med Mint." },
 ];
 
-export default function Home() {
+export default async function Home() {
   const heroKeen = keenById("chubbypig");
   const peekKeen = keenById("crewmate");
   const collection = ["invader", "crewmate", "chubbypig", "creeper", "pixelthorne"].map(keenById);
+
+  // The board is printed on the front page, so a visitor sees a school that is
+  // actually in use rather than a promise that it could be. It is one small
+  // query, and the page is dynamic anyway.
+  const board = await readBoard({ scope: "elever", limit: 5 }).catch(() => null);
 
   return (
     <div className="relative overflow-hidden text-white">
@@ -174,7 +186,7 @@ export default function Home() {
                     </span>
                   ))}
                 </span>
-                10 Keens att samla
+                {TOTAL_KEENS} Keens att samla
               </span>
               <span className="flex items-center gap-1.5">
                 <Trophy className="h-4 w-4 text-amber-300" />
@@ -386,6 +398,112 @@ export default function Home() {
             })}
           </div>
         </section>
+
+        {/* ── Lära på riktigt ───────────────────────────────────────────── */}
+        <section data-accent="emerald" className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">
+          <Reveal>
+            <div className="mx-auto max-w-2xl text-center">
+              <span className="eyebrow">
+                <Brain className="h-3.5 w-3.5" /> Lär på riktigt
+              </span>
+              <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                Spelet är roligt. <span className="text-shine">Glömskan är fienden.</span>
+              </h2>
+              <p className="mt-3 text-base leading-relaxed text-slate-400">
+                QuizKeen är byggt för att du ska komma ihåg på provet också: repetition i rätt intervall, uppdrag som får
+                dig tillbaka varje dag, och siffror som visar om det går åt rätt håll.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 sm:grid-cols-3">
+              {[
+                {
+                  icon: Brain,
+                  title: "Repetition som minns",
+                  text: "Ett gloskort du kan kommer tillbaka om 1, 3, 7 eller 16 dagar. Ett du missar dyker upp igen i samma pass — istället för att försvinna.",
+                  tone: "border-sky-400/30 bg-sky-500/15 text-sky-300",
+                },
+                {
+                  icon: Flame,
+                  title: "Dagens uppdrag",
+                  text: "Tre små mål om dagen, samma för hela skolan. Klara dem och XP:n trillar in — det är den vanan som gör skillnad.",
+                  tone: "border-amber-400/30 bg-amber-500/15 text-amber-300",
+                },
+                {
+                  icon: TrendingUp,
+                  title: "Framsteg du ser",
+                  text: "Träffsäkerhet per klass, svit i dagar och nästa nivå — siffror som kommer från dina egna matcher och läxor, inte från ett klick.",
+                  tone: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300",
+                },
+              ].map((card, i) => (
+                <Reveal key={card.title} delay={i * 70}>
+                  <Spotlight className="surface card-hover h-full p-5">
+                    <span className={`grid h-12 w-12 place-items-center rounded-2xl border ${card.tone}`}>
+                      <card.icon className="h-6 w-6" />
+                    </span>
+                    <p className="mt-4 font-display text-lg font-extrabold text-white">{card.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-400">{card.text}</p>
+                  </Spotlight>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+        </section>
+
+        {/* ── Ledartavlan, live ───────────────────────────────────────────── */}
+        {board && board.rows.length > 0 && (
+          <section data-accent="amber" className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">
+            <Reveal>
+              <div className="surface p-6 sm:p-8">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <span className="eyebrow">
+                      <TrophyIcon className="h-3.5 w-3.5" /> Live just nu
+                    </span>
+                    <h2 className="mt-3 font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                      Toppen av skolan
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-400" data-no-translate>
+                      {board.stats.players} spelare · {board.stats.xp.toLocaleString("sv-SE")} XP utdelat
+                    </p>
+                  </div>
+                  <Link
+                    href="/leaderboard"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-white hover:border-white/25"
+                  >
+                    Hela tavlan <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+
+                <ol className="stagger-list mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  {board.rows.map((row) => (
+                    <li key={row.username} className="surface-flat flex items-center gap-3 p-3">
+                      <span
+                        className={`medal h-10 w-10 shrink-0 overflow-hidden bg-gradient-to-br text-sm ${
+                          row.rank === 1
+                            ? "from-amber-300 to-amber-500 text-slate-950"
+                            : row.rank === 2
+                              ? "from-slate-200 to-slate-400 text-slate-950"
+                              : row.rank === 3
+                                ? "from-orange-300 to-orange-600 text-slate-950"
+                                : "from-white/10 to-white/5 text-slate-300"
+                        }`}
+                      >
+                        <span className="relative z-10">{row.rank}</span>
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-white">{row.username}</span>
+                        <span className="block text-xs text-slate-400 tabular" data-no-translate>
+                          Lv {levelFor(row.xp)} · {row.xp.toLocaleString("sv-SE")} XP
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </Reveal>
+          </section>
+        )}
 
         {/* ── Keens ─────────────────────────────────────────────────────── */}
         <section className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">

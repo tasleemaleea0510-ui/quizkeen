@@ -88,22 +88,35 @@ export async function logActivity(username: string, action: string) {
 }
 
 /**
- * Who the navbar is looking at — name and role, one row.
+ * Who the navbar is looking at — name, role and wallet, one row.
  *
  * The Browser used to read the Profile table straight with the anon key, which
  * row level security refuses: a 403 on every page and a teacher's nav that never
  * learned it was dealing with a teacher. The server has the session cookie, so it
  * can answer this without loosening a policy.
+ *
+ * XP and coins ride along because the header shows both: a second round trip to
+ * draw two numbers would be a second auth check for the same person, and it
+ * would let the header and the dashboard disagree for a moment about the same
+ * account.
  */
-export async function getNavUser(): Promise<{ username: string; role: string; accentColor: string | null } | null> {
+export async function getNavUser(): Promise<{
+  username: string;
+  role: string;
+  accentColor: string | null;
+  xp: number;
+  coins: number;
+} | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const p = await prisma.profile.findUnique({
     where: { id: user.id },
-    select: { username: true, role: true, accentColor: true },
+    select: { username: true, role: true, accentColor: true, xp: true, coins: true },
   });
-  return p ? { username: p.username, role: p.role, accentColor: p.accentColor } : null;
+  return p
+    ? { username: p.username, role: p.role, accentColor: p.accentColor, xp: p.xp, coins: p.coins }
+    : null;
 }
 /** The live notice, or null once its time is up. No auth needed. */
 export async function getBroadcast() {

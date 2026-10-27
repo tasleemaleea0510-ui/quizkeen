@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────────────────────────────────────────────────────────────────────────
+   QuizKeen — the design language.
+
+   Three ideas hold the whole app together:
+
+   1. **Deep space, warm light.** The page is near-black with three slow colour
+      fields drifting behind it; everything the student reads sits on a pane of
+      glass above them. Colour is never flat — it always has a direction.
+   2. **One accent per room.** Every page sets `--accent`; buttons, rings and
+      glows read from it. That is what lets the learning pages be calm cyan, the
+      collection violet and a live game orange without three stylesheets.
+   3. **Motion is feedback, never noise.** Things arrive, count up, fill and
+      settle. All of it is decoration: with `prefers-reduced-motion` the app is
+      completely still and exactly as usable.
+   ─────────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
     --background: 224 47% 5%;
@@ -16,7 +32,18 @@
     --border: 217 33% 18%;
     --input: 217 33% 18%;
     --ring: 243 75% 60%;
-    --radius: 0.75rem;
+    --radius: 0.9rem;
+
+    /* The default accent (indigo) and its three useful forms. Pages override
+       these by setting `data-accent`, below. */
+    --accent-h: 243;
+    --accent-s: 78%;
+    --accent-l: 62%;
+    --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+    --accent-bright: hsl(var(--accent-h) 90% 72%);
+    --accent-deep: hsl(var(--accent-h) 70% 44%);
+    --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.14);
+    --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
   }
 
   * {
@@ -31,11 +58,11 @@
   body {
     @apply bg-slate-950 text-white antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    background-color: #05060f;
+    background-color: #04050c;
     background-image:
-      radial-gradient(900px 520px at 12% -8%, rgba(99, 102, 241, 0.20), transparent 60%),
-      radial-gradient(760px 460px at 92% 4%, rgba(139, 92, 246, 0.16), transparent 62%),
-      radial-gradient(900px 620px at 50% 108%, rgba(56, 189, 248, 0.10), transparent 66%);
+      radial-gradient(1000px 560px at 8% -10%, rgba(99, 102, 241, 0.22), transparent 62%),
+      radial-gradient(820px 500px at 96% 2%, rgba(192, 38, 211, 0.15), transparent 62%),
+      radial-gradient(980px 640px at 50% 112%, rgba(56, 189, 248, 0.12), transparent 66%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -47,12 +74,19 @@
 
   :focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #05060f, 0 0 0 4px rgba(129, 140, 248, 0.75);
-    border-radius: 0.5rem;
+    box-shadow: 0 0 0 2px #05060f, 0 0 0 4px var(--accent-bright);
+    border-radius: 0.6rem;
+  }
+
+  /* Numbers that change should not jitter. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+
   .glass {
     @apply border border-white/5 bg-white/[0.03] backdrop-blur-xl;
   }
@@ -61,14 +95,37 @@
     @apply border border-white/10 bg-slate-900/70 backdrop-blur-xl;
   }
 
-  .text-gradient {
-    @apply bg-gradient-to-r from-indigo-400 via-violet-400 to-sky-400 bg-clip-text text-transparent;
+  /* A pane of glass with a lit top edge, a faint colour bleed from the accent,
+     and a real shadow under it. The single most-used surface in the app. */
+  .surface {
+    @apply relative rounded-[26px] border border-white/10 backdrop-blur-xl;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015) 42%, rgba(255, 255, 255, 0.008)),
+      linear-gradient(135deg, var(--accent-soft), transparent 58%),
+      rgba(6, 8, 20, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.015),
+      0 30px 70px -46px rgba(0, 0, 0, 0.98);
   }
 
-  /* The hover for anything clickable that is not a button: the front page's
-     cards lift a little and warm up towards indigo. */
+  /* The same pane, cheaper: for the many rows inside a page. */
+  .surface-flat {
+    @apply relative rounded-2xl border border-white/[0.07] bg-slate-950/50 backdrop-blur-sm;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-sky-400 bg-clip-text text-transparent;
+  }
+
+  /* The hover for anything clickable that is not a button: the card lifts a
+     little, warms up towards the accent, and the light under it grows. */
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/40 hover:bg-white/[0.06] hover:shadow-[0_28px_60px_-32px_rgba(99,102,241,0.55)];
+    @apply transition-all duration-300 hover:-translate-y-1 hover:border-white/20;
+  }
+  .card-hover:hover {
+    background-color: rgba(255, 255, 255, 0.055);
+    box-shadow: 0 30px 64px -34px var(--accent-line), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   .chip {
@@ -78,21 +135,125 @@
   /* A page's small label and its one big heading. Used instead of inventing a
      new title style on every screen. */
   .eyebrow {
-    @apply inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wider text-indigo-200;
+    @apply inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wider;
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: hsl(var(--accent-h) 90% 84%);
   }
 
   .page-title {
     @apply font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl;
   }
 
-  /* A panel that is not a <Card>: a hero band, a banner, a strip. */
-  .surface {
-    @apply rounded-[24px] border border-white/10 bg-white/[0.04] backdrop-blur-xl;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 28px 60px -40px rgba(0, 0, 0, 0.95);
+  .section-title {
+    @apply font-display text-xl font-extrabold tracking-tight text-white;
   }
 
   .answer-tile {
     @apply relative overflow-hidden rounded-2xl border border-white/10 p-6 text-left text-lg font-bold text-white shadow-raise transition-all duration-200;
+  }
+
+  /* ── Small building blocks ─────────────────────────────────────────────── */
+
+  /* A number with its label, used across the dashboard, the consoles and the
+     new progress page so a "12" always looks like the same kind of thing. */
+  .stat-tile {
+    @apply surface-flat flex flex-col gap-1 p-4;
+  }
+  .stat-value {
+    @apply font-display text-2xl font-extrabold leading-none tracking-tight text-white;
+  }
+  .stat-label {
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500;
+  }
+
+  /* XP, progress and quest bars all fill the same way. */
+  .bar {
+    @apply relative h-2.5 w-full overflow-hidden rounded-full bg-white/[0.07];
+  }
+  .bar-fill {
+    @apply relative h-full rounded-full;
+    background-image: linear-gradient(90deg, var(--accent-deep), var(--accent), var(--accent-bright));
+    background-size: 200% 100%;
+    animation: bar-pan 6s ease-in-out infinite;
+    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* The travelling light that makes a bar read as "alive". */
+  .bar-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: translateX(-100%);
+    animation: bar-sheen 2.6s ease-in-out infinite;
+  }
+
+  /* A pointer-tracked highlight. The component writes --mx/--my on hover. */
+  .spotlight::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(
+      260px circle at var(--mx, 50%) var(--my, 50%),
+      hsl(var(--accent-h) 90% 70% / 0.16),
+      transparent 68%
+    );
+  }
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+
+  /* Placeholder rows while a route streams in. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-white/[0.05];
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 1.7s ease-in-out infinite;
+  }
+
+  /* Medals for the top three of anything. */
+  .medal {
+    @apply relative grid place-items-center rounded-2xl font-display font-extrabold;
+  }
+  .medal::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+    transform: translateX(-120%);
+    animation: medal-sheen 4.5s ease-in-out infinite;
+  }
+
+  /* Animated gradient text, for a heading that should feel alive. */
+  .text-shine {
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--accent-h) 90% 78%),
+      #fff 45%,
+      hsl(var(--accent-h) 90% 72%) 60%,
+      hsl(calc(var(--accent-h) + 40) 90% 72%)
+    );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: text-pan 7s linear infinite;
+  }
+
+  /* The streak flame on the dashboard and the progress page. */
+  .flame {
+    animation: flame-flicker 1.6s ease-in-out infinite;
+    transform-origin: 50% 85%;
   }
 }
 
@@ -101,7 +262,76 @@
   .animate-delay-2 { animation-delay: 0.12s; }
   .animate-delay-3 { animation-delay: 0.18s; }
   .animate-delay-4 { animation-delay: 0.24s; }
+  .animate-delay-5 { animation-delay: 0.30s; }
+  .animate-delay-6 { animation-delay: 0.36s; }
+
+  /* A list that arrives one row at a time. The item sets `--i`. */
+  .stagger {
+    animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+
+  /* A list that arrives one row at a time, whatever the layout is: the
+     animation is on the real children, and only the delay is staggered. */
+  .stagger-list > * {
+    animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .stagger-list > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-list > *:nth-child(2) { animation-delay: 45ms; }
+  .stagger-list > *:nth-child(3) { animation-delay: 90ms; }
+  .stagger-list > *:nth-child(4) { animation-delay: 135ms; }
+  .stagger-list > *:nth-child(5) { animation-delay: 180ms; }
+  .stagger-list > *:nth-child(6) { animation-delay: 225ms; }
+  .stagger-list > *:nth-child(7) { animation-delay: 270ms; }
+  .stagger-list > *:nth-child(8) { animation-delay: 315ms; }
+  .stagger-list > *:nth-child(9) { animation-delay: 360ms; }
+  .stagger-list > *:nth-child(10) { animation-delay: 405ms; }
+  .stagger-list > *:nth-child(n + 11) { animation-delay: 450ms; }
+
+  /* Fades the bottom of a scrolling list instead of cutting it off. */
+  .scroll-fade {
+    mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
+  }
+
+  /*
+   * The header's tab rail.
+   *
+   * A bar with more destinations than room should scroll sideways, not wrap:
+   * a wrapped header changes height while you are aiming at a button. The
+   * scrollbar itself is the only part nobody wants to see.
+   */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* A label that must never break onto a second line inside the header. */
+  .nowrap {
+    white-space: nowrap;
+  }
 }
+
+/* ── Accents ──────────────────────────────────────────────────────────────
+   One attribute swaps the whole colour mood of a page. Anything using the
+   `--accent*` variables follows, including the bars, eyebrows and glows. */
+[data-accent] {
+  --accent-h: 243;
+}
+[data-accent="indigo"]  { --accent-h: 240; --accent-s: 84%; --accent-l: 64%; }
+[data-accent="violet"]  { --accent-h: 265; --accent-s: 84%; --accent-l: 66%; }
+[data-accent="fuchsia"] { --accent-h: 292; --accent-s: 84%; --accent-l: 66%; }
+[data-accent="rose"]    { --accent-h: 343; --accent-s: 84%; --accent-l: 64%; }
+[data-accent="amber"]   { --accent-h: 38;  --accent-s: 94%; --accent-l: 60%; }
+[data-accent="orange"]  { --accent-h: 22;  --accent-s: 92%; --accent-l: 60%; }
+[data-accent="emerald"] { --accent-h: 158; --accent-s: 76%; --accent-l: 56%; }
+[data-accent="teal"]    { --accent-h: 174; --accent-s: 74%; --accent-l: 52%; }
+[data-accent="sky"]     { --accent-h: 199; --accent-s: 88%; --accent-l: 62%; }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
@@ -208,12 +438,43 @@ button:active, a:active {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.996);
+    transform: translateY(12px) scale(0.994);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bar-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes bar-sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(120%); }
+}
+
+@keyframes medal-sheen {
+  0%, 70% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+@keyframes text-pan {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); filter: brightness(1); }
+  35% { transform: scale(1.09) rotate(2deg); filter: brightness(1.18); }
+  70% { transform: scale(0.98) rotate(-1deg); filter: brightness(0.96); }
 }
 
 /* Three soft fields drifting behind the app. */
@@ -239,7 +500,7 @@ button:active, a:active {
   right: -14rem;
   width: 40rem;
   height: 40rem;
-  background: radial-gradient(circle at 60% 40%, rgba(168, 85, 247, 0.42), transparent 68%);
+  background: radial-gradient(circle at 60% 40%, rgba(192, 38, 211, 0.42), transparent 68%);
   animation: aurora-b 31s ease-in-out infinite alternate;
 }
 
@@ -248,7 +509,7 @@ button:active, a:active {
   left: 30%;
   width: 44rem;
   height: 44rem;
-  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.3), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.32), transparent 70%);
   animation: aurora-c 38s ease-in-out infinite alternate;
 }
 
@@ -275,6 +536,26 @@ button:active, a:active {
   background-size: 44px 44px;
   mask-image: radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 78%);
   -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 78%);
+}
+
+/* A slow colour drift over the whole background, so a page that is left open
+   never looks like a screenshot. Cheap: one 60s filter animation on a fixed
+   layer, no repaint of anything on top of it. */
+.aurora-mesh {
+  position: absolute;
+  inset: 0;
+  z-index: -20;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 15% 12%, rgba(99, 102, 241, 0.16), transparent 60%),
+    radial-gradient(50% 40% at 85% 8%, rgba(217, 70, 239, 0.12), transparent 62%),
+    radial-gradient(70% 55% at 50% 100%, rgba(34, 211, 238, 0.1), transparent 62%);
+  animation: mesh-drift 42s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1.02); filter: hue-rotate(0deg); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.08); filter: hue-rotate(24deg); }
 }
 
 /* ── Pointer tilt ─────────────────────────────────────────────────────────
@@ -364,6 +645,73 @@ button:active, a:active {
   40% { transform: translateX(6px); }
   60% { transform: translateX(-4px); }
   80% { transform: translateX(4px); }
+}
+
+/* ── Counting and celebrating ───────────────────────────────────────────── */
+
+/* A number that just changed: a short scale kick. */
+.xp-kick {
+  animation: xp-kick 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes xp-kick {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* The level-up band that slides down when a player gains a level. */
+.level-up {
+  animation: level-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes level-up {
+  0% { opacity: 0; transform: translateY(-18px) scale(0.94); }
+  60% { opacity: 1; transform: translateY(3px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Confetti / sparkle particles: one burst, then gone. Each particle carries
+   its own --dx / --dy / --rot so a single keyframe serves the whole spray. */
+.spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: spark-fly 900ms cubic-bezier(0.17, 0.85, 0.35, 1) forwards;
+}
+
+@keyframes spark-fly {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(0deg); }
+  15% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(var(--sc, 1)) rotate(var(--rot, 180deg));
+  }
+}
+
+/* A card that just unlocked (a quest, an achievement). */
+.unlock-pop {
+  animation: unlock-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes unlock-pop {
+  0% { opacity: 0; transform: scale(0.86) rotate(-2deg); }
+  55% { opacity: 1; transform: scale(1.03) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* Soft attention pulse for a call to action that is waiting on the player. */
+.pulse-soft {
+  animation: pulse-soft 2.6s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsl(var(--accent-h) 90% 62% / 0); }
+  50% { opacity: 0.96; box-shadow: 0 0 0 10px hsl(var(--accent-h) 90% 62% / 0.06); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -12,6 +12,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { levelFor } from "@/lib/levels";
 import { flagFor, countryName } from "@/lib/geo";
 import {
   ADMIN_COIN_DAILY_CAP,
@@ -187,7 +188,7 @@ export async function getModerationData(): Promise<ModerationData | null> {
           id: true,
           username: true,
           role: true,
-          level: true,
+          xp: true,
           coins: true,
           warnings: true,
           bannedUntil: true,
@@ -258,7 +259,9 @@ export async function getModerationData(): Promise<ModerationData | null> {
         id: p.id,
         username: p.username,
         role: p.role,
-        level: p.level,
+        // Derived from XP on the way out, exactly like the leaderboard: a
+        // profile a mass reset just emptied must read as level 1 here at once.
+        level: levelFor(p.xp),
         coins: p.coins,
         warnings: p.warnings,
         bannedUntil: p.bannedUntil && p.bannedUntil.getTime() > now ? p.bannedUntil.toISOString() : null,

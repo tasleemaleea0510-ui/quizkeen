@@ -6,6 +6,7 @@ import { adminKeenHolders, giveAdminKeen, giveKeen, takeKeen, ownedKeens } from 
 import { ADMIN_KEEN_ID, KEEN_BY_ID } from "@/lib/keen-catalogue";
 import { describeLocation } from "@/lib/geo";
 import { GIFT_COINS, GIFT_COOLDOWN_MS, GIFT_LABEL, GIFT_POPUP, giftWait } from "@/lib/gift";
+import { XP_PER_LEVEL, levelFor, xpForLevel } from "@/lib/levels";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -35,10 +36,60 @@ const GENERIC_FAILURE = "Något gick fel. Försök igen.";
  */
 async function withAuth(min: Level, s: S | null | undefined, fn: () => Promise<Res>): Promise<Res> {
   try {
-    if (!(await ok(s, min))) return { ok: false, info: "" };
+    if (!(await ok(s, min))) {
+      // A silent no-op is the worst answer a tool can give: the button looks
+      // broken and the person presses it again, harder. Say what it needs.
+      return { ok: false, info: `Koden har inte behörighet för detta — kräver ${LEVEL_LABEL[min]}. Lås upp igen.` };
+    }
     return await fn();
   } catch {
     return { ok: false, info: GENERIC_FAILURE };
+  }
+}
+
+const LEVEL_LABEL: Record<Level, string> = {
+  STAFF: "personal",
+  SECURITY: "säkerhetskoden",
+  ADMIN: "adminkoden",
+  OWNER: "ägarkoden",
+};
+
+/** The strength of each role, weakest first. */
+const LEVEL_ORDER: Level[] = ["STAFF", "SECURITY", "ADMIN", "OWNER"];
+
+/**
+ * Which role a code really is, read from the live codes.
+ *
+ * One code can open more than one card if the owner set two of them alike, so
+ * the strongest match wins — that is the role the person is holding.
+ */
+async function roleOf(s: S | null | undefined): Promise<Level | null> {
+  if (!s?.code) return null;
+  const settings = await prisma.adminSettings.findFirst();
+  if (!settings) return null;
+  if (s.code === settings.ownerCode) return "OWNER";
+  if (s.code === settings.adminCode) return "ADMIN";
+  if (s.code === settings.securityCode) return "SECURITY";
+  return null;
+}
+
+/**
+ * Is this session's code one of the live codes, and does it reach `need`?
+ *
+ * The console pages used to trust `localStorage`: whatever role the browser
+ * said it was, that is the console it drew. Anybody could type
+ * `{"role":"OWNER"}` into it and be shown the owner's whole control room — every
+ * button then failed the server check, but the screens themselves looked like
+ * everyone had the keys. Each console asks this on load now and locks itself
+ * when the answer is no, so the console you can *see* is the console you hold.
+ */
+export async function verifySession(s: S | null | undefined, need: Level) {
+  try {
+    const role = await roleOf(s);
+    if (!role) return { ok: false, role: null as string | null };
+    return { ok: LEVEL_ORDER.indexOf(role) >= LEVEL_ORDER.indexOf(need), role };
+  } catch {
+    return { ok: false, role: null as string | null };
   }
 }
 
@@ -58,11 +109,33 @@ async function log(username: string, action: string) {
   await prisma.activity.create({ data: { username, action } });
 }
 
+/**
+ * Make every stored level agree with its XP again.
+ *
+ * One statement, and idempotent: rows that are already right do not match the
+ * `WHERE`, so pressing it twice costs nothing. Every mass write below calls it,
+ * which is what stops a wipe or a wave from leaving "Lv 27 · 0 XP" standing in
+ * a list that only reads the stored level.
+ */
+export async function repairLevels(): Promise<number> {
+  try {
+    const res = await prisma.$executeRaw`
+      UPDATE "Profile"
+         SET level = (FLOOR(GREATEST(0, xp) / ${XP_PER_LEVEL}) + 1)::int, "updatedAt" = NOW()
+       WHERE level <> (FLOOR(GREATEST(0, xp) / ${XP_PER_LEVEL}) + 1)::int`;
+    return Number(res) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 const userShape = (u: any) => ({
   id: u.id,
   username: u.username,
   role: u.role,
-  level: u.level,
+  // Derived, never read: a row an older build left at "Lv 27 · 0 XP" shows up
+  // here as level 1 the moment it is listed, so a reset can be *seen* working.
+  level: levelFor(u.xp),
   xp: u.xp,
   coins: u.coins,
   warnings: u.warnings,
@@ -642,9 +715,12 @@ export async function rejectBanRequest(s: S, id: string) {
 
 export async function resetXP(s: S, id: string, username: string) {
   return withAuth("OWNER", s, async () => {
-    await prisma.profile.update({ where: { id }, data: { xp: 0 } });
-    await log("[OWNER]", `reset XP på ${username}`);
-    return { ok: true, info: `${username}: XP nollställt.` };
+    // XP *and* level. Writing XP alone is the bug this file carried for months:
+    // the row kept its old level, the list barely changed, and the button looked
+    // dead. Level 1 is what zero XP means.
+    await prisma.profile.update({ where: { id }, data: { xp: 0, level: 1 } });
+    await log("[OWNER]", `reset XP + nivå på ${username}`);
+    return { ok: true, info: `${username}: XP och nivå nollställda.` };
   });
 }
 
@@ -658,16 +734,21 @@ export async function resetCoins(s: S, id: string, username: string) {
 
 export async function resetAll(s: S, id: string, username: string) {
   return withAuth("OWNER", s, async () => {
-    await prisma.profile.update({ where: { id }, data: { xp: 0, coins: 0, warnings: 0 } });
+    await prisma.profile.update({
+      where: { id },
+      data: { xp: 0, coins: 0, warnings: 0, level: 1 },
+    });
     await log("[OWNER]", `TOTAL-RESET på ${username}`);
-    return { ok: true, info: `${username}: allt nollställt.` };
+    return { ok: true, info: `${username}: XP, mynt, varningar och nivå nollställda.` };
   });
 }
 
 export async function setLevel(s: S, id: string, username: string, lvl: number) {
   return withAuth("OWNER", s, async () => {
     const level = Math.max(1, Math.min(999, Math.floor(lvl) || 1));
-    await prisma.profile.update({ where: { id }, data: { xp: (level - 1) * 100 } });
+    // Both columns: the XP that the level implies *and* the level itself, or the
+    // next read disagrees with itself.
+    await prisma.profile.update({ where: { id }, data: { xp: xpForLevel(level), level } });
     await log("[OWNER]", `satte nivå ${level} på ${username}`);
     return { ok: true, info: `${username} är nu nivå ${level}.` };
   });
@@ -1437,6 +1518,8 @@ export async function ownerMassGrant(s: S, role: MassRole, xp: number, coins: nu
     if (x) data.xp = { increment: x };
     if (c) data.coins = { increment: c };
     const where = massWhere(role);
+    // `updateMany` can increment a column but cannot derive one from it, so the
+    // level is re-derived straight afterwards in one statement.
     // Who is about to receive coins, read before the update. The coin ledger is
     // what "mynt ut idag" and the admin's ledger view count, so a mass wave has
     // to leave the same trace a single gift does.
@@ -1444,6 +1527,7 @@ export async function ownerMassGrant(s: S, role: MassRole, xp: number, coins: nu
       ? await prisma.profile.findMany({ where, select: { id: true, username: true }, take: 1000 })
       : [];
     const res = await prisma.profile.updateMany({ where, data });
+    if (x) await repairLevels();
     if (c && targets.length) {
       await prisma.coinGrant
         .createMany({
@@ -1466,20 +1550,78 @@ export async function ownerMassGrant(s: S, role: MassRole, xp: number, coins: nu
   });
 }
 
-/** Wipe a counter for a whole group. The owner's own row is never included. */
-export async function ownerMassReset(s: S, role: MassRole, what: "XP" | "MYNT" | "VARNINGAR" | "ALLT") {
+/**
+ * Wipe a counter for a whole group.
+ *
+ * Three things this used to get wrong, and now does not:
+ *
+ *  1. it cleared `xp` and left `level` alone — the list still read "Lv 27" next
+ *     to 0 XP, so the owner concluded the button was broken. XP, coins and the
+ *     level move together now, and `repairLevels` sweeps up older rows;
+ *  2. the owner's own account was always skipped (a mass wipe must not be able
+ *     to lock the last owner out), which meant an owner testing it on their own
+ *     account saw *nothing change*. `includeSelf` is how you say "me too" —
+ *     and the answer always says whether the owner was left out;
+ *  3. `VARNINGAR` on its own is common enough to be worth not asking twice
+ *     about, but the two destructive ones change numbers people earned, so the
+ *     page asks first.
+ */
+export async function ownerMassReset(
+  s: S,
+  role: MassRole,
+  what: "XP" | "MYNT" | "VARNINGAR" | "ALLT",
+  includeSelf = false
+) {
   return withAuth("OWNER", s, async () => {
     const data: any =
       what === "XP"
-        ? { xp: 0 }
+        ? { xp: 0, level: 1 }
         : what === "MYNT"
           ? { coins: 0 }
           : what === "VARNINGAR"
             ? { warnings: 0 }
-            : { xp: 0, coins: 0, warnings: 0, chatMutedUntil: null, shadowed: false, ghostMode: false };
-    const res = await prisma.profile.updateMany({ where: massWhere(role), data });
+            : {
+                xp: 0,
+                coins: 0,
+                warnings: 0,
+                level: 1,
+                chatMutedUntil: null,
+                shadowed: false,
+                ghostMode: false,
+              };
+
+    const where: any = massWhere(role);
+    if (!includeSelf) {
+      const owners = await prisma.profile.findMany({ where: { role: "OWNER" }, select: { id: true } });
+      where.id = { notIn: owners.map((o) => o.id) };
+    }
+
+    const res = await prisma.profile.updateMany({ where, data });
+    await repairLevels();
     await log("[OWNER]", `mass-reset ${what.toLowerCase()} för ${role} (${people(res.count)})`);
-    return { ok: true, info: `${what} nollställt för ${people(res.count)}.` };
+    return {
+      ok: true,
+      info: `${what} nollställt för ${people(res.count)}${includeSelf ? " (inkl. dig)" : " — ägarkontot undantogs"}.`,
+    };
+  });
+}
+
+/**
+ * Fix every level its XP does not justify.
+ *
+ * The one-button repair for accounts that were touched by an older build (or by
+ * a hand-edited row): after this, every list, badge and leaderboard agrees.
+ */
+export async function ownerRepairLevels(s: S) {
+  return withAuth("OWNER", s, async () => {
+    const fixed = await repairLevels();
+    await log("[OWNER]", `reparerade ${fixed} nivåer`);
+    return {
+      ok: true,
+      info: fixed
+        ? `${fixed} ${fixed === 1 ? "nivå" : "nivåer"} rättade — alla konton stämmer nu.`
+        : "Alla nivåer stämde redan. Inget att rätta.",
+    };
   });
 }
 

@@ -35,5 +35,7 @@ export default async function StudyQuizPage({ params }: { params: { id: string }
     }, []),
   }));
 
-  return <StudyRun title={quiz.title} questions={questions} />;
+  // The quiz id goes along so the run can claim its XP at the end — the server
+  // re-checks that the quiz exists and counts its questions before paying.
+  return <StudyRun title={quiz.title} questions={questions} quizId={quiz.id} />;
 }

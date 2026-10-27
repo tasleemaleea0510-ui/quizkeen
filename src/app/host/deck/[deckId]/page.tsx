@@ -224,7 +224,7 @@ export default function HostDeckPage() {
         xp: s,
         coins: [50, 30, 20][i] || 10,
       }));
-    awardXP(top);
+    awardXP(deckId, top);
     setPhase("end");
   }
 
@@ -234,7 +234,7 @@ export default function HostDeckPage() {
   const q = questionsRef.current[qIndex];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div data-accent="violet" className="mx-auto max-w-4xl px-4 py-10">
       <div className="text-center">
         <p className="flex items-center justify-center gap-2 text-slate-400 font-semibold tracking-wide uppercase text-sm">
           <Swords className="h-4 w-4 text-purple-400" />

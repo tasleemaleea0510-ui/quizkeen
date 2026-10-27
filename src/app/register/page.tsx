@@ -188,60 +188,120 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
-      <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow">
-          <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
-        </span>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Gå med i QuizKeen!</h1>
-        <p className="mt-1.5 text-sm text-slate-400">Skapa ett konto och börja spela på under en minut.</p>
+    <div data-accent="violet" className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
+      <div className="grid items-stretch gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        {/* ── What you get, before the form asks for anything ───────────── */}
+        <section className="surface relative hidden overflow-hidden p-8 lg:block">
+          <span aria-hidden className="pointer-events-none absolute inset-0 bg-accent-soft" />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-grid-faint bg-grid opacity-40 [mask-image:radial-gradient(120%_80%_at_20%_0%,#000,transparent_70%)]"
+          />
+          <div className="relative flex h-full flex-col">
+            <span className="flex items-center gap-2.5">
+              <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-glow-sm">
+                <span aria-hidden className="absolute inset-0 animate-pulse-ring rounded-2xl border border-violet-300/60" />
+                <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </span>
+              <span className="font-display text-2xl font-extrabold tracking-tight text-white">
+                Quiz<span className="text-gradient">Keen</span>
+              </span>
+            </span>
+
+            <h2 className="mt-8 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-white">
+              Lär dig <span className="text-shine">snabbare</span>.
+              <br />
+              Tävla mot klassen.
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400">
+              Ett konto är gratis och tar under en minut. Du får XP av varje rätt svar, mynt att handla för och Keens att
+              samla.
+            </p>
+
+            <ul className="mt-8 space-y-3 text-sm">
+              {[
+                { emoji: "🎯", title: "Live-quizar", text: "Svara snabbt, klättra på tavlan." },
+                { emoji: "🧠", title: "Gloskort", text: "Repetition som faktiskt fastnar." },
+                { emoji: "🏆", title: "Framsteg du ser", text: "Nivåer, titlar och dagliga uppdrag." },
+              ].map((row, i) => (
+                <li
+                  key={row.title}
+                  className="flex animate-rise-in items-start gap-3"
+                  style={{ animationDelay: `${120 + i * 90}ms` }}
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base animate-float">
+                    {row.emoji}
+                  </span>
+                  <span>
+                    <span className="block font-bold text-white">{row.title}</span>
+                    <span className="block text-slate-400">{row.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-auto rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-slate-400">
+              Elev eller lärare? Välj roll i formuläret — lärare får klassrum och läxor, elever får uppdrag och topplistan.
+            </p>
+          </div>
+        </section>
+
+        <div className="mx-auto w-full max-w-md lg:max-w-none">
+          <div className="mb-6 text-center lg:hidden">
+            <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-glow">
+              <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
+            </span>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Gå med i QuizKeen!</h1>
+            <p className="mt-1.5 text-sm text-slate-400">Skapa ett konto och börja spela på under en minut.</p>
+          </div>
+
+          <div className="surface animate-fade-up relative overflow-hidden p-6 sm:p-7">
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-bright)] to-transparent" />
+            <h2 className="font-display text-lg font-extrabold text-white">Skapa konto</h2>
+            <p className="mt-1 text-xs text-slate-400">Inget kort, ingen kostnad — bara att köra.</p>
+
+            <form onSubmit={handleRegister} className="mt-5 space-y-3.5">
+              <Input placeholder="Användarnamn" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input type="password" placeholder="Lösenord (6+ tecken)" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1.5">
+                {(["STUDENT", "TEACHER"] as const).map((r) => {
+                  const Icon = r === "STUDENT" ? GraduationCap : School;
+                  const active = role === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      className={cn(
+                        "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all",
+                        active
+                          ? "bg-gradient-to-b from-violet-500 to-violet-600 text-white shadow-glow-sm"
+                          : "text-slate-400 hover:bg-white/5 hover:text-white"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{r === "STUDENT" ? "Elev" : "Lärare"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {error && (
+                <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
+              )}
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                {loading ? "Skapar konto..." : "Skapa konto — Gratis"}
+              </Button>
+            </form>
+            <p className="mt-5 text-center text-sm text-slate-400">
+              Redan medlem?{" "}
+              <Link href="/login" className="font-semibold text-violet-300 hover:text-violet-200">
+                Logga in
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
-      <Card className="animate-fade-up">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base text-slate-300">Skapa konto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleRegister} className="space-y-3.5">
-            <Input placeholder="Användarnamn" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input type="password" placeholder="Lösenord (6+ tecken)" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1.5">
-              {(["STUDENT", "TEACHER"] as const).map((r) => {
-                const Icon = r === "STUDENT" ? GraduationCap : School;
-                const active = role === r;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={cn(
-                      "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all",
-                      active
-                        ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-glow-sm"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{r === "STUDENT" ? "Elev" : "Lärare"}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {error && (
-              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
-            )}
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Skapar konto..." : "Skapa konto — Gratis"}
-            </Button>
-          </form>
-          <p className="mt-5 text-center text-sm text-slate-400">
-            Redan medlem?{" "}
-            <Link href="/login" className="font-semibold text-indigo-400 hover:text-indigo-300">
-              Logga in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

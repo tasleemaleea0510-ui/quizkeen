@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getChatHub, getChat, sendTo, requestChat, respondChat } from "./actions";
 import EmojiPicker from "@/components/emoji-picker";
+import PageHeader, { HeaderStat } from "@/components/page-header";
 import { 
   MessageSquare, 
   Send, 
@@ -12,7 +13,9 @@ import {
   X, 
   Bell, 
   MessageCircle,
-  Ban
+  Ban,
+  Users,
+  Lock
 } from "lucide-react";
 
 const QUICK_PHRASES = ["Hej!", "Bra spelat!", "Tack!", "Är du redo?", "Ses i klassrummet!"];
@@ -119,12 +122,15 @@ export default function ChatPage() {
 
   if (unauthenticated || !hub) {
     return (
-      <div className="mx-auto max-w-md px-4 py-20 text-center">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-xl">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+      <div data-accent="sky" className="mx-auto max-w-md px-4 py-20 text-center">
+        <div className="surface animate-pop p-8">
+          <span
+            aria-hidden
+            className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-[var(--accent-line)] bg-[var(--accent-soft)] text-sky-300"
+          >
             <MessageSquare className="h-6 w-6" />
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Logga in för att chatta</h2>
+          </span>
+          <h2 className="mb-2 font-display text-2xl font-extrabold text-white">Logga in för att chatta</h2>
           <p className="text-sm text-slate-400 mb-6 leading-relaxed">
             Du behöver vara inloggad på ditt konto för att delta i klass-chattar och skicka meddelanden.
           </p>
@@ -184,15 +190,24 @@ export default function ChatPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-          <MessageSquare className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold text-white">Chatt</h1>
-          <p className="text-xs text-slate-400">Klass-chattar, direktmeddelanden och personalkontakt</p>
-        </div>
-      </div>
+      <PageHeader
+        accent="sky"
+        eyebrow="Chatt"
+        icon={MessageSquare}
+        title={
+          <>
+            Prata med <span className="text-shine">klassen</span>
+          </>
+        }
+        lead="Klass-chattar, direktmeddelanden och en egen linje till personalen. Håll tonen schysst — allt loggas och kan läsas av en moderator."
+        chips={
+          <>
+            <HeaderStat icon={Users} label="kanaler" value={convos.length} tone="sky" />
+            <HeaderStat icon={Bell} label="förfrågningar" value={incoming.length} tone="amber" />
+            <HeaderStat icon={Lock} label="modererat" value="24/7" tone="slate" />
+          </>
+        }
+      />
 
       {info && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-2.5 text-sm font-medium text-indigo-300">

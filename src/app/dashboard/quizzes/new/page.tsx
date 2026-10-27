@@ -151,7 +151,7 @@ export default function NewQuizPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div data-accent="sky" className="mx-auto max-w-3xl px-4 py-10">
       <Link
         href="/dashboard/quizzes"
         className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-white"

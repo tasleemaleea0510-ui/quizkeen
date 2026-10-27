@@ -228,7 +228,7 @@ function GameInner() {
     chestSkipped !== heist.round;
 
   return (
-    <div className="min-h-screen pb-8">
+    <div data-accent="orange" className="min-h-screen pb-8">
       {/* A game fills the screen: the site navbar is hidden here, so your Keen,
           your score and the fullscreen switch are the whole top bar. */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">

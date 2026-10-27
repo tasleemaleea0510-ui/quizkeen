@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { awardGameXp, type GameWinner } from "@/lib/game-xp";
 
 export async function getDeck(deckId: string) {
   const supabase = await createClient();
@@ -17,17 +18,7 @@ export async function getDeck(deckId: string) {
   };
 }
 
-export async function awardXP(winners: { username: string; xp: number; coins: number }[]) {
-  for (const w of winners) {
-    try {
-      const p = await prisma.profile.findUnique({ where: { username: w.username } });
-      if (!p) continue;
-      const xp = p.xp + w.xp;
-      const level = Math.floor(xp / 100) + 1;
-      await prisma.profile.update({
-        where: { username: w.username },
-        data: { xp, coins: p.coins + w.coins, level },
-      });
-    } catch {}
-  }
+/** The deck battle pays out through the same gate as the quiz game. */
+export async function awardXP(deckId: string, winners: GameWinner[]) {
+  return awardGameXp({ deckId }, winners);
 }

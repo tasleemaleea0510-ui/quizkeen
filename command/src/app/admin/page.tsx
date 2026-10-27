@@ -26,6 +26,7 @@ import {
   adminCoinLedger,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
+import { SeatBadge, SeatLocked, useConsoleSeat } from "../../components/seat-guard";
 import { ADMIN_KEEN_ID, ADMIN_KEENS, keenArtSrc } from "../../lib/keen-catalogue";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
@@ -96,6 +97,8 @@ const QUICK = [
 
 export default function AdminPage() {
   const router = useRouter();
+  // Whose seat this is, according to the server and not to `localStorage`.
+  const { state: seatState } = useConsoleSeat("ADMIN");
   const [s, setS] = useState<S | null>(null);
   const [data, setData] = useState<any>(null);
   const [info, setInfo] = useState("");
@@ -238,6 +241,8 @@ export default function AdminPage() {
     }
   }
 
+  if (seatState === "denied") return <SeatLocked need="ADMIN" />;
+
   if (!s || !data) {
     return (
       <div className="flex min-h-screen animate-cmd-fade items-center justify-center gap-3 bg-slate-950 text-slate-400">
@@ -278,6 +283,9 @@ export default function AdminPage() {
     <div className="min-h-screen bg-slate-950 px-4 py-6">
       <style>{`.red-glow{box-shadow:0 0 24px rgba(220,38,38,.25)}.red-title{text-shadow:0 0 12px rgba(248,113,113,.7)}`}</style>
       <div className="mx-auto max-w-7xl pt-10">
+        <div className="mb-2 flex justify-end">
+          <SeatBadge />
+        </div>
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
         <ConsoleHero

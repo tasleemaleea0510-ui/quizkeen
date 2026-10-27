@@ -62,10 +62,12 @@ import {
   ownerWarnAmnesty,
   ownerPruneLog,
   ownerPruneVisits,
+  ownerRepairLevels,
   ownerKeenVault,
   ownerGiveKeen,
   ownerTakeKeen,
 } from "../actions";
+import { SeatBadge, SeatLocked, useConsoleSeat } from "../../components/seat-guard";
 import { KEEN_CATALOGUE, KEEN_SHELVES, RARITY_LABEL, keenArtSrc } from "../../lib/keen-catalogue";
 import { countryName, flagFor } from "../../lib/geo";
 import {
@@ -189,6 +191,9 @@ type Confirm = {
 
 export default function OwnerPage() {
   const router = useRouter();
+  // The seat is confirmed against the live codes before any of the console is
+  // drawn: a browser that invented its own role gets the locked door.
+  const { state: seatState } = useConsoleSeat("OWNER");
   const [session, setSession] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [extra, setExtra] = useState<any>(null);
@@ -227,6 +232,10 @@ export default function OwnerPage() {
   const [waveRole, setWaveRole] = useState("STUDENT");
   const [waveXp, setWaveXp] = useState("50");
   const [waveCoins, setWaveCoins] = useState("0");
+  // "Me too": the owner's own row is skipped by every mass action by default,
+  // which is right — but it also made the buttons look dead to the one person
+  // testing them, because *their* numbers never moved.
+  const [waveSelf, setWaveSelf] = useState(false);
   const [noteRole, setNoteRole] = useState("STUDENT");
   const [noteText, setNoteText] = useState("");
   const [pruneDays, setPruneDays] = useState("30");
@@ -380,6 +389,8 @@ export default function OwnerPage() {
     }
   }
 
+  if (seatState === "denied") return <SeatLocked need="OWNER" />;
+
   if (!data) {
     return (
       <div className="flex min-h-screen animate-cmd-fade items-center justify-center gap-3 bg-slate-950 text-amber-300">
@@ -436,6 +447,9 @@ export default function OwnerPage() {
         <p className="gold-title flex items-center gap-1.5 pl-2 text-xs font-extrabold text-amber-300">
           <Crown className="h-4 w-4" /> ÄGARKONSOL
         </p>
+        <div className="mt-2 pl-2">
+          <SeatBadge />
+        </div>
         <div className="mt-6 flex flex-wrap gap-1 lg:flex-col lg:gap-1">
           {TABS.map((t) => (
             <button
@@ -599,11 +613,13 @@ export default function OwnerPage() {
                     disabled={busy}
                     onClick={() =>
                       setConfirm({
-                        title: "Nollställ XP för gruppen?",
-                        body: `XP nollställs för alla i ${waveRole}. Går inte att ångra.`,
+                        title: "Nollställ XP och nivå för gruppen?",
+                        body: `XP och nivå (tillbaka till nivå 1) nollställs för alla i ${waveRole}${
+                          waveSelf ? ", inklusive ditt eget konto" : ". Ägarkontot undantas"
+                        }. Går inte att ångra.`,
                         label: "Nollställ XP",
                         tone: "amber",
-                        action: () => run(ownerMassReset(session, waveRole as any, "XP")),
+                        action: () => run(ownerMassReset(session, waveRole as any, "XP", waveSelf)),
                       })
                     }
                     className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
@@ -616,10 +632,12 @@ export default function OwnerPage() {
                     onClick={() =>
                       setConfirm({
                         title: "Nollställ mynt för gruppen?",
-                        body: `Mynt nollställs för alla i ${waveRole}. Går inte att ångra.`,
+                        body: `Mynt nollställs för alla i ${waveRole}${
+                          waveSelf ? ", inklusive ditt eget konto" : ". Ägarkontot undantas"
+                        }. Går inte att ångra.`,
                         label: "Nollställ mynt",
                         tone: "amber",
-                        action: () => run(ownerMassReset(session, waveRole as any, "MYNT")),
+                        action: () => run(ownerMassReset(session, waveRole as any, "MYNT", waveSelf)),
                       })
                     }
                     className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
@@ -629,7 +647,7 @@ export default function OwnerPage() {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => run(ownerMassReset(session, waveRole as any, "VARNINGAR"))}
+                    onClick={() => run(ownerMassReset(session, waveRole as any, "VARNINGAR", waveSelf))}
                     className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
                   >
                     Nollställ varningar
@@ -640,14 +658,45 @@ export default function OwnerPage() {
                     onClick={() =>
                       setConfirm({
                         title: "TOTAL-RESET för gruppen?",
-                        body: `XP, mynt, varningar, tystnad, skugga och osynlighet nollställs för alla i ${waveRole}.`,
+                        body: `XP, mynt, varningar, nivå, tystnad, skugga och osynlighet nollställs för alla i ${waveRole}${
+                          waveSelf ? ", inklusive ditt eget konto" : ". Ägarkontot undantas"
+                        }.`,
                         label: "Reset ALLT",
-                        action: () => run(ownerMassReset(session, waveRole as any, "ALLT")),
+                        action: () => run(ownerMassReset(session, waveRole as any, "ALLT", waveSelf)),
                       })
                     }
                     className="rounded-lg bg-red-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-600"
                   >
                     <Warning className="h-3.5 w-3.5" /> Reset ALLT
+                  </button>
+                </div>
+
+                {/* The two switches that answer "why didn't it work?". */}
+                <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={waveSelf}
+                      onChange={(e) => setWaveSelf(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
+                    />
+                    <span className="text-xs text-slate-300">
+                      <b className="text-amber-200">Inkludera mitt eget konto</b>
+                      <span className="mt-0.5 block text-slate-500">
+                        Avstängt är ägarkontot alltid undantaget — det är därför siffrorna inte rör sig när du testar på
+                        dig själv.
+                      </span>
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(ownerRepairLevels(session))}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-200 hover:bg-amber-500/20 disabled:opacity-40"
+                  >
+                    <Refresh className="h-3.5 w-3.5" /> Reparera nivåer
+                    <span className="font-normal text-amber-200/60">(rättar "Lv 27 · 0 XP")</span>
                   </button>
                 </div>
               </div>

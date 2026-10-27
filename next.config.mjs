@@ -1,6 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  /**
+   * No client-side router cache for dynamic routes.
+   *
+   * Next keeps an RSC payload for a page it has already visited and serves it
+   * again for the next 30 seconds. That is exactly wrong for this app: the
+   * leaderboard, the wallet and every classroom list change while a student is
+   * walking between pages, so going back to the dashboard showed the numbers
+   * from a minute ago — "the leaderboard doesn't update". With the cache at 0
+   * every navigation re-asks the server, and the pages are already dynamic
+   * (they read the session cookie), so nothing is lost by never caching them.
+   */
+  experimental: {
+    staleTimes: { dynamic: 0, static: 0 },
+  },
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
   },

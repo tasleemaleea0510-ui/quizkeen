@@ -124,3 +124,32 @@ export function playError() {
 export function playSell() {
   tone({ freq: 720, slideTo: 1180, dur: 0.16, type: "triangle", gain: 0.035 });
 }
+
+/* ── Outside the pack ─────────────────────────────────────────────────────
+   The same engine, for the rest of the app. It lives in this folder because
+   this is where WebAudio was first wired up; nothing here knows about Keens. */
+
+/** A level-up: a rising arpeggio that lands on a bright chord. */
+export function playLevelUp() {
+  [523, 659, 784, 1047].forEach((f, i) =>
+    tone({ freq: f, dur: 0.42, gain: 0.05, delay: i * 0.08, type: "triangle" })
+  );
+  tone({ freq: 120, slideTo: 70, dur: 0.6, type: "sine", gain: 0.07, delay: 0.06 });
+}
+
+/** A daily quest or achievement unlocking. */
+export function playQuestDone() {
+  tone({ freq: 784, dur: 0.16, gain: 0.045 });
+  tone({ freq: 1047, dur: 0.24, gain: 0.04, delay: 0.1 });
+}
+
+/** Right answer in a practice run. */
+export function playCorrect() {
+  tone({ freq: 880, dur: 0.12, type: "sine", gain: 0.045 });
+  tone({ freq: 1320, dur: 0.16, type: "sine", gain: 0.03, delay: 0.08 });
+}
+
+/** Wrong answer: short, soft, never punishing. */
+export function playWrong() {
+  tone({ freq: 300, slideTo: 190, dur: 0.2, type: "sine", gain: 0.035 });
+}

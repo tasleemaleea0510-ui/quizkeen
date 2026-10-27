@@ -18,6 +18,7 @@ import {
   spyOnChats,
 } from "../actions";
 import StaffChat from "../../components/staff-chat";
+import { SeatBadge, SeatLocked, useConsoleSeat } from "../../components/seat-guard";
 import LiveViewer from "../../components/live-viewer";
 import PromptModal from "../../components/prompt-modal";
 import { HelpButton, HelpPanel } from "../../components/help-guide";
@@ -52,6 +53,8 @@ type NavId = "users" | "chats" | "chat" | "log" | "help";
 
 export default function SecurityPage() {
   const router = useRouter();
+  // The role on screen comes from the server, never from the browser alone.
+  const { state: seatState } = useConsoleSeat("SECURITY");
   const [s, setS] = useState<S | null>(null);
   const [data, setData] = useState<any>(null);
   const [info, setInfo] = useState("");
@@ -123,6 +126,8 @@ export default function SecurityPage() {
     }
   }
 
+  if (seatState === "denied") return <SeatLocked need="SECURITY" />;
+
   if (!s || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 bg-slate-950 text-slate-400">
@@ -149,6 +154,9 @@ export default function SecurityPage() {
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-6">
       <div className="mx-auto max-w-7xl pt-10">
+        <div className="mb-2 flex justify-end">
+          <SeatBadge />
+        </div>
         {liveFor && <LiveViewer username={liveFor.username} peerId={liveFor.pid} onClose={() => setLiveFor(null)} />}
 
         <ConsoleHero

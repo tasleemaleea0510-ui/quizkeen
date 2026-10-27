@@ -40,13 +40,21 @@ const config: Config = {
         glow: "0 0 48px -12px rgba(99,102,241,0.6)",
         "glow-sm": "0 0 24px -8px rgba(99,102,241,0.55)",
         "glow-violet": "0 0 48px -12px rgba(139,92,246,0.6)",
+        "glow-amber": "0 0 44px -14px rgba(251,191,36,0.7)",
+        "glow-emerald": "0 0 44px -14px rgba(52,211,153,0.65)",
         card: "inset 0 1px 0 0 rgba(255,255,255,0.05), 0 24px 48px -32px rgba(0,0,0,0.9)",
         raise: "0 16px 40px -20px rgba(0,0,0,0.85)",
+        /* Follows the page accent, so a card's halo matches its room. */
+        accent: "0 26px 60px -34px var(--accent-line)",
+        inset: "inset 0 1px 0 0 rgba(255,255,255,0.08)",
       },
       backgroundImage: {
         "radial-brand": "radial-gradient(60% 60% at 50% 0%, rgba(99,102,241,0.28), transparent 70%)",
         "grid-faint":
           "linear-gradient(to right, rgba(148,163,184,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.06) 1px, transparent 1px)",
+        /* The accent, available as a Tailwind gradient stop. */
+        accent: "linear-gradient(135deg, var(--accent-deep), var(--accent), var(--accent-bright))",
+        "accent-soft": "linear-gradient(135deg, var(--accent-soft), transparent 70%)",
       },
       backgroundSize: {
         grid: "44px 44px",
@@ -206,6 +214,84 @@ const config: Config = {
           "60%": { opacity: "1", transform: "scale(0.94) rotate(2deg)" },
           "100%": { opacity: "1", transform: "scale(1) rotate(0deg)" },
         },
+        // ── The 2026 pass ──────────────────────────────────────────────────
+        // A list arriving row by row; the item sets `--i`.
+        "rise-in": {
+          "0%": { opacity: "0", transform: "translateY(14px) scale(0.985)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        // A number that just changed.
+        "xp-kick": {
+          "0%": { transform: "scale(1)" },
+          "35%": { transform: "scale(1.22)" },
+          "100%": { transform: "scale(1)" },
+        },
+        // The level-up band sliding in.
+        "level-up": {
+          "0%": { opacity: "0", transform: "translateY(-18px) scale(0.94)" },
+          "60%": { opacity: "1", transform: "translateY(3px) scale(1.02)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        // A card unlocking: a quest, a badge, a reward.
+        "unlock-pop": {
+          "0%": { opacity: "0", transform: "scale(0.86) rotate(-2deg)" },
+          "55%": { opacity: "1", transform: "scale(1.03) rotate(1deg)" },
+          "100%": { opacity: "1", transform: "scale(1) rotate(0)" },
+        },
+        // One confetti particle, given its own --dx / --dy by the component.
+        "spark-fly": {
+          "0%": { opacity: "0", transform: "translate(-50%,-50%) scale(0.4) rotate(0deg)" },
+          "15%": { opacity: "1" },
+          "100%": {
+            opacity: "0",
+            transform:
+              "translate(calc(-50% + var(--dx,0px)), calc(-50% + var(--dy,0px))) scale(var(--sc,1)) rotate(var(--rot,180deg))",
+          },
+        },
+        // The travelling light inside a progress bar.
+        "bar-sheen": {
+          "0%": { transform: "translateX(-100%)" },
+          "55%,100%": { transform: "translateX(120%)" },
+        },
+        // A medal's diagonal glint.
+        "medal-sheen": {
+          "0%,70%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(120%)" },
+        },
+        // The streak flame.
+        "flame-flicker": {
+          "0%,100%": { transform: "scale(1) rotate(-2deg)", filter: "brightness(1)" },
+          "35%": { transform: "scale(1.09) rotate(2deg)", filter: "brightness(1.18)" },
+          "70%": { transform: "scale(0.98) rotate(-1deg)", filter: "brightness(0.96)" },
+        },
+        // Animated gradient text.
+        "text-pan": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "100%": { backgroundPosition: "200% 50%" },
+        },
+        // The colour drift over the whole background.
+        "mesh-drift": {
+          "0%": { transform: "translate3d(-2%,-1%,0) scale(1.02)", filter: "hue-rotate(0deg)" },
+          "100%": { transform: "translate3d(2%,2%,0) scale(1.08)", filter: "hue-rotate(24deg)" },
+        },
+        // A soft ring for something waiting on the player.
+        "pulse-soft": {
+          "0%,100%": { opacity: "1", boxShadow: "0 0 0 0 hsl(var(--accent-h) 90% 62% / 0)" },
+          "50%": { opacity: "0.96", boxShadow: "0 0 0 10px hsl(var(--accent-h) 90% 62% / 0.06)" },
+        },
+        // A ring expanding out of a logo or an avatar, once every few seconds.
+        "pulse-ring": {
+          "0%": { opacity: "0.65", transform: "scale(1)" },
+          "100%": { opacity: "0", transform: "scale(1.5)" },
+        },
+        // A wrong code or a failed save: a short refusal.
+        shake: {
+          "0%,100%": { transform: "translateX(0)" },
+          "20%": { transform: "translateX(-6px)" },
+          "40%": { transform: "translateX(6px)" },
+          "60%": { transform: "translateX(-4px)" },
+          "80%": { transform: "translateX(4px)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both",
@@ -237,6 +323,18 @@ const config: Config = {
         "aurora-b": "aurora-b 31s ease-in-out infinite alternate",
         "aurora-c": "aurora-c 38s ease-in-out infinite alternate",
         stamp: "stamp 0.55s cubic-bezier(0.22,1,0.36,1) both",
+        "rise-in": "rise-in 0.5s cubic-bezier(0.22,1,0.36,1) both",
+        "xp-kick": "xp-kick 0.5s cubic-bezier(0.22,1,0.36,1)",
+        "level-up": "level-up 0.6s cubic-bezier(0.22,1,0.36,1) both",
+        "unlock-pop": "unlock-pop 0.55s cubic-bezier(0.22,1,0.36,1) both",
+        "spark-fly": "spark-fly 900ms cubic-bezier(0.17,0.85,0.35,1) forwards",
+        "medal-sheen": "medal-sheen 4.5s ease-in-out infinite",
+        "flame-flicker": "flame-flicker 1.6s ease-in-out infinite",
+        "text-pan": "text-pan 7s linear infinite",
+        "pulse-soft": "pulse-soft 2.6s ease-in-out infinite",
+        "pulse-ring": "pulse-ring 2.8s ease-out infinite",
+        shake: "shake 0.42s ease-in-out both",
+        "mesh-drift": "mesh-drift 42s ease-in-out infinite alternate",
       },
     },
   },

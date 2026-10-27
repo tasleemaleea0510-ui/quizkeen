@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import CopyButton from "@/components/copy-button";
 import ActionForm from "@/components/action-form";
+import PageHeader, { HeaderStat } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
 import { createClassroom, joinClassroom, addCoTeacher, createAssignment, setQuizPrivate, deleteAssignment, clearAssignments } from "./actions";
 import { 
   School, 
@@ -64,25 +66,52 @@ export default async function ClassroomPage() {
       })
     : [];
 
+  // The two header numbers a student actually cares about: how many homework
+  // tasks are open, and how many of them are already handed in.
+  const allAssignments = myClasses.flatMap((c) => c.classroom.assignments);
+  const openAssignments = allAssignments.filter((a) => a.completions.length === 0).length;
+  const doneAssignments = allAssignments.length - openAssignments;
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-6 flex flex-wrap items-center gap-3.5">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-blue-400/30 bg-blue-500/15 text-blue-300">
-          <School className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            <span>Klassrum</span>
-            {isTeacher && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/30 bg-blue-500/15 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-blue-200">
-                <GraduationCap className="h-3.5 w-3.5" />
-                <span>Lärarläge</span>
-              </span>
-            )}
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">Hantera klasser, läxor och elever</p>
-        </div>
-      </div>
+    <div data-accent="sky" className="mx-auto max-w-6xl px-4 py-10">
+      <PageHeader
+        accent="sky"
+        eyebrow={isTeacher ? "Lärarläge" : "Dina klasser"}
+        icon={School}
+        title={
+          <>
+            Klass<span className="text-shine">rum</span>
+          </>
+        }
+        lead={
+          isTeacher
+            ? "Skapa rum, dela join-koden, lägg ut läxor och följ upp varje elev — allt på ett ställe."
+            : "Dina klasser, läxorna som väntar och resultaten. Lämna in i tid så får du bonus-XP."
+        }
+        chips={
+          isTeacher ? (
+            <>
+              <HeaderStat icon={School} label="klassrum" value={myRooms.length} />
+              <HeaderStat
+                icon={Users}
+                label="elever"
+                value={myRooms.reduce((n, r) => n + r.enrollments.length, 0)}
+                tone="violet"
+              />
+              <HeaderStat icon={BookOpen} label="quizar" value={myQuizzes.length} tone="emerald" />
+              <Badge tone="sky" icon={GraduationCap}>
+                Lärarläge
+              </Badge>
+            </>
+          ) : (
+            <>
+              <HeaderStat icon={School} label="klasser" value={myClasses.length} />
+              <HeaderStat icon={BookOpen} label="öppna läxor" value={openAssignments} tone="amber" />
+              <HeaderStat icon={CheckCircle2} label="inlämnade" value={doneAssignments} tone="emerald" />
+            </>
+          )
+        }
+      />
 
       {isTeacher ? (
         <>

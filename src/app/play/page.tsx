@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LOBBY_PING, LOBBY_PONG, lobbyIsLive } from "@/lib/presence";
 import Link from "next/link";
-import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User, BookOpen } from "lucide-react";
+import PageHeader, { HeaderStat } from "@/components/page-header";
+import { Gamepad2, ArrowRight, Loader2, AlertCircle, Hash, User, BookOpen, Clock, Trophy } from "lucide-react";
 
 export default function PlayPage() {
   const router = useRouter();
@@ -73,16 +74,27 @@ export default function PlayPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
-      <div className="mb-8 text-center">
-        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-[0_14px_34px_-14px_rgba(99,102,241,0.95)] ring-1 ring-inset ring-white/20">
-          <Gamepad2 className="h-6 w-6 text-white" />
-        </span>
-        <h1 className="page-title">Gå med i ett spel</h1>
-        <p className="mt-2 text-sm text-slate-400">Ange spelets PIN-kod och ditt namn för att delta.</p>
-      </div>
+    <div className="mx-auto max-w-2xl px-4 py-10">
+      <PageHeader
+        accent="orange"
+        eyebrow="Live-spel"
+        icon={Gamepad2}
+        title={
+          <>
+            Gå med i ett <span className="text-shine">spel</span>
+          </>
+        }
+        lead="Skriv PIN-koden som står på tavlan. Du behöver inget konto för att spela — men ett konto sparar XP:n, mynten och Keensen du tjänar."
+        chips={
+          <>
+            <HeaderStat icon={Hash} label="6 siffror" value="PIN" tone="amber" />
+            <HeaderStat icon={Clock} label="svarstid" value="Live" tone="sky" />
+            <HeaderStat icon={Trophy} label="belöning" value="XP" tone="emerald" />
+          </>
+        }
+      />
 
-      <Card className="animate-fade-up">
+      <Card className="animate-fade-up mt-5">
         <CardContent className="pt-6">
           <form onSubmit={join} className="space-y-4">
             <div>

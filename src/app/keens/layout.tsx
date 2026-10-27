@@ -35,8 +35,9 @@ export default async function KeensLayout({ children }: { children: React.ReactN
     .slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-      <section className="relative isolate mb-4 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] px-4 py-5 backdrop-blur-xl sm:px-6">
+    <div data-accent="violet" className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+      <section className="surface relative isolate mb-4 overflow-hidden px-4 py-5 sm:px-6">
+        <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-bright)] to-transparent" />
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10"

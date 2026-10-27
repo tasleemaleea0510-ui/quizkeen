@@ -1,5 +1,6 @@
 "use server";
 import { prisma } from "@/lib/prisma";
+import { awardGameXp, type GameWinner } from "@/lib/game-xp";
 
 export async function getQuiz(quizId: string) {
   const quiz = await prisma.quiz.findUnique({
@@ -22,17 +23,15 @@ export async function getQuiz(quizId: string) {
   };
 }
 
-export async function awardXP(winners: { username: string; xp: number; coins: number }[]) {
-  for (const w of winners) {
-    try {
-      const p = await prisma.profile.findUnique({ where: { username: w.username } });
-      if (!p) continue;
-      const xp = p.xp + w.xp;
-      const level = Math.floor(xp / 100) + 1;
-      await prisma.profile.update({
-        where: { username: w.username },
-        data: { xp, coins: p.coins + w.coins, level },
-      });
-    } catch {}
-  }
+/**
+ * Pay the players at the end of a game.
+ *
+ * The session check, the ownership check and the clamps all live in
+ * `lib/game-xp`, because the flashcard battle needs exactly the same rules and
+ * two copies would drift apart. Before this, the function wrote whatever list of
+ * names and numbers it was handed — and a server action is a public endpoint, so
+ * the leaderboard could be topped by anyone who knew its name.
+ */
+export async function awardXP(quizId: string, winners: GameWinner[]) {
+  return awardGameXp({ quizId }, winners);
 }

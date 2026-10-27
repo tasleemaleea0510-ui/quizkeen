@@ -20,7 +20,7 @@ export default async function DeckPage({ params }: { params: { id: string } }) {
   const profile = await prisma.profile.findUnique({ where: { id: user.id } });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div data-accent="violet" className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex items-center justify-between">
         <Link href="/flashcards" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
           <ArrowLeft className="h-4 w-4" />
@@ -47,7 +47,12 @@ export default async function DeckPage({ params }: { params: { id: string } }) {
       {col.description && <p className="mx-auto mt-2 max-w-xl text-center text-sm text-slate-400">{col.description}</p>}
 
       <div className="mt-8">
-        <StudyDeck cards={col.flashcards.map((f) => ({ id: f.id, front: f.frontText, back: f.backText.split("|")[0] }))} />
+        {/* The collection id goes in as well: the repetition schedule is stored
+            per deck on this device, so each set keeps its own boxes. */}
+        <StudyDeck
+          collectionId={col.id}
+          cards={col.flashcards.map((f) => ({ id: f.id, front: f.frontText, back: f.backText.split("|")[0] }))}
+        />
       </div>
 
       <AddCardForm collectionId={col.id} username={profile?.username ?? "kompis"} />

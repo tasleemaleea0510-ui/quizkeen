@@ -2,11 +2,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useSupabase } from "@/components/providers";
 import { signInWithName } from "./actions";
-import { ArrowRight, User, Zap } from "lucide-react";
+import WornKeen from "@/components/keens/worn-keen";
+import { ArrowRight, User, Zap, Sparkles, Trophy, Flame, ShieldCheck } from "lucide-react";
 
 /**
  * Drop every auth cookie the browser is holding, including half-written chunks
@@ -20,7 +20,7 @@ import { ArrowRight, User, Zap } from "lucide-react";
  */
 function clearStaleAuthCookies() {
   const host = window.location.hostname;
-  const domains = [host, `.${host}`, `.${host.replace(/^[^.]+\\./, "")}`];
+  const domains = [host, `.${host}`, `.${host.replace(/^[^.]+\./, "")}`];
   for (const part of document.cookie.split("; ")) {
     const name = part.split("=")[0];
     if (!name || !name.startsWith("sb-") || !name.includes("-auth-token")) continue;
@@ -65,26 +65,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
-      <div className="mb-8 text-center">
-        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-[0_14px_34px_-14px_rgba(99,102,241,0.95)] ring-1 ring-inset ring-white/20">
-          <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
-        </span>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-white">Välkommen tillbaka!</h1>
-        <p className="mt-2 text-sm text-slate-400">Logga in med ditt namn — e-post funkar också.</p>
-      </div>
+    <div data-accent="indigo" className="mx-auto max-w-6xl px-4 py-10 sm:py-16">
+      <div className="grid items-stretch gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        {/* ── The pitch, next to the form ────────────────────────────────── */}
+        <section className="surface relative hidden overflow-hidden p-8 lg:block">
+          <span aria-hidden className="pointer-events-none absolute inset-0 bg-accent-soft" />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-grid-faint bg-grid opacity-40 [mask-image:radial-gradient(120%_80%_at_20%_0%,#000,transparent_70%)]"
+          />
 
-      <Card className="animate-fade-up">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base text-slate-300">Konto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-3.5">
+          <div className="relative flex h-full flex-col">
+            <span className="flex items-center gap-2.5">
+              <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm">
+                <span aria-hidden className="absolute inset-0 animate-pulse-ring rounded-2xl border border-indigo-300/60" />
+                <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </span>
+              <span className="font-display text-2xl font-extrabold tracking-tight text-white">
+                Quiz<span className="text-gradient">Keen</span>
+              </span>
+            </span>
+
+            <h2 className="mt-8 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-white">
+              Välkommen <span className="text-shine">tillbaka</span>.
+              <br />
+              Din svit väntar.
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400">
+              XP:n, mynten och Keensen finns kvar precis där du lämnade dem. Logga in och ta dagens uppdrag innan
+              lektionen börjar.
+            </p>
+
+            <ul className="mt-8 space-y-3 text-sm">
+              {[
+                { icon: Flame, text: "Dagens uppdrag: tre små mål, XP att hämta" },
+                { icon: Trophy, text: "Ledartavlan uppdateras live — se din placering" },
+                { icon: Sparkles, text: "Ett gratispaket Keens varje dag" },
+                { icon: ShieldCheck, text: "Din framstegssida visar vad du faktiskt lärt dig" },
+              ].map((row) => (
+                <li key={row.text} className="flex items-start gap-3 text-slate-300">
+                  <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04]">
+                    <row.icon className="h-3.5 w-3.5 text-indigo-300" />
+                  </span>
+                  {row.text}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-auto flex items-center gap-3 pt-8">
+              <WornKeen size={40} />
+              <p className="text-xs leading-relaxed text-slate-500">
+                Alla siffror räknas ut på servern — nivå, XP och ledartavla kan inte hamna i otakt.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── The form ───────────────────────────────────────────────────── */}
+        <section className="surface p-6 sm:p-8">
+          <div className="text-center lg:text-left">
+            <span className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm ring-1 ring-inset ring-white/20 lg:mx-0">
+              <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
+            </span>
+            <h1 className="page-title">Logga in</h1>
+            <p className="mt-1.5 text-sm text-slate-400">Ditt namn funkar — e-post går också.</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
-              <label
-                htmlFor="login-name"
-                className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400"
-              >
+              <label htmlFor="login-name" className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
                 Namn eller e-post
               </label>
               <div className="relative">
@@ -99,16 +148,13 @@ export default function LoginPage() {
                   autoCorrect="off"
                   spellCheck={false}
                   required
-                  className="pl-10"
+                  className="h-12 rounded-2xl pl-10"
                 />
               </div>
             </div>
 
             <div>
-              <label
-                htmlFor="login-password"
-                className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400"
-              >
+              <label htmlFor="login-password" className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
                 Lösenord
               </label>
               <Input
@@ -119,28 +165,30 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
+                className="h-12 rounded-2xl"
               />
             </div>
 
             {error && (
-              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p className="animate-shake rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                 {error}
               </p>
             )}
 
-            <Button type="submit" size="lg" className="w-full gap-2" disabled={pending}>
-              {pending ? "Loggar in..." : "Logga in"}
+            <Button type="submit" size="lg" className="btn-shine w-full gap-2" disabled={pending}>
+              {pending ? "Loggar in…" : "Logga in"}
               {!pending && <ArrowRight className="h-4 w-4" />}
             </Button>
           </form>
-          <p className="mt-5 text-center text-sm text-slate-400">
+
+          <p className="mt-6 text-center text-sm text-slate-400">
             Har inget konto?{" "}
-            <Link href="/register" className="font-semibold text-indigo-400 hover:text-indigo-300">
+            <Link href="/register" className="font-semibold text-indigo-300 hover:text-indigo-200">
               Skapa konto
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </div>
   );
 }

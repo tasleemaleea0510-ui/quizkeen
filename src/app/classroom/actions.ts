@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { grantXp } from "@/lib/xp";
 import type { ActionResult } from "@/components/action-form";
 
 async function ulog(who: string, action: string) {
@@ -186,11 +187,10 @@ export async function completeLexa(assignmentId: string, correct: number, total:
   await prisma.assignmentCompletion.create({ data: { assignmentId, studentId: user.id, score } });
   const p = await prisma.profile.findUnique({ where: { id: user.id } });
   if (p) {
-    const newXp = p.xp + xp;
-    await prisma.profile.update({
-      where: { id: user.id },
-      data: { xp: newXp, coins: p.coins + correct * 2, level: Math.floor(newXp / 100) + 1 },
-    });
+    // Through `grantXp`, so the level is derived from the new XP in the same
+    // statement — a homework that pushed somebody over 100 XP used to leave the
+    // level behind and the leaderboard showing a stale one.
+    await grantXp(user.id, xp, correct * 2);
     await ulog(p.username, `klarade läxan ${a.title} → ${score}% (${correct}/${total} rätt, +${xp} XP)`);
   }
   return { ok: true, score, xp };
@@ -208,11 +208,8 @@ export async function giveStudentXP(formData: FormData): Promise<void> {
   if (!student) return;
   const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
   if (student.lastGiftAt && student.lastGiftAt > dayAgo) return;
-  const newXp = student.xp + 5;
-  await prisma.profile.update({
-    where: { id: studentId },
-    data: { xp: newXp, level: Math.floor(newXp / 100) + 1, lastGiftAt: new Date() },
-  });
+  await grantXp(studentId, 5, 0);
+  await prisma.profile.update({ where: { id: studentId }, data: { lastGiftAt: new Date() } });
   const prof = await prisma.profile.findUnique({ where: { id: user.id } });
   await ulog(prof?.username ?? "okänd", `gav +5 XP till ${student.username}`);
   revalidatePath("/classroom/analytics");

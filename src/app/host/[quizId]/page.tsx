@@ -362,6 +362,7 @@ export default function HostPage() {
         if (paid) mintByName[display] = paid.mint;
       }
       awardXP(
+        quizId,
         payout.map((p) => {
           const seat = Object.values(finished.players).find((s) => (s.account ?? s.name) === p.username);
           return { username: p.username, xp: seat ? scoresRef.current[seat.name] ?? 0 : 0, coins: p.mint };
@@ -375,7 +376,7 @@ export default function HostPage() {
           xp: s,
           coins: [50, 30, 20][i] || 10,
         }));
-      awardXP(top);
+      awardXP(quizId, top);
     }
     broadcast("end", { scores: scoresRef.current, mint: mintByName });
     setPhase("end");
