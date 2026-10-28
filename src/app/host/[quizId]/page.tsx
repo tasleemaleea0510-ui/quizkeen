@@ -18,6 +18,7 @@ import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForwar
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
+import GameStage from "@/components/game/game-stage";
 import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
@@ -415,14 +416,14 @@ export default function HostPage() {
   };
 
   return (
-    <div className="relative min-h-screen pb-10">
+    <GameStage mode={mode === "classic" ? null : mode}>
       {/* The room wears the mode's colour, so the back row can see the pick. */}
       <div aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-[360px] opacity-60 blur-3xl ${art.glow}`} />
 
       {/* The site navbar and footer are hidden on this route, so this bar is the
-          one thing at the top of the projector — and it stays there while the
-          host scrolls the board. */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+          one thing at the top of the projector. It sits outside the scroll area
+          now: the questions move, the bar does not. */}
+      <header className="relative z-20 shrink-0 border-b border-white/10 bg-slate-950/60 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1500px] items-center gap-3 px-3 py-2.5 sm:px-6">
           {mascot && <KeenAvatar keen={mascot} size={32} className="shrink-0" />}
           <div className="min-w-0 flex-1 leading-tight">
@@ -444,7 +445,11 @@ export default function HostPage() {
         </div>
       </header>
 
-      <div className="relative mx-auto w-full max-w-[1500px] px-3 pt-5 sm:px-6">
+      {/* `my-auto` centres the round when it is shorter than the wall and does
+          nothing at all when it is taller, so a long leaderboard still scrolls
+          from the top instead of being clipped. */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-6">
+        <div className="mx-auto my-auto w-full max-w-[1500px]">
         {phase === "lobby" && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
             {/* The PIN comes first on a phone: it is what the room needs to see. */}
@@ -891,10 +896,11 @@ export default function HostPage() {
             </aside>
           </div>
         )}
+        </div>
       </div>
 
       {/* What the room just watched someone pull out of a chest. */}
       {chestReveal && <ChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
-    </div>
+    </GameStage>
   );
 }

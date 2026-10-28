@@ -54,7 +54,10 @@ export default function HeistPanel({
   const safeguarded = protectedGold(state.mode, profile);
 
   return (
-    <Card className="overflow-hidden border-white/10">
+    /* The panel is a HUD column, not a card in a corner: it takes the height it
+       is given and the feed sinks to the bottom, so the rail never ends in a
+       stripe of nothing. */
+    <Card className="flex h-full min-h-full flex-col overflow-hidden border-white/10">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <Swords className="h-4 w-4 text-indigo-300" />
@@ -100,7 +103,7 @@ export default function HeistPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 pt-3">
+      <CardContent className="flex flex-1 flex-col gap-3 pt-3">
         {/* Gold Quest: one face-down chest a round, and nobody knows what is in it. */}
         {rules.chests && (
           <div>
@@ -308,7 +311,7 @@ export default function HeistPanel({
         )}
 
         {state.events.length > 0 && (
-          <ul className="space-y-0.5 pt-0.5">
+          <ul className="mt-auto space-y-0.5 pt-0.5">
             {state.events.slice(0, 4).map((e) => (
               <li key={e.id} className="truncate text-[11px] text-slate-500">
                 {e.text}

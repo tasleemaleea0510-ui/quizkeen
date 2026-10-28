@@ -3,15 +3,17 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2, Layers3 } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
 import HeistPanel from "@/components/heist-panel";
 import { ChestPick, ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
+import GameStage from "@/components/game/game-stage";
+import { stageTheme } from "@/components/game/game-theme";
+import { cn } from "@/lib/utils";
 import { ANSWER_TINTS as COLORS } from "@/lib/answer-tints";
 import {
   MODE_RULES,
@@ -22,10 +24,10 @@ import {
 } from "@/lib/game-modes";
 
 const SHAPES = [
-  <svg key="t" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><path d="M12 3l9 17H3z" /></svg>,
-  <svg key="d" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><path d="M12 2l10 10-10 10L2 12z" /></svg>,
-  <svg key="c" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><circle cx="12" cy="12" r="9" /></svg>,
-  <svg key="s" viewBox="0 0 24 24" className="h-6 w-6 opacity-90" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>,
+  <svg key="t" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><path d="M12 3l9 17H3z" /></svg>,
+  <svg key="d" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><path d="M12 2l10 10-10 10L2 12z" /></svg>,
+  <svg key="c" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><circle cx="12" cy="12" r="9" /></svg>,
+  <svg key="s" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>,
 ];
 
 type Question = { index: number; text: string; options: string[]; correctCount?: number };
@@ -227,20 +229,45 @@ function GameInner() {
     chestOpen(heist, name) &&
     chestSkipped !== heist.round;
 
+  const theme = stageTheme(heist?.mode ?? null);
+  const modeRules = heist ? MODE_RULES[heist.mode] : null;
+
   return (
-    <div data-accent="orange" className="min-h-screen pb-8">
-      {/* A game fills the screen: the site navbar is hidden here, so your Keen,
-          your score and the fullscreen switch are the whole top bar. */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2 sm:px-4">
-          <WornBuddy
-            label="Du spelar som"
-            className="min-w-0 border-0 bg-transparent px-0 py-0 backdrop-blur-none"
-          />
-          {/* The score is yours whether or not you are wearing a Keen. */}
+    <GameStage mode={heist?.mode ?? null}>
+      {/* ── The HUD ─────────────────────────────────────────────────────────
+          A game screen has one thin bar, not a website header: who you are,
+          which mode you are in, what you have, and the way to fill the wall. */}
+      <header className="relative z-20 flex shrink-0 items-center gap-2 border-b border-white/10 bg-slate-950/55 px-3 py-2 backdrop-blur-xl sm:px-5">
+        <WornBuddy
+          label="Du spelar som"
+          className="min-w-0 border-0 bg-transparent px-0 py-0 backdrop-blur-none"
+        />
+
+        {modeRules && (
           <span
             data-no-translate
-            className="ml-auto shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-200"
+            className={cn(
+              "ml-1 hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider sm:inline-flex",
+              theme.chip
+            )}
+          >
+            <Swords className="h-3.5 w-3.5" />
+            {modeRules.name}
+          </span>
+        )}
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {modeRules && (
+            <span className="hidden items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-200 sm:flex">
+              <Coins className="h-3.5 w-3.5" />
+              <span data-no-translate>
+                {(heist?.players[name]?.balance ?? 0).toLocaleString("sv-SE")}
+              </span>
+            </span>
+          )}
+          <span
+            data-no-translate
+            className="rounded-full border border-white/15 bg-white/[0.07] px-2.5 py-1 text-xs font-extrabold text-white"
           >
             <CountUp value={myScore} duration={650} /> p
           </span>
@@ -248,210 +275,296 @@ function GameInner() {
         </div>
       </header>
 
-      <div
-        className={`mx-auto grid w-full items-start gap-4 px-3 pt-4 sm:px-4 ${
-          showHeist ? "max-w-6xl lg:grid-cols-[minmax(0,1fr)_360px]" : "max-w-3xl"
-        }`}
-      >
-        <div className="min-w-0 space-y-5">
-
-        {phase === "waiting" && (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-500/30 bg-indigo-500/10">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
-            </span>
-            <p className="font-medium text-slate-400">Väntar på att spelledaren ska starta nästa fråga...</p>
-          </div>
-        )}
-
-        {phase === "question" && question && (
-          <div className="animate-fade-up space-y-6">
-            <div className="text-center">
-              <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-indigo-300">
-                  Fråga #{question.index + 1}
+      {/* ── The board ───────────────────────────────────────────────────────
+          On a laptop this is two columns and neither scrolls. On a phone the
+          right rail drops underneath and the whole thing scrolls, because a
+          phone has one column and no wall to project onto. */}
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_384px] lg:overflow-hidden">
+        <section className="relative flex min-h-0 flex-col lg:overflow-y-auto">
+          <div className="m-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+            {phase === "waiting" && (
+              <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+                <span className={cn("grid h-16 w-16 place-items-center rounded-2xl border", theme.chip)}>
+                  <Loader2 className="h-7 w-7 animate-spin" />
                 </span>
-                {need > 1 && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
-                    <Layers3 className="h-3.5 w-3.5" />
-                    Välj {need} rätta svar
-                  </span>
-                )}
-              </div>
-              <h1 className="font-display text-2xl font-extrabold leading-tight text-white sm:text-3xl">{question.text}</h1>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {question.options.map((opt, i) => {
-                const selected = picked.includes(i);
-                const dimmed = sent && !selected;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => pick(i)}
-                    disabled={sent}
-                    aria-pressed={need > 1 ? selected : undefined}
-                    style={{ animationDelay: `${i * 70}ms` }}
-                    className={`flex animate-fade-up items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-br p-6 text-left text-lg font-bold text-white shadow-raise transition-all duration-200 ${COLORS[i % 4]} ${
-                      selected ? "scale-[0.98] ring-4 ring-white/80" : dimmed ? "opacity-40" : "hover:-translate-y-0.5 hover:brightness-110"
-                    }`}
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/20 text-white">
-                      {SHAPES[i % 4]}
-                    </span>
-                    <span className="leading-snug">{opt}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {need > 1 && !sent && (
-              <div className="space-y-2">
-                <Button
-                  size="lg"
-                  className="w-full gap-2"
-                  onClick={() => submit(picked)}
-                  disabled={picked.length !== need}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>
-                    Svara ({picked.length} av {need} valda)
-                  </span>
-                </Button>
-                <p className="text-center text-xs text-slate-500">
-                  Frågan har {need} rätta svar — markera alla innan du skickar.
+                <p className="font-display text-xl font-bold text-white">Väntar på spelledaren…</p>
+                <p className="max-w-sm text-sm text-slate-400">
+                  Håll koll på projektorn — nästa fråga landar här samma sekund som den startar.
                 </p>
               </div>
             )}
 
-            {sent && (
-              <div className="flex animate-fade-in items-center justify-center gap-2 text-sm font-medium text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Svaret är registrerat! Väntar på resultatet...</span>
+            {phase === "question" && question && (
+              <div className="animate-fade-up space-y-7">
+                <div className="text-center">
+                  <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.07] px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-white/80">
+                      Fråga #{question.index + 1}
+                    </span>
+                    {need > 1 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-200">
+                        <Layers3 className="h-3.5 w-3.5" />
+                        Välj {need} rätta svar
+                      </span>
+                    )}
+                    {heist && (
+                      <span
+                        data-no-translate
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider sm:hidden",
+                          theme.chip
+                        )}
+                      >
+                        <Swords className="h-3.5 w-3.5" />
+                        {modeRules?.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <h1 className="text-balance font-display text-3xl font-extrabold leading-[1.15] text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.55)] sm:text-4xl lg:text-[2.6rem]">
+                    {question.text}
+                  </h1>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                  {question.options.map((opt, i) => {
+                    const selected = picked.includes(i);
+                    const dimmed = sent && !selected;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => pick(i)}
+                        disabled={sent}
+                        aria-pressed={need > 1 ? selected : undefined}
+                        style={{ animationDelay: `${i * 70}ms` }}
+                        className={cn(
+                          "qk-answer group relative flex min-h-[92px] animate-fade-up items-center gap-4 overflow-hidden rounded-3xl border-2 border-white/15 bg-gradient-to-br p-5 text-left font-bold text-white shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] sm:min-h-[112px] sm:p-6",
+                          COLORS[i % 4],
+                          selected && "scale-[0.98] border-white ring-4 ring-white/70",
+                          dimmed && "opacity-40",
+                          sent && !selected && "cursor-default"
+                        )}
+                      >
+                        <span className="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/25 ring-1 ring-inset ring-white/20">
+                          {SHAPES[i % 4]}
+                        </span>
+                        <span className="relative z-10 text-lg leading-snug sm:text-xl lg:text-[1.35rem]">
+                          {opt}
+                        </span>
+                        {selected && (
+                          <CheckCircle2 className="relative z-10 ml-auto h-6 w-6 shrink-0 animate-pop" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {need > 1 && !sent && (
+                  <div className="space-y-2">
+                    <Button
+                      size="lg"
+                      className="h-14 w-full gap-2 text-base"
+                      onClick={() => submit(picked)}
+                      disabled={picked.length !== need}
+                    >
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span>
+                        Svara ({picked.length} av {need} valda)
+                      </span>
+                    </Button>
+                    <p className="text-center text-xs text-slate-400">
+                      Frågan har {need} rätta svar — markera alla innan du skickar.
+                    </p>
+                  </div>
+                )}
+
+                {sent && (
+                  <div className="flex animate-fade-in items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Svaret är registrerat! Väntar på resultatet…</span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {phase === "reveal" && question && (
-          <div className="space-y-6">
-            <style>{`
-              .qk-scene { perspective: 1200px; }
-              .qk-card3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
-              .qk-card3d.qk-flipped { transform: rotateY(180deg); }
-              .qk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-              .qk-back { transform: rotateY(180deg); }
-            `}</style>
+            {phase === "reveal" && question && (
+              <div className="space-y-7">
+                <style>{`
+                  .qk-scene { perspective: 1200px; }
+                  .qk-card3d { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+                  .qk-card3d.qk-flipped { transform: rotateY(180deg); }
+                  .qk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+                  .qk-back { transform: rotateY(180deg); }
+                `}</style>
 
-            <div className="flex items-center justify-center">
-              {isRight ? (
-                // A hit: a ring flies out of the badge and the badge stamps in.
-                <div className="relative">
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 animate-ring-burst rounded-full border-2 border-emerald-400/70"
-                  />
-                  <div className="relative inline-flex animate-stamp items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-5 py-2 text-base font-bold text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <span>RÄTT SVAR!</span>
-                  </div>
+                <div className="flex flex-col items-center gap-4">
+                  {isRight ? (
+                    // A hit: a ring flies out of the badge and the badge stamps in.
+                    <div className="relative">
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 animate-ring-burst rounded-full border-2 border-emerald-400/70"
+                      />
+                      <div className="relative inline-flex animate-stamp items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-6 py-2.5 text-lg font-extrabold tracking-wide text-emerald-300 shadow-[0_0_40px_-10px_rgba(16,185,129,0.9)]">
+                        <CheckCircle2 className="h-6 w-6" />
+                        <span>RÄTT SVAR!</span>
+                      </div>
+                    </div>
+                  ) : (
+                    // A miss: the badge lands, then shakes its head once.
+                    <div className="answer-wrong">
+                      <div className="inline-flex animate-pop items-center gap-2 rounded-full border border-rose-400/40 bg-rose-500/15 px-6 py-2.5 text-lg font-extrabold tracking-wide text-rose-300 shadow-[0_0_40px_-10px_rgba(244,63,94,0.9)]">
+                        <XCircle className="h-6 w-6" />
+                        <span>INTE DEN HÄR GÅNGEN</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                // A miss: the badge lands, then shakes its head once.
-                <div className="answer-wrong">
-                  <div className="inline-flex animate-pop items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-5 py-2 text-base font-bold text-rose-400">
-                    <XCircle className="h-5 w-5" />
-                    <span>INTE RIKTIGT DEN HÄR GÅNGEN</span>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            <div className="qk-scene mx-auto w-full max-w-xl">
-              <div className={`qk-card3d relative h-72 w-full ${revealFlip ? "qk-flipped" : ""}`}>
-                <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-6 shadow-card">
-                  <div className="text-center">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-indigo-300">Fråga</p>
-                    <p className="text-xl font-bold text-white">{question.text}</p>
-                  </div>
-                </div>
-                <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-6 shadow-card">
-                  <div className="text-center">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-300">
-                      {correct.length > 1 ? "Rätta svar" : "Rätt svar"}
-                    </p>
-                    <div className="space-y-1">
-                      {correct.map((ci) => (
-                        <p key={ci} className="text-xl font-bold leading-tight text-white sm:text-2xl">
-                          {question.options[ci]}
+                <div className="qk-scene mx-auto w-full max-w-xl">
+                  <div className={`qk-card3d relative h-64 w-full sm:h-72 ${revealFlip ? "qk-flipped" : ""}`}>
+                    <div className="qk-face absolute inset-0 flex items-center justify-center rounded-3xl border-2 border-white/15 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-purple-600/30 p-6 shadow-card backdrop-blur-xl">
+                      <div className="text-center">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-indigo-300">Frågan var</p>
+                        <p className="font-display text-xl font-bold text-white">{question.text}</p>
+                      </div>
+                    </div>
+                    <div className="qk-face qk-back absolute inset-0 flex items-center justify-center rounded-3xl border-2 border-emerald-400/40 bg-gradient-to-br from-emerald-600/30 via-slate-900 to-teal-600/30 p-6 shadow-[0_0_60px_-20px_rgba(16,185,129,0.9)] backdrop-blur-xl">
+                      <div className="text-center">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-300">
+                          {correct.length > 1 ? "Rätta svar" : "Rätt svar"}
                         </p>
-                      ))}
+                        <div className="space-y-1">
+                          {correct.map((ci) => (
+                            <p key={ci} className="font-display text-xl font-bold leading-tight text-white sm:text-2xl">
+                              {question.options[ci]}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="text-center text-sm font-mono text-slate-400">
-              Din poäng:{" "}
-              <CountUp value={scores[name] ?? 0} className="font-bold text-white" /> poäng
-            </div>
-          </div>
-        )}
 
-        {phase === "end" && (
-          <Card className="animate-fade-up border-white/10">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/20 text-amber-400">
-                <Trophy className="h-7 w-7" />
+                <div className="text-center">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Din poäng</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-white">
+                    <CountUp value={scores[name] ?? 0} /> p
+                  </p>
+                </div>
               </div>
-              <CardTitle className="font-display text-2xl font-bold">Slutresultat</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2.5">
-              {leaderboard.map(([n, s], i) => (
-                <div
-                  key={n}
-                  style={{ animationDelay: `${Math.min(i * 55, 550)}ms` }}
-                  className={`flex animate-row-in items-center justify-between rounded-xl px-4 py-3 transition-colors ${
-                    n === name
-                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 font-bold text-white shadow-glow-sm"
-                      : "border border-white/10 bg-white/[0.05] text-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`w-6 font-mono text-sm font-bold ${
-                      i === 0 ? "text-amber-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-slate-500"
-                    }`}>
-                      {i + 1}
-                    </span>
-                    <span>{n}</span>
+            )}
+
+            {phase === "end" && (
+              <div className="animate-fade-up space-y-6">
+                <div className="text-center">
+                  <div className="mx-auto mb-3 grid h-16 w-16 animate-stamp place-items-center rounded-2xl border border-amber-400/35 bg-amber-500/15 text-amber-300">
+                    <Trophy className="h-8 w-8" />
                   </div>
-                  <span className="font-mono">{s} poäng</span>
+                  <h1 className="font-display text-3xl font-extrabold text-white sm:text-4xl">Slutresultat</h1>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {leaderboard.length} spelare{modeRules ? ` · ${modeRules.name}` : ""}
+                  </p>
                 </div>
-              ))}
-              {myMint !== null && (
-                <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
-                  <span>Du fick</span>
-                  <span data-no-translate className="font-mono text-lg">
-                    {myMint}
-                  </span>
-                  <span>Mint</span>
+
+                {/* Top three, drawn as cards rather than rows: the end of a
+                    match is the part people screenshot. */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {[0, 1, 2].map((i) => {
+                    const row = leaderboard[i];
+                    const tone =
+                      i === 0 ? "border-amber-400/50 bg-amber-500/15 text-amber-200"
+                        : i === 1 ? "border-slate-300/40 bg-white/10 text-slate-200"
+                          : "border-orange-500/40 bg-orange-500/10 text-orange-200";
+                    return (
+                      <div
+                        key={i}
+                        style={{ animationDelay: `${i * 90}ms` }}
+                        className={cn(
+                          "animate-rise-in rounded-2xl border p-3 text-center backdrop-blur-md",
+                          row ? tone : "border-white/10 bg-white/[0.03] text-slate-600",
+                          i === 0 && "sm:-translate-y-2"
+                        )}
+                      >
+                        <span className="block text-[10px] font-extrabold uppercase tracking-widest opacity-70">
+                          {i === 0 ? "🥇 1:a" : i === 1 ? "🥈 2:a" : "🥉 3:e"}
+                        </span>
+                        <span
+                          data-no-translate
+                          className="mt-1 block truncate text-sm font-extrabold text-white"
+                        >
+                          {row ? row[0] : "–"}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-xs font-bold opacity-80">
+                          {row ? `${row[1]} p` : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-              <p className="pt-4 text-center text-xs text-slate-500">Tack för att du deltog i QuizKeen</p>
-            </CardContent>
-          </Card>
-        )}
+
+                {leaderboard.length > 3 && (
+                  <div className="space-y-1.5">
+                    {leaderboard.slice(3).map(([n, s], i) => (
+                      <div
+                        key={n}
+                        style={{ animationDelay: `${Math.min(i * 45, 400)}ms` }}
+                        className={cn(
+                          "flex animate-row-in items-center justify-between rounded-xl px-4 py-2.5 text-sm",
+                          n === name
+                            ? "bg-gradient-to-r from-indigo-600 to-violet-600 font-bold text-white shadow-glow-sm"
+                            : "border border-white/10 bg-white/[0.04] text-slate-300"
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="w-5 shrink-0 font-mono text-xs font-bold text-slate-500">{i + 4}</span>
+                          <span data-no-translate className="truncate">{n}</span>
+                        </div>
+                        <span className="shrink-0 font-mono text-xs">{s} p</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {leaderboard.length <= 3 && leaderboard.length > 0 && leaderboard.every(([n]) => n !== name) && (
+                  <p className="text-center text-sm text-slate-400">
+                    Du hamnade utanför pallen — nästa match är din.
+                  </p>
+                )}
+
+                {myMint !== null && (
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-400/35 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
+                    <span>Du fick</span>
+                    <span data-no-translate className="font-mono text-lg">{myMint}</span>
+                    <span>Mint</span>
+                  </div>
+                )}
+
+                <p className="text-center text-xs text-slate-500">
+                  Tack för att du spelade — håll kvar på skärmen, värden kan starta en omgång till.
+                </p>
+              </div>
+            )}
           </div>
+        </section>
 
         {showHeist && heist && (
-          <aside className="min-w-0 lg:sticky lg:top-16 lg:self-start">
-            <HeistPanel
-              state={heist}
-              me={name}
-              note={heistNote}
-              pending={heistSending}
-              onAction={heistAction}
-            />
+          <aside
+            className={cn(
+              "min-h-0 border-t border-white/10 bg-slate-950/45 backdrop-blur-xl",
+              "lg:border-l lg:border-t-0 lg:overflow-y-auto",
+              theme.edge
+            )}
+          >
+            <div className="p-3">
+              <HeistPanel
+                state={heist}
+                me={name}
+                note={heistNote}
+                pending={heistSending}
+                onAction={heistAction}
+              />
+            </div>
           </aside>
         )}
       </div>
@@ -472,7 +585,7 @@ function GameInner() {
 
       {/* And what was inside, on every screen at once. */}
       {chestReveal && <ChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}
-    </div>
+    </GameStage>
   );
 }
 
