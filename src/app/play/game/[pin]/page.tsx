@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight, LogOut } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
@@ -65,6 +65,7 @@ function GameInner() {
   // The round this player waved the chest away, so the picker does not nag
   // twice about the same question.
   const [chestSkipped, setChestSkipped] = useState<number | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
@@ -272,6 +273,16 @@ function GameInner() {
           >
             <CountUp value={myScore} duration={650} /> p
           </span>
+          <button
+            type="button"
+            onClick={() => setConfirmLeave(true)}
+            title="Lämna matchen"
+            aria-label="Lämna matchen"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/[0.08] px-2 text-[10px] font-extrabold text-rose-200 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15 sm:px-3 sm:text-xs"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Lämna</span>
+          </button>
           <FullscreenButton />
         </div>
       </header>
@@ -586,6 +597,55 @@ function GameInner() {
           </aside>
         )}
       </div>
+
+      {/* Confirm before leaving: on a phone the HUD is all thumb targets, and
+          quitting in the middle of a round should be deliberate. Confirming
+          routes away, which also removes the player's live Supabase channel. */}
+      {confirmLeave && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-md"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setConfirmLeave(false);
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="leave-match-title"
+            aria-describedby="leave-match-description"
+            className="w-full max-w-sm animate-pop rounded-3xl border border-white/10 bg-slate-900 p-5 shadow-[0_30px_90px_-25px_rgba(0,0,0,0.9)] sm:p-6"
+          >
+            <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-rose-400/25 bg-rose-500/10 text-rose-300">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <h2 id="leave-match-title" className="font-display text-xl font-extrabold text-white">
+              Lämna matchen?
+            </h2>
+            <p id="leave-match-description" className="mt-2 text-sm leading-relaxed text-slate-400">
+              Du lämnar den här omgången och kommer tillbaka till sidan där du kan gå med i ett spel igen.
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmLeave(false)}
+                className="h-10 rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm font-bold text-slate-200 transition-colors hover:bg-white/10"
+              >
+                Stanna kvar
+              </button>
+              <Link
+                href="/play"
+                onClick={() => setConfirmLeave(false)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-500/90 px-4 text-sm font-extrabold text-white transition-colors hover:bg-rose-500"
+              >
+                <LogOut className="h-4 w-4" />
+                Lämna matchen
+              </Link>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* The pick. Always on top of the question, because it is the one thing a
           player does without the rest of the room watching their answers. */}
