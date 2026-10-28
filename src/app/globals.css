@@ -132,6 +132,28 @@
     @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-slate-200 backdrop-blur;
   }
 
+  /* ── The header rail ────────────────────────────────────────────────────
+     One destination in the top bar. At rest it is just a word; the one you are
+     on is a pill lit from above, with the page's accent glowing underneath.
+     `data-active` is set by both the plain links and `MenuPanel`. */
+  .rail-pill {
+    @apply relative inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-2.5 text-[13px] font-bold transition-all duration-200 xl:px-3;
+  }
+  .rail-pill[data-active="true"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 12px 26px -20px var(--accent-line);
+    color: #fff;
+  }
+  .rail-pill[data-active="false"] {
+    color: #94a3b8;
+  }
+  .rail-pill[data-active="false"]:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+  }
+
   /* A page's small label and its one big heading. Used instead of inventing a
      new title style on every screen. */
   .eyebrow {
@@ -606,22 +628,17 @@ button:active, a:active {
   transform: translateX(130%) skewX(-18deg);
 }
 
-/* The active tab's underline growing out from the middle. */
-.nav-underline {
-  position: absolute;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0.15rem;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #818cf8, #c084fc);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+/* A band of light that crosses the brand mark every few seconds — the one
+   moving thing in the bar, so the eye goes to the logo rather than the noise. */
+.brand-sheen {
+  background: linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.5) 46%, transparent 74%);
+  transform: translateX(-130%);
+  animation: brand-sheen 7s ease-in-out infinite;
 }
-.nav-underline[data-active="true"] {
-  transform: scaleX(1);
-  box-shadow: 0 0 12px rgba(129, 140, 248, 0.8);
+
+@keyframes brand-sheen {
+  0%, 62% { transform: translateX(-130%); }
+  90%, 100% { transform: translateX(130%); }
 }
 
 /* A correct answer: the tile holds its own colour and the ring flies out. */

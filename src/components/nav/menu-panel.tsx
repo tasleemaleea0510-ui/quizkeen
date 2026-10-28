@@ -26,6 +26,8 @@ export default function MenuPanel({
   panelClassName,
   chevron = true,
   title,
+  trigger,
+  triggerClassName,
 }: {
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
@@ -39,10 +41,24 @@ export default function MenuPanel({
   chevron?: boolean;
   /** Tooltip on the trigger — useful when the label is hidden. */
   title?: string;
+  /**
+   * Draws the trigger itself instead of the icon + label.
+   *
+   * The header's player pill and its rail tabs are too shaped to be described
+   * by `icon` and `label`, so they pass the whole trigger in. `data-active` is
+   * still set on the button, which is what the `rail-pill` styles read.
+   */
+  trigger?: ReactNode;
+  /** Classes for the trigger button; ignored when `trigger` is not given. */
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Hover opens the panel, so a click on the trigger that follows the pointer
+  // used to *close* the thing the pointer had just opened. The first click after
+  // a hover now pins it instead.
+  const hoverOpened = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -72,6 +88,7 @@ export default function MenuPanel({
       className={cn("relative", className)}
       onMouseEnter={() => {
         if (closeTimer.current) clearTimeout(closeTimer.current);
+        if (!open) hoverOpened.current = true;
         setOpen(true);
       }}
       onMouseLeave={() => {
@@ -82,16 +99,35 @@ export default function MenuPanel({
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={label}
         title={title ?? label}
-        onClick={() => setOpen((v) => !v)}
+        data-active={active ? "true" : "false"}
+        onClick={() => {
+          if (open && hoverOpened.current) {
+            hoverOpened.current = false;
+            return;
+          }
+          setOpen((v) => !v);
+        }}
         className={cn(
-          "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition-colors",
-          open || active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+          "shrink-0",
+          trigger
+            ? triggerClassName
+            : cn(
+                "inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition-colors",
+                open || active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+              )
         )}
       >
-        {Icon && <Icon className={cn("h-4 w-4", active ? "text-indigo-300" : "text-slate-400")} />}
-        <span className="hidden lg:inline">{label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform", open && "rotate-180")} />
+        {trigger ?? (
+          <>
+            {Icon && <Icon className={cn("h-4 w-4", active ? "text-indigo-300" : "text-slate-400")} />}
+            <span className="hidden lg:inline">{label}</span>
+            {chevron && (
+              <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform", open && "rotate-180")} />
+            )}
+          </>
+        )}
       </button>
 
       {open && (

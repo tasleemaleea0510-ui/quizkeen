@@ -4,50 +4,36 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSupabase } from "@/components/providers";
 import TutorialWidget from "@/components/tutorial";
-import WornKeen from "@/components/keens/worn-keen";
 import { getNavUser } from "@/app/system/actions";
-import { ROLE_THEME } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { isGameScreen } from "@/lib/game-screen";
-import { NAV_GROUPS, NAV_ITEMS, PRIMARY_HREFS, navItemsIn, type NavGroupId } from "@/lib/nav";
-import { levelFor, levelProgress, levelTitle } from "@/lib/levels";
+import { NAV_GROUPS, NAV_ITEMS, PRIMARY_HREFS, navItemsIn } from "@/lib/nav";
+import { levelFor, levelProgress } from "@/lib/levels";
 import MenuPanel, { MenuLink, MenuSection } from "@/components/nav/menu-panel";
 import CommandPalette from "@/components/nav/command-palette";
 import MobileDrawer from "@/components/nav/mobile-drawer";
-import {
-  Zap,
-  LogOut,
-  Menu as MenuIcon,
-  Coins,
-  Flame,
-  Trophy,
-  Settings as SettingsIcon,
-  Sparkles,
-  HelpCircle,
-  User,
-  LayoutGrid,
-} from "lucide-react";
+import PlayerMenu from "@/components/nav/player-menu";
+import { Zap, Menu as MenuIcon, LayoutGrid } from "lucide-react";
 
 /**
  * The header.
  *
- * The rule this bar is built on: **it never changes height.** A header that
- * wraps "Logga ut" onto a second line while you are aiming at it is the bug this
- * file exists to kill, so every part of it is `nowrap` and the middle is a rail
- * that scrolls sideways (with no visible scrollbar) instead of pushing the
- * player cluster off the edge.
+ * It is three calm zones, not a toolbar with everything in it:
  *
- * Layout, left to right:
- *   1. the brand,
- *   2. the rail — the six destinations people use daily, then one *Allt* menu
- *      holding every other page in the app, grouped, with a line saying what
- *      each one is for. `lib/nav` is the single list; adding a page is adding a
- *      line there and it appears in the rail menu, ⌘K and the phone drawer,
- *   3. the player — coins, the level ring, ⌘K, the guide, the account menu and a
- *      sign-out button that is always there.
+ *   1. **Brand** — the mark and the promise, with room to breathe.
+ *   2. **Rail** — the six places people actually go, ordered by intent, each
+ *      one labelled from `xl` up. Six is the number that lets a tab print its
+ *      name; with nine it could only ever be icons, which is what made the bar
+ *      read as clutter. Everything else lives in `Mer`, in ⌘K and in the phone
+ *      drawer, so adding a page never squeezes this row.
+ *   3. **Player** — one pill for the whole person: the avatar wears the level
+ *      ring, the name carries the role, the coins ride on the right and the
+ *      panel behind it holds the numbers, the shortcuts and the way out.
  *
- * The hairline along the bottom is the level bar: the same number the wallet
- * panel and the server agree on, as a progress line across the whole app.
+ * The rules that keep it from ever breaking: nothing here wraps, the height is
+ * fixed at one value, and the one thing that must always be reachable (signing
+ * out) is inside the menu *and* in the drawer. The hairline along the bottom is
+ * the level bar — the same `levelProgress` every other surface reads.
  */
 export default function Navbar() {
   const { supabase, session } = useSupabase();
@@ -90,7 +76,6 @@ export default function Navbar() {
   // The deck host keeps the navbar because that page has no bar of its own.
   if (isGameScreen(pathname)) return null;
 
-  const theme = ROLE_THEME[me?.role ?? "STUDENT"];
   const xp = me?.xp ?? 0;
   const level = levelFor(xp);
   const progress = levelProgress(xp);
@@ -109,275 +94,159 @@ export default function Navbar() {
   })).filter((group) => group.items.length);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-
-  const tabClass = (active: boolean) =>
-    cn(
-      "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-semibold transition-colors",
-      active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
-    );
+  const restActive = rest.some((group) => group.items.some((item) => isActive(item.href)));
 
   return (
-    <header
-      data-accent={me?.role === "OWNER" ? "amber" : "indigo"}
-      className="sticky top-0 z-40 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55"
-    >
-      <div className="relative mx-auto flex h-16 max-w-[1600px] items-center gap-2 overflow-hidden px-3 sm:px-4">
-        {/* ── Brand ─────────────────────────────────────────────────────── */}
-        <Link
-          href="/"
-          className="group flex shrink-0 items-center gap-2.5 pr-1 transition-opacity hover:opacity-90"
-        >
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm">
-            <span aria-hidden className="absolute inset-0 animate-pulse-ring rounded-xl border border-indigo-300/60" />
-            <Zap className="h-4 w-4 text-white" strokeWidth={2.5} />
-          </span>
-          <span className="hidden font-display text-xl font-extrabold tracking-tight text-white sm:inline">
-            Quiz<span className="text-gradient">Keen</span>
-          </span>
-        </Link>
+    <header data-accent={me?.role === "OWNER" ? "amber" : "indigo"} className="sticky top-0 z-40">
+      {/* The lit edge over the whole bar — one line, in the page's own accent. */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-line)] to-transparent"
+      />
 
-        {/* ── The rail ──────────────────────────────────────────────────── */}
-        <nav
-          aria-label="Huvudmeny"
-          className="no-scrollbar hidden min-w-0 flex-1 items-center gap-0 overflow-x-auto lg:flex"
-        >
-          {session && (
-            <>
-              {primary.map((item) => {
-                const active = isActive(item.href);
-                const railLabel = item.short ?? item.label;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="relative inline-flex shrink-0"
-                    title={item.hint ? `${item.label} — ${item.hint}` : item.label}
-                    aria-label={item.label}
-                  >
-                    <span className={tabClass(active)}>
-                      <item.icon className={cn("h-4 w-4", active ? "text-indigo-300" : "text-slate-400")} />
-                      {/* Labels from 2xl up. Below that the rail is icons with
-                          tooltips, which is what keeps nine buttons on one line
-                          on a laptop — the rail scrolls if a role has more. */}
-                      <span className="hidden 2xl:inline">{railLabel}</span>
-                    </span>
-                    <span aria-hidden className="nav-underline" data-active={active} />
-                  </Link>
-                );
-              })}
-
-              {/* One menu with the whole map in it, instead of four small ones:
-                  a single trigger leaves room for the six tabs above, and the
-                  panel is wide enough to show the groups side by side. */}
-              <MenuPanel
-                label="Allt"
-                icon={LayoutGrid}
-                active={rest.some((g) => g.items.some((item) => isActive(item.href)))}
-                panelClassName="w-[min(94vw,52rem)] p-3"
-              >
-                <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {rest.map((group) => (
-                    <MenuSection key={group.id} title={group.label}>
-                      {group.items.map((item) => (
-                        <MenuLink
-                          key={item.href}
-                          href={item.href}
-                          icon={item.icon}
-                          label={item.label}
-                          hint={item.hint}
-                          active={isActive(item.href)}
-                        />
-                      ))}
-                    </MenuSection>
-                  ))}
-                </div>
-                <p className="mt-1 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
-                  Tips: tryck{" "}
-                  <kbd className="rounded border border-white/10 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
-                    ⌘K
-                  </kbd>{" "}
-                  och skriv namnet på vilken sida som helst.
-                </p>
-              </MenuPanel>
-            </>
-          )}
-        </nav>
-
-        {/* ── The player ────────────────────────────────────────────────── */}
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {session ? (
-            <>
-              {me && (
-                <Link
-                  href="/keens/packs"
-                  title="Dagens gratispaket"
-                  className="hidden h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-2.5 text-sm font-bold text-indigo-100 transition-colors hover:border-indigo-300/50 md:inline-flex"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="tabular" data-no-translate>
-                    {me.coins.toLocaleString("sv-SE")}
-                  </span>
-                  <Coins className="h-3.5 w-3.5 text-amber-300" />
-                </Link>
-              )}
-
-              {me && (
-                <MenuPanel
-                  align="right"
-                  label={`Nivå ${level}`}
-                  icon={Zap}
-                  className="hidden xl:block"
-                  active={false}
-                >
-                  <div className="p-2">
-                    <div className="flex items-center gap-3">
-                      <span className="relative grid h-14 w-14 shrink-0 place-items-center">
-                        <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90" aria-hidden>
-                          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
-                          <circle
-                            cx="22"
-                            cy="22"
-                            r="18"
-                            fill="none"
-                            stroke="var(--accent-bright)"
-                            strokeWidth="4"
-                            strokeLinecap="round"
-                            strokeDasharray={2 * Math.PI * 18}
-                            strokeDashoffset={2 * Math.PI * 18 * (1 - progress.ratio)}
-                          />
-                        </svg>
-                        <span className="font-display text-sm font-extrabold text-white tabular" data-no-translate>
-                          {level}
-                        </span>
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-bold text-white">{levelTitle(level)}</span>
-                        <span className="block text-xs text-slate-400 tabular" data-no-translate>
-                          {progress.into}/{progress.span} XP · {progress.toNext} till nivå {level + 1}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="bar mt-3">
-                      <span className="bar-fill" style={{ width: `${Math.round(progress.ratio * 100)}%` }} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 border-t border-white/10 pt-1">
-                    <Link
-                      href="/progress"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-white/[0.07] hover:text-white"
-                    >
-                      <Trophy className="h-4 w-4 text-indigo-300" /> Framsteg
-                    </Link>
-                    <Link
-                      href="/quests"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-white/[0.07] hover:text-white"
-                    >
-                      <Flame className="h-4 w-4 text-amber-300" /> Uppdrag
-                    </Link>
-                  </div>
-                </MenuPanel>
-              )}
-
-              <CommandPalette role={me?.role ?? null} signedIn onSignOut={signOut} />
-
-              <span className="hidden 2xl:inline-flex">
-                <TutorialWidget />
+      <div className="relative border-b border-white/[0.06] bg-[#05060f]/85 shadow-[0_18px_50px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl supports-[backdrop-filter]:bg-[#05060f]/70">
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-2 px-3 sm:gap-3 sm:px-5">
+          {/* ── Brand ───────────────────────────────────────────────────── */}
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5 pr-1">
+            <span className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-[14px] bg-gradient-to-br from-indigo-400 via-indigo-500 to-violet-600 shadow-[0_12px_30px_-14px_rgba(99,102,241,0.95)] ring-1 ring-inset ring-white/25 transition-transform duration-300 group-hover:-translate-y-0.5">
+              <span aria-hidden className="brand-sheen absolute inset-0" />
+              <Zap className="relative h-[18px] w-[18px] text-white drop-shadow" strokeWidth={2.6} />
+            </span>
+            <span className="flex flex-col leading-none">
+              <span className="font-display text-[17px] font-extrabold tracking-tight text-white sm:text-[19px]">
+                Quiz<span className="text-gradient">Keen</span>
               </span>
+              <span className="mt-1 hidden text-[8.5px] font-bold uppercase tracking-[0.24em] text-slate-500 2xl:block">
+                Lär · Spela · Tävla
+              </span>
+            </span>
+          </Link>
 
-              {me && (
+          {/* ── Rail ────────────────────────────────────────────────────── */}
+          {/* `overflow-x-auto` is the safety valve: if a very long username makes
+              the player pill grow, the tabs scroll a little instead of being
+              clipped — the bar still never wraps and never changes height. */}
+          <nav
+            aria-label="Huvudmeny"
+            className="no-scrollbar hidden min-w-0 items-center gap-1 overflow-x-auto lg:flex"
+          >
+            {session && (
+              <>
+                {primary.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      data-active={active ? "true" : "false"}
+                      title={item.hint ? `${item.label} — ${item.hint}` : item.label}
+                      className="rail-pill"
+                    >
+                      <item.icon
+                        className={cn("h-[18px] w-[18px] shrink-0", active ? "text-[var(--accent-bright)]" : "text-slate-400")}
+                        strokeWidth={2.1}
+                      />
+                      {/* A name for every tab, from `xl` up. Below that the rail
+                          is icons with tooltips, which is what keeps six tabs on
+                          one line on a small laptop. */}
+                      <span className="hidden xl:inline">{item.short ?? item.label}</span>
+                    </Link>
+                  );
+                })}
+
+                {/* One menu with the whole map in it, instead of four small ones. */}
                 <MenuPanel
+                  label="Mer"
                   align="right"
-                  label="Konto"
-                  icon={User}
-                  active={isActive("/settings")}
-                  className="hidden lg:block"
+                  active={restActive}
+                  panelClassName="w-[min(94vw,52rem)] p-3"
+                  triggerClassName="rail-pill"
+                  trigger={
+                    <>
+                      <LayoutGrid className="h-[18px] w-[18px] shrink-0" strokeWidth={2.1} />
+                      <span className="hidden xl:inline">Mer</span>
+                    </>
+                  }
                 >
-                  <div className="p-2">
-                    <span
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm font-bold",
-                        theme.color
-                      )}
-                    >
-                      <WornKeen size={30} className="-ml-1" />
-                      <span className="min-w-0">
-                        <span
-                          className="block truncate"
-                          style={me.accentColor ? { color: me.accentColor } : undefined}
-                          data-no-translate
-                        >
-                          {me.username}
-                        </span>
-                        <span className="mt-0.5 flex items-center gap-1.5">
-                          <span className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-                            {theme.badge}
-                          </span>
-                          <span className="text-[11px] font-semibold text-slate-500">{levelTitle(level)}</span>
-                        </span>
-                      </span>
-                    </span>
+                  <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {rest.map((group) => (
+                      <MenuSection key={group.id} title={group.label}>
+                        {group.items.map((item) => (
+                          <MenuLink
+                            key={item.href}
+                            href={item.href}
+                            icon={item.icon}
+                            label={item.label}
+                            hint={item.hint}
+                            active={isActive(item.href)}
+                          />
+                        ))}
+                      </MenuSection>
+                    ))}
                   </div>
-                  <MenuSection title="Konto">
-                    <MenuLink href="/settings" icon={SettingsIcon} label="Inställningar" hint="Namn, färg, ljud" />
-                    <MenuLink href="/help" icon={HelpCircle} label="Hjälp & guide" hint="Så funkar allt" />
-                    <MenuLink href="/leaderboard" icon={Trophy} label="Ledartavlan" hint="Vem leder just nu" />
-                  </MenuSection>
-                  <div className="border-t border-white/10 p-1">
-                    <button
-                      type="button"
-                      onClick={signOut}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-300 transition-colors hover:bg-rose-500/10"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Logga ut
-                    </button>
-                  </div>
+                  <p className="mt-1 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
+                    Tips: tryck{" "}
+                    <kbd className="rounded border border-white/10 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
+                      ⌘K
+                    </kbd>{" "}
+                    och skriv namnet på vilken sida som helst.
+                  </p>
                 </MenuPanel>
-              )}
+              </>
+            )}
+          </nav>
 
-              {/* Always present, never widens into two lines. */}
-              <button
-                type="button"
-                onClick={signOut}
-                title="Logga ut"
-                aria-label="Logga ut"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 transition-colors hover:border-rose-400/40 hover:text-rose-300 lg:hidden"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+          {/* ── Player ──────────────────────────────────────────────────── */}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {session ? (
+              <>
+                <CommandPalette role={me?.role ?? null} signedIn onSignOut={signOut} />
 
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(true)}
-                aria-label="Öppna menyn"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 lg:hidden"
-              >
-                <MenuIcon className="h-4 w-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <CommandPalette role={null} signedIn={false} onSignOut={signOut} />
-              <Link href="/login" className={cn(tabClass(false), "hidden sm:inline-flex")}>
-                Logga in
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-glow-sm ring-1 ring-inset ring-white/15"
-              >
-                Skapa konto
-              </Link>
-            </>
-          )}
+                <span className="hidden xl:inline-flex">
+                  <TutorialWidget />
+                </span>
+
+                {me && <PlayerMenu me={me} level={level} progress={progress} onSignOut={signOut} />}
+
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="Öppna menyn"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition-colors hover:border-white/25 hover:text-white lg:hidden"
+                >
+                  <MenuIcon className="h-[18px] w-[18px]" />
+                </button>
+              </>
+            ) : (
+              <>
+                <CommandPalette role={null} signedIn={false} onSignOut={signOut} />
+                <Link
+                  href="/login"
+                  className="hidden h-10 items-center whitespace-nowrap rounded-full px-3 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/5 hover:text-white sm:inline-flex"
+                >
+                  Logga in
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn-shine inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full bg-gradient-to-b from-indigo-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-glow-sm ring-1 ring-inset ring-white/20 transition-transform hover:-translate-y-0.5"
+                >
+                  Skapa konto
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* The level bar, as a hairline under the whole app. */}
         {session && me && (
           <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] bg-white/[0.06]">
             <span
-              className="block h-full bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 transition-[width] duration-700"
+              className="relative block h-full bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 transition-[width] duration-700"
               style={{ width: `${Math.max(2, Math.round(progress.ratio * 100))}%` }}
-            />
+            >
+              <span className="absolute -right-px top-1/2 h-[6px] w-[6px] -translate-y-1/2 rounded-full bg-white shadow-[0_0_10px_2px_rgba(255,255,255,0.55)]" />
+            </span>
           </span>
         )}
       </div>

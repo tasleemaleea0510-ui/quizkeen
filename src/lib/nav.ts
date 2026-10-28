@@ -121,13 +121,16 @@ export function navItemsIn(group: NavGroupId, role: string | null | undefined): 
 }
 
 /**
- * The ones that get a button of their own, in order.
+ * The six that get a button of their own, in order.
  *
- * Nine of them now. The rail is built for this: it scrolls sideways instead of
- * wrapping, hides its labels below `xl` (leaving the icons), and everything that
- * is not in this list is one click away in the `Allt` menu, in ⌘K and in the
- * phone drawer. So a page can be promoted to a button here without any risk of
- * the header growing a second line — which is exactly what used to happen.
+ * It used to be nine, and nine icon-only buttons in a row is what made the bar
+ * read as a toolbar rather than a menu: nothing could be labelled, because
+ * there was no room. Six is the number that lets every tab print its name from
+ * `xl` up, so the rail is legible at a glance — and the rest is still one click
+ * away in `Mer`, in ⌘K and in the phone drawer.
+ *
+ * Order is by *intent*, not by route: where you are, who is ahead of you, what
+ * you are learning, what you collect.
  */
 export const PRIMARY_HREFS = [
   "/dashboard",
@@ -135,8 +138,5 @@ export const PRIMARY_HREFS = [
   "/flashcards",
   "/study",
   "/classroom",
-  "/play",
   "/keens",
-  "/progress",
-  "/chat",
 ] as const;

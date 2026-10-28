@@ -172,11 +172,12 @@ export default function CommandPalette({
         type="button"
         onClick={() => setOpen(true)}
         title="Sök allt (⌘K)"
-        className="hidden h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-400 transition-colors hover:border-white/20 hover:text-white md:inline-flex"
+        aria-label="Sök allt (⌘K)"
+        className="group hidden h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-400 transition-colors hover:border-white/25 hover:text-white sm:inline-flex"
       >
-        <Search className="h-4 w-4" />
-        <span className="hidden xl:inline">Sök</span>
-        <kbd className="ml-1 hidden items-center gap-0.5 rounded-md border border-white/10 bg-slate-900/80 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 xl:inline-flex">
+        <Search className="h-[18px] w-[18px]" />
+        {/* The shortcut is the label: at a glance a magnifier says the rest. */}
+        <kbd className="hidden items-center gap-0.5 rounded-md border border-white/10 bg-slate-900/80 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 transition-colors group-hover:text-slate-200 2xl:inline-flex">
           <Command className="h-2.5 w-2.5" />K
         </kbd>
       </button>
