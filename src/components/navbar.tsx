@@ -304,6 +304,7 @@ export default function Navbar() {
                         <span
                           className="block truncate"
                           style={me.accentColor ? { color: me.accentColor } : undefined}
+                          data-no-translate
                         >
                           {me.username}
                         </span>

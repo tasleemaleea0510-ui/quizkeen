@@ -492,7 +492,9 @@ export default async function Home() {
                         <span className="relative z-10">{row.rank}</span>
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-white">{row.username}</span>
+                        <span className="block truncate text-sm font-bold text-white" data-no-translate>
+                          {row.username}
+                        </span>
                         <span className="block text-xs text-slate-400 tabular" data-no-translate>
                           Lv {levelFor(row.xp)} · {row.xp.toLocaleString("sv-SE")} XP
                         </span>

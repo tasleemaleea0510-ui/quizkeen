@@ -34,7 +34,7 @@ export default async function StaffPage() {
         icon={Shield}
         title={
           <>
-            Moderering, <span className={theme.color}>{profile.username}</span>
+            Moderering, <span className={theme.color} data-no-translate>{profile.username}</span>
           </>
         }
         lead="Varningar, tystnader, mynt och anteckningar — inne i appen, utan att lämna fliken. Allt du gör loggas med tid och roll, och varje åtgärd kontrolleras på servern en gång till."

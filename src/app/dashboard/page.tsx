@@ -144,7 +144,7 @@ export default async function DashboardPage() {
           icon={GraduationCap}
           title={
             <>
-              Klassrumsöversikt, <span className="text-shine">{profile.username}</span>
+              Klassrumsöversikt, <span className="text-shine" data-no-translate>{profile.username}</span>
             </>
           }
           lead="Allt du behöver för att driva en klass: rummen, läxorna, hur många som är klara och vilka som behöver en knuff."
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
         icon={Sparkles}
         title={
           <>
-            Hej, <span className={theme.color}>{profile.username}</span>
+            Hej, <span className={theme.color} data-no-translate>{profile.username}</span>
           </>
         }
         lead={subtitle}

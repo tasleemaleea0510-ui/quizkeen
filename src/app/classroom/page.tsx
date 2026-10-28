@@ -190,7 +190,7 @@ export default async function ClassroomPage() {
                     <div className="flex flex-wrap gap-1.5">
                       {room.enrollments.length === 0 && <p className="text-xs text-slate-500">Inga elever anslutna än — dela koden ovan.</p>}
                       {room.enrollments.map((e) => (
-                        <span key={e.id} className="rounded-lg border border-white/10 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300">
+                        <span key={e.id} className="rounded-lg border border-white/10 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300" data-no-translate>
                           {e.student.username}
                         </span>
                       ))}
@@ -249,7 +249,11 @@ export default async function ClassroomPage() {
                             <div className="flex items-center gap-2">
                               <span>{a.title}</span>
                               {a.provlage && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400 border border-amber-500/20">PROV</span>}
-                              {a.targetStudent && <span className="text-[10px] text-indigo-300">({a.targetStudent.username})</span>}
+                              {a.targetStudent && (
+                                <span className="text-[10px] text-indigo-300" data-no-translate>
+                                  ({a.targetStudent.username})
+                                </span>
+                              )}
                               <span className="text-slate-500 text-[11px]">• {a._count.completions}/{room.enrollments.length} klara</span>
                             </div>
                             <form action={deleteAssignment}>
@@ -321,7 +325,9 @@ export default async function ClassroomPage() {
                   <School className="h-5 w-5 text-indigo-400" />
                   <h2 className="text-xl font-bold text-white">{e.classroom.name}</h2>
                 </div>
-                <span className="text-xs text-slate-400">Lärare: {e.classroom.owner.username}</span>
+                <span className="text-xs text-slate-400">
+                  Lärare: <span data-no-translate>{e.classroom.owner.username}</span>
+                </span>
               </div>
 
               <h3 className="mt-6 text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">

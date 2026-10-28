@@ -96,7 +96,12 @@ export default async function SettingsPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <p><span className="text-slate-400">Användarnamn:</span> <b className="text-white">{profile.username}</b></p>
+          <p>
+            <span className="text-slate-400">Användarnamn:</span>{" "}
+            <b className="text-white" data-no-translate>
+              {profile.username}
+            </b>
+          </p>
           <p>
             <span className="text-slate-400">Roll:</span>{" "}
             <b className={ROLE_THEME[profile.role]?.color ?? "text-white"}>

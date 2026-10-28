@@ -129,6 +129,35 @@ export async function repairLevels(): Promise<number> {
   }
 }
 
+/**
+ * Move XP and coins, and keep the stored level exact.
+ *
+ * The grant buttons used to `increment` a column and stop there: a −500 on an
+ * account with 300 XP wrote −200, which no level can be derived from, and a
+ * +500 left `level` behind until somebody happened to run a repair. One
+ * statement now does both, clamped at zero, so no reader can catch the row in
+ * between and "Lv 27 · 0 XP" cannot come back.
+ */
+async function moveWallet(
+  id: string,
+  addXp: number,
+  addCoins = 0
+): Promise<{ xp: number; coins: number; level: number } | null> {
+  try {
+    const rows = await prisma.$queryRaw<{ xp: number; coins: number; level: number }[]>`
+      UPDATE "Profile"
+         SET xp = GREATEST(0, xp + ${addXp}),
+             coins = GREATEST(0, coins + ${addCoins}),
+             level = (FLOOR(GREATEST(0, xp + ${addXp}) / ${XP_PER_LEVEL}) + 1)::int,
+             "updatedAt" = NOW()
+       WHERE id = ${id}
+      RETURNING xp, coins, level`;
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const userShape = (u: any) => ({
   id: u.id,
   username: u.username,
@@ -523,9 +552,13 @@ export async function giveXP(s: S, id: string, username: string, amt: number) {
     const n = whole(amt, 0);
     if (!n) return { ok: false, info: "Skriv ett antal XP." };
     if (Math.abs(n) > 1_000_000) return { ok: false, info: "Max ±1 000 000 XP per gång." };
-    await prisma.profile.update({ where: { id }, data: { xp: { increment: n } } });
-    await log("[OWNER]", `gav ${n} XP till ${username}`);
-    return { ok: true, info: `${n > 0 ? "+" : ""}${n} XP till ${username}` };
+    const wallet = await moveWallet(id, n);
+    if (!wallet) return { ok: false, info: `${username} finns inte längre.` };
+    await log("[OWNER]", `gav ${n} XP till ${username} (nu ${wallet.xp} XP · nivå ${wallet.level})`);
+    return {
+      ok: true,
+      info: `${n > 0 ? "+" : ""}${n} XP till ${username} — nu ${wallet.xp} XP · nivå ${wallet.level}.`,
+    };
   });
 }
 
@@ -534,7 +567,8 @@ export async function giveCoins(s: S, id: string, username: string, amt: number)
     const n = whole(amt, 0);
     if (!n) return { ok: false, info: "Skriv ett antal mynt." };
     if (Math.abs(n) > 1_000_000) return { ok: false, info: "Max ±1 000 000 mynt per gång." };
-    await prisma.profile.update({ where: { id }, data: { coins: { increment: n } } });
+    const wallet = await moveWallet(id, 0, n);
+    if (!wallet) return { ok: false, info: `${username} finns inte längre.` };
     await prisma.coinGrant.create({
       data: { staffId: "console:OWNER", staffName: "OWNER", targetId: id, targetName: username, amount: n },
     }).catch(() => {});
@@ -1120,9 +1154,14 @@ export async function adminGiveXP(s: S, id: string, username: string, amt: numbe
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (u.lastGiftAt && new Date(u.lastGiftAt) > today) return { ok: false, info: "Redan belönad idag!" };
-    await prisma.profile.update({ where: { id }, data: { xp: { increment: amtClean }, lastGiftAt: new Date() } });
-    await log("[ADMIN]", `gav ${amtClean} XP till ${username}`);
-    return { ok: true, info: `+${amtClean} XP till ${username}!` };
+    const wallet = await moveWallet(id, amtClean);
+    if (!wallet) return { ok: false, info: GENERIC_FAILURE };
+    await prisma.profile.update({ where: { id }, data: { lastGiftAt: new Date() } });
+    await log("[ADMIN]", `gav ${amtClean} XP till ${username} (nu ${wallet.xp} XP · nivå ${wallet.level})`);
+    return {
+      ok: true,
+      info: `${amtClean > 0 ? "+" : ""}${amtClean} XP till ${username} — nu ${wallet.xp} XP · nivå ${wallet.level}.`,
+    };
   });
 }
 

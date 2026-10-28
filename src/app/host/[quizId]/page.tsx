@@ -814,7 +814,9 @@ export default function HostPage() {
                               {p.name.slice(0, 1).toUpperCase()}
                             </span>
                           )}
-                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200">{p.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200" data-no-translate>
+                            {p.name}
+                          </span>
                           {seat?.defenses.length > 0 && (
                             <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-200">
                               <Shield className="h-3 w-3" />

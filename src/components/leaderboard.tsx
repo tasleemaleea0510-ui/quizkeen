@@ -170,6 +170,7 @@ export default function Leaderboard({
                     <span
                       className="mt-2 max-w-full truncate text-sm font-bold text-white"
                       style={row.me ? { color: "#a5b4fc" } : undefined}
+                      data-no-translate
                     >
                       {row.username}
                       {row.me && <span className="ml-1 text-[10px] font-extrabold text-indigo-300">DU</span>}
@@ -248,7 +249,12 @@ function Row({ row, delta = 0 }: { row: BoardRow; delta?: number }) {
         </span>
         <div className="min-w-0">
           <p className="flex items-center gap-2">
-            <span className={cn("truncate font-semibold", theme.color)}>{row.username}</span>
+            {/* A name is data, not copy: the DOM translator rewrites whole
+                words, and "Abdullah OWNER" was arriving on screen as "Abdullah
+                ÄGARE". Every name on this board is pinned from it. */}
+            <span className={cn("truncate font-semibold", theme.color)} data-no-translate>
+              {row.username}
+            </span>
             {row.me && (
               <span className="shrink-0 rounded bg-indigo-500/25 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-indigo-200">
                 du

@@ -91,7 +91,9 @@ export default async function LeaderboardPage() {
             <h2 className="section-title flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" /> Du
             </h2>
-            <p className="mt-3 font-display text-2xl font-extrabold text-white">{profile.username}</p>
+            <p className="mt-3 font-display text-2xl font-extrabold text-white" data-no-translate>
+              {profile.username}
+            </p>
             <p className="text-sm text-slate-400" data-no-translate>
               {levelTitle(yourLevel.level)} · Nivå {yourLevel.level}
             </p>

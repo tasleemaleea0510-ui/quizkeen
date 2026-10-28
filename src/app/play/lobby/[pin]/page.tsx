@@ -243,7 +243,9 @@ function LobbyInner() {
                         {p.name.slice(0, 1).toUpperCase()}
                       </span>
                     )}
-                    <span className="w-full truncate text-center text-xs font-bold text-slate-200">{p.name}</span>
+                    <span className="w-full truncate text-center text-xs font-bold text-slate-200" data-no-translate>
+                      {p.name}
+                    </span>
                   </div>
                 );
               })}

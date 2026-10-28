@@ -117,7 +117,7 @@ export default async function AnalyticsPage() {
                       <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-white flex items-center gap-2">
-                            <span>{e.student.username}</span>
+                            <span data-no-translate>{e.student.username}</span>
                             {slacking && (
                               <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-xs font-semibold text-amber-400">
                                 <Clock className="h-3 w-3" /> eftersläpning
