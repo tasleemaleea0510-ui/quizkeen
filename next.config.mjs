@@ -2,18 +2,23 @@
 const nextConfig = {
   reactStrictMode: true,
   /**
-   * No client-side router cache for dynamic routes.
+   * A short client-side router cache — 20 s for pages, 5 min for static assets.
    *
-   * Next keeps an RSC payload for a page it has already visited and serves it
-   * again for the next 30 seconds. That is exactly wrong for this app: the
-   * leaderboard, the wallet and every classroom list change while a student is
-   * walking between pages, so going back to the dashboard showed the numbers
-   * from a minute ago — "the leaderboard doesn't update". With the cache at 0
-   * every navigation re-asks the server, and the pages are already dynamic
-   * (they read the session cookie), so nothing is lost by never caching them.
+   * This was 0, which made every single click a fresh server render (0.7–1.2 s
+   * in production) and threw away the payload Next had already prefetched for
+   * the links in the header: the prefetch happened, then the router immediately
+   * considered it stale. That is the "every button loads slow" feel.
+   *
+   * 20 s is the compromise that keeps the earlier fix intact. The pages that
+   * must never look frozen already poll on their own (the leaderboard and the
+   * dashboard card every 15 s, the wallet every 8 s), and any server action that
+   * changes data calls `revalidatePath`, which purges these entries at once. So
+   * the worst case is a page that looks 20 s old for at most one poll cycle —
+   * not the permanently stale board that `0` was guarding against, and not a
+   * full server round trip on every tab.
    */
   experimental: {
-    staleTimes: { dynamic: 0, static: 0 },
+    staleTimes: { dynamic: 20, static: 300 },
   },
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],

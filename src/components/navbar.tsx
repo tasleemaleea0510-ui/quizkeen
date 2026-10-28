@@ -1,10 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSupabase } from "@/components/providers";
 import TutorialWidget from "@/components/tutorial";
-import { getNavUser } from "@/app/system/actions";
 import { cn } from "@/lib/utils";
 import { isGameScreen } from "@/lib/game-screen";
 import { NAV_GROUPS, NAV_ITEMS, PRIMARY_HREFS, navItemsIn } from "@/lib/nav";
@@ -35,35 +34,27 @@ import { Zap, Menu as MenuIcon, LayoutGrid } from "lucide-react";
  * out) is inside the menu *and* in the drawer. The hairline along the bottom is
  * the level bar — the same `levelProgress` every other surface reads.
  */
-export default function Navbar() {
-  const { supabase, session } = useSupabase();
-  const pathname = usePathname();
-  const [me, setMe] = useState<{
+export default function Navbar({
+  me,
+}: {
+  /** Read on the server by the layout, so the bar is complete in the first paint. */
+  me: {
     username: string;
     role: string;
     accentColor: string | null;
     xp: number;
     coins: number;
-  } | null>(null);
+  } | null;
+}) {
+  const { supabase, session } = useSupabase();
+  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    if (!session) {
-      setMe(null);
-      return;
-    }
-    let cancelled = false;
-    getNavUser()
-      .then((user) => {
-        if (!cancelled) setMe(user);
-      })
-      .catch(() => {
-        if (!cancelled) setMe(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
+  // The server knows who is signed in before the browser does. Using that
+  // answer for the first paint means the rail and the player pill are in the
+  // HTML instead of appearing a beat after hydration (which used to cost this
+  // component a whole extra server action on every hard load).
+  const signedIn = Boolean(me || session);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -130,7 +121,7 @@ export default function Navbar() {
             aria-label="Huvudmeny"
             className="no-scrollbar hidden min-w-0 items-center gap-1 overflow-x-auto lg:flex"
           >
-            {session && (
+            {signedIn && (
               <>
                 {primary.map((item) => {
                   const active = isActive(item.href);
@@ -199,7 +190,7 @@ export default function Navbar() {
 
           {/* ── Player ──────────────────────────────────────────────────── */}
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            {session ? (
+            {signedIn ? (
               <>
                 <CommandPalette role={me?.role ?? null} signedIn onSignOut={signOut} />
 
@@ -239,7 +230,7 @@ export default function Navbar() {
         </div>
 
         {/* The level bar, as a hairline under the whole app. */}
-        {session && me && (
+        {me && (
           <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] bg-white/[0.06]">
             <span
               className="relative block h-full bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 transition-[width] duration-700"

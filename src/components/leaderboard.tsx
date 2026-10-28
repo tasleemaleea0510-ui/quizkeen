@@ -84,6 +84,12 @@ export default function Leaderboard({
   }
 
   useEffect(() => {
+    // Read once on arrival, not only on the 15 s tick. The router may hand this
+    // page back from its short-lived cache (see `staleTimes` in next.config),
+    // and a board that is up to 20 s old for the first half-minute is exactly
+    // the "it shows wrong" this component exists to prevent. The first paint is
+    // instant either way; this just makes the numbers catch up immediately.
+    load(active);
     const iv = setInterval(() => load(active), 15000);
     const onFocus = () => load(active);
     window.addEventListener("focus", onFocus);

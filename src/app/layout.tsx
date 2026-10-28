@@ -101,7 +101,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               aria-hidden
               className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px] bg-radial-brand"
             />
-            <Navbar />
+            <Navbar
+              me={
+                profile
+                  ? {
+                      username: profile.username,
+                      role: profile.role,
+                      accentColor: profile.accentColor,
+                      xp: profile.xp,
+                      coins: profile.coins,
+                    }
+                  : null
+              }
+            />
             <main className="flex-1">
               {settings?.shutdown ? (
                 <MaintenanceScreen />

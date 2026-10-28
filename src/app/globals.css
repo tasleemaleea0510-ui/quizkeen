@@ -454,13 +454,16 @@ button:active, a:active {
    blurred page with the card far above. Releasing the transform when the
    animation ends keeps the entrance and gives fixed positioning back. */
 .page-enter {
-  animation: page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  /* Quick enough that a click reads as "arrived", slow enough to still feel
+     like a page settling in. It used to be 0.5 s from opacity 0, which made
+     every navigation look like it was still loading for half a second. */
+  animation: page-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.994);
+    transform: translateY(6px) scale(0.998);
   }
   to {
     opacity: 1;
