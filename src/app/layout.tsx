@@ -54,13 +54,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [settings, { user, profile }] = await Promise.all([getAdminSettings(), getViewer()]);
+  // All three lookups are independent, so they go out together. Awaiting the
+  // IP check after the other two used to add a whole round trip to every page,
+  // and on a cross-region database that was the most expensive one to serialise.
+  const [settings, { user, profile }, block] = await Promise.all([
+    getAdminSettings(),
+    getViewer(),
+    blockedVisitor(),
+  ]);
 
   // A blocked address is refused before anything else renders: not the app, not
   // the login form, not the register page. A signed-in owner is exempt — the
   // console refuses to block an address any owner has used, and an owner who
   // shares a network with a blocked student must still be able to administer.
-  const ipBlock = profile?.role === "OWNER" ? null : await blockedVisitor();
+  const ipBlock = profile?.role === "OWNER" ? null : block;
   if (ipBlock) {
     return (
       <html lang="sv" className={`${sans.variable} ${display.variable}`}>
