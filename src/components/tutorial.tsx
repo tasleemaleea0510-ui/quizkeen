@@ -2,33 +2,105 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  HelpCircle, 
-  Gamepad2, 
-  Hash, 
-  Clock, 
-  CheckCircle2, 
-  Layers, 
-  Swords, 
-  Trophy, 
-  Shield, 
-  GraduationCap, 
-  Settings 
+import {
+  HelpCircle,
+  Gamepad2,
+  Hash,
+  Clock,
+  CheckCircle2,
+  Layers,
+  Swords,
+  Trophy,
+  Shield,
+  ShieldCheck,
+  GraduationCap,
+  Gift,
+  Sparkles,
+  Zap,
+  Flame,
 } from "lucide-react";
 
 const KEY = "quizkeen_tutorial_done";
 
+/**
+ * The guided tour, in the order a class actually meets the product.
+ *
+ * It follows one match from the PIN to the podium and only then explains the
+ * things that live outside a match (Keens, decks, classrooms). The three game
+ * modes get their own entries because they are the part people ask about — the
+ * lobby picker is the first thing a host has to choose.
+ */
 const STEPS = [
-  { icon: <Gamepad2 className="h-5 w-5 text-indigo-400" />, title: "Starta en live-frågesport", text: "Välj en quiz och få en 6-siffrig PIN-kod att dela med hela klassen." },
-  { icon: <Hash className="h-5 w-5 text-indigo-400" />, title: "Gå med med en PIN-kod", text: "Spelare väljer “Gå med i ett spel”, anger PIN-koden och sitt namn för att delta i lobbyn." },
-  { icon: <Clock className="h-5 w-5 text-indigo-400" />, title: "Minispel i lobbyn", text: "Spela minispelet i väntrummet medan arrangören förbereder start." },
-  { icon: <CheckCircle2 className="h-5 w-5 text-indigo-400" />, title: "Svara snabbt för bonuspoäng", text: "Välj bland svarsalternativen. Snabbare svar ger högre poäng." },
-  { icon: <Layers className="h-5 w-5 text-indigo-400" />, title: "Gloskort & kortlekar", text: "Skapa digitala kortlekar och vänd kort för att öva själv inför prov." },
-  { icon: <Swords className="h-5 w-5 text-indigo-400" />, title: "Kortleksstrider", text: "Utmana vänner i realtidsstrider baserade på dina gloskort." },
-  { icon: <Trophy className="h-5 w-5 text-indigo-400" />, title: "XP, mynt & nivåer", text: "Rätta svar ger erfarenhetspoäng och mynt för att klättra på topplistan." },
-  { icon: <Shield className="h-5 w-5 text-indigo-400" />, title: "Roller & behörigheter", text: "Systemet har separata vyer för elever, lärare, administratörer och moderatorer." },
-  { icon: <GraduationCap className="h-5 w-5 text-indigo-400" />, title: "Lärarverktyg", text: "Lärare kan skapa klassrum, tilldela läxor och granska deltagarstatistik." },
-  { icon: <Settings className="h-5 w-5 text-indigo-400" />, title: "Anpassa din profil", text: "Hantera användarnamn och inställningar direkt via inställningspanelen." },
+  {
+    icon: <Gamepad2 className="h-5 w-5 text-indigo-400" />,
+    title: "Starta en live-frågesport",
+    text: "Välj en quiz och få en sexsiffrig PIN. Projektorn visar PIN-koden, frågorna och poängställningen.",
+  },
+  {
+    icon: <Hash className="h-5 w-5 text-sky-400" />,
+    title: "Gå med med PIN-koden",
+    text: "Spelare öppnar QuizKeen, trycker “Gå med i ett spel”, skriver PIN-koden och sitt namn — ingen app att ladda ner.",
+  },
+  {
+    icon: <Clock className="h-5 w-5 text-violet-400" />,
+    title: "Minispel i lobbyn",
+    text: "Ingen tråkig väntan: medan värden startar spelar lobbyn ett minispel ihop.",
+  },
+  {
+    icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />,
+    title: "Svara snabbt för bonuspoäng",
+    text: "Fyra färgade rutor i samma ordning på mobilen och på projektorn. Snabbare rätt svar ger mer XP.",
+  },
+  {
+    icon: <Swords className="h-5 w-5 text-amber-400" />,
+    title: "Tre spellägen",
+    text: "Vault Raiders, Crypto Clash och Pirate Heist. Värden väljer läge i lobbyn — varje läge har egen valuta, egna regler och egen scen.",
+  },
+  {
+    icon: <Gift className="h-5 w-5 text-amber-400" />,
+    title: "Kistor och power-ups",
+    text: "Vault Raiders: öppna en kista per fråga — jackpot, stöld, byte med ledaren, sköld eller tom. Crypto Clash: “Dubbla” din plånbok en gång per match och håll spåret lågt. Pirate Heist: välj smygrån, snabbrån eller full attack.",
+  },
+  {
+    icon: <Shield className="h-5 w-5 text-emerald-400" />,
+    title: "Försvara ditt byte",
+    text: "Köp lasergrid, brandvägg eller skattkista innan någon hinner råna dig. Ett stoppat rån kan avslöja tjuven.",
+  },
+  {
+    icon: <Zap className="h-5 w-5 text-emerald-400" />,
+    title: "XP, mynt och nivåer",
+    text: "Rätta svar, gloskort och avklarade läxor ger XP. Nivån räknas alltid fram från din XP, så siffrorna kan aldrig gå isär.",
+  },
+  {
+    icon: <Sparkles className="h-5 w-5 text-fuchsia-400" />,
+    title: "Keens att samla",
+    text: "Varje spelare har en Keen som sitter på axeln i matcherna. Lås upp fler, öppna paket och handla i marknaden för mynt.",
+  },
+  {
+    icon: <Layers className="h-5 w-5 text-sky-400" />,
+    title: "Gloskort och kortlekar",
+    text: "Bygg digitala kortlekar och repetera med vändbara kort — det ger XP och funkar som plugg inför prov.",
+  },
+  {
+    icon: <Swords className="h-5 w-5 text-rose-400" />,
+    title: "Kortleksstrider",
+    text: "Utmana en vän i realtid med en kortlek som grund. Svaren avgör, inte turen.",
+  },
+  {
+    icon: <GraduationCap className="h-5 w-5 text-sky-400" />,
+    title: "Klassrum för lärare",
+    text: "Skapa klassrum, bjud in elever, dela ut läxor och se vem som är klar — med varningar för den som halkar efter.",
+  },
+  {
+    icon: <Flame className="h-5 w-5 text-amber-400" />,
+    title: "Uppdrag och ledartavla",
+    text: "Tre nya uppdrag varje dag, och en ledartavla som uppdaterar sig själv var femtonde sekund.",
+  },
+  {
+    icon: <ShieldCheck className="h-5 w-5 text-rose-300" />,
+    title: "Roller och trygghet",
+    text: "Elev, lärare, säkerhet, admin och ägare har olika vyer. Moderatorer kan stänga av konton och blockera adresser, och ägaren styr allt från kommandokonsolen.",
+  },
 ];
 
 export default function TutorialWidget() {
@@ -67,7 +139,9 @@ export default function TutorialWidget() {
                 <h2 className="pr-10 text-2xl font-bold text-white sm:text-3xl">
                   Så fungerar <span className="text-indigo-400">QuizKeen</span>
                 </h2>
-                <p className="mt-1 text-xs text-slate-400">Snabbguide över funktionerna i plattformen.</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Från PIN-koden till prispallen — och allt runtomkring.
+                </p>
                 <div className="mt-6 space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">
                   {STEPS.map((s, i) => (
                     <div key={i} className="flex items-start gap-3.5 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5">

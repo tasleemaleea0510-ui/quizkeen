@@ -1,10 +1,11 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
@@ -543,6 +544,23 @@ function GameInner() {
                 <p className="text-center text-xs text-slate-500">
                   Tack för att du spelade — håll kvar på skärmen, värden kan starta en omgång till.
                 </p>
+
+                {/* The way out. A finished match used to be a room with no door:
+                    the site navbar is hidden on game screens, so the only escape
+                    was the browser's own back button, which is not something you
+                    can tell a class to use. */}
+                <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 sm:flex-row">
+                  <p className="text-xs font-semibold text-slate-400">
+                    Admin tiggde om den här knappen — varsågod! 😄
+                  </p>
+                  <Link
+                    href="/play"
+                    className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-b from-indigo-500 to-indigo-600 px-5 text-sm font-bold text-white shadow-glow-sm ring-1 ring-inset ring-white/20 transition-transform hover:-translate-y-0.5 sm:w-auto"
+                  >
+                    Gå tillbaka till quizet
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
             )}
           </div>

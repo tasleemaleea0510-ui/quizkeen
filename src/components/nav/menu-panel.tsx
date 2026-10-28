@@ -2,19 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * A grouped menu that drops out of the header.
  *
- * This is what makes the header scale: the bar itself keeps four buttons, and
+ * This is what makes the header scale: the bar itself keeps a few buttons, and
  * every other destination lives in one of these — one panel per theme, with the
  * icon, the label and a line saying what it is for.
  *
  * Opens on click (a deliberate choice: hover menus on a projector touchscreen
  * are a trap) and on hover after a short delay for mouse users. Closes on
  * Escape, on an outside click, and whenever the route changes.
+ *
+ * The panel is rendered into `document.body` rather than next to its trigger.
+ * That is not decoration: the header's rail scrolls sideways
+ * (`overflow-x: auto`), and a scrolling box clips its absolutely positioned
+ * children on *both* axes — so the "Mer" menu opened, set `aria-expanded`,
+ * and was then cut off the moment it left the 64 px bar. It looked like a dead
+ * button. Portalling it out of the scroller means no ancestor can ever clip it.
  */
 export default function MenuPanel({
   label,
@@ -53,17 +61,77 @@ export default function MenuPanel({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+  // The portal needs a DOM to point at, and the server render does not have
+  // one. Mounting flips this after hydration, so the two renders agree.
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number } | null>(null);
+
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Hover opens the panel, so a click on the trigger that follows the pointer
   // used to *close* the thing the pointer had just opened. The first click after
   // a hover now pins it instead.
   const hoverOpened = useRef(false);
 
+  useEffect(() => setMounted(true), []);
+
+  /** Park the panel directly under its trigger, in viewport coordinates. */
+  const place = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPos({
+      top: r.bottom + 10,
+      left: align === "right" ? undefined : Math.max(8, r.left),
+      right: align === "right" ? Math.max(8, window.innerWidth - r.right) : undefined,
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    place();
+    // The header is sticky, but the viewport can still change under the panel
+    // (a rotation, a resize, a keyboard opening). Following is cheaper than
+    // closing and making the person press the button again.
+    const onMove = () => place();
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, align]);
+
+  // Keep the panel on screen. A right-aligned menu opens with its right edge
+  // under the trigger's, which walks off the left of the window as soon as the
+  // trigger is near that edge; the same happens mirrored on the other side.
+  // Measuring the rendered panel is the only way to know how wide it ended up.
+  useEffect(() => {
+    if (!open || !pos) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    if (r.left < pad && pos.left !== pad) {
+      setPos({ top: pos.top, left: pad, right: undefined });
+    } else if (r.right > window.innerWidth - pad && pos.right !== pad) {
+      setPos({ top: pos.top, right: pad, left: undefined });
+    }
+  });
+
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The panel is no longer a DOM child of the trigger, so both have to be
+      // asked — otherwise mousedown on a link would close the panel before the
+      // click could follow it.
+      if (anchorRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -82,20 +150,26 @@ export default function MenuPanel({
     };
   }, []);
 
+  const keepOpen = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+  const closeSoon = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 140);
+  };
+
   return (
     <div
-      ref={ref}
+      ref={anchorRef}
       className={cn("relative", className)}
       onMouseEnter={() => {
-        if (closeTimer.current) clearTimeout(closeTimer.current);
+        keepOpen();
         if (!open) hoverOpened.current = true;
         setOpen(true);
       }}
-      onMouseLeave={() => {
-        closeTimer.current = setTimeout(() => setOpen(false), 140);
-      }}
+      onMouseLeave={closeSoon}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -130,20 +204,35 @@ export default function MenuPanel({
         )}
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className={cn(
-            "absolute top-[calc(100%+10px)] z-50 w-72 origin-top rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_30px_70px_-30px_rgba(0,0,0,0.95)] backdrop-blur-2xl",
-            "animate-fade-up",
-            panelClassName,
-            align === "right" ? "right-0" : "left-0"
-          )}
-          onClick={() => setOpen(false)}
-        >
-          {children}
-        </div>
-      )}
+      {mounted &&
+        open &&
+        pos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            role="menu"
+            style={{
+              position: "fixed",
+              top: pos.top,
+              left: pos.left,
+              right: pos.right,
+              // Never taller than the room left under the button, or a long
+              // menu would open off the bottom of a projector screen.
+              maxHeight: `calc(100vh - ${pos.top + 12}px)`,
+            }}
+            onMouseEnter={keepOpen}
+            onMouseLeave={closeSoon}
+            onClick={() => setOpen(false)}
+            className={cn(
+              "z-[60] w-72 origin-top overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_30px_70px_-30px_rgba(0,0,0,0.95)] backdrop-blur-2xl",
+              "animate-fade-up no-scrollbar",
+              panelClassName
+            )}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
