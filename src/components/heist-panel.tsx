@@ -135,7 +135,7 @@ export default function HeistPanel({
             <p className="mt-1 text-[10px] font-semibold text-slate-500">
               {profile.chestRound === state.round
                 ? "Öppnad — nästa fråga ger en ny kista."
-                : "Mynt, stöld, byte med ledaren eller ingenting alls."}
+                : "Mynt, stöld, byte eller en stormladdning."}
             </p>
           </div>
         )}

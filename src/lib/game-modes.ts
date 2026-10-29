@@ -58,10 +58,11 @@ export type RaidStyle = {
  *
  * Three identical chests sit in front of the player and only the draw decides
  * what was in the one they tapped. That gamble — a jackpot, a robbery, a swap
- * with the leader or nothing at all — is what makes the mode loud in a
- * classroom, so the chest is worth more drama than any single raid.
+ * with the leader, a shield or a storm — is what makes the mode loud in a
+ * classroom, so the chest is worth more drama than any single raid. Every pull
+ * has a useful outcome; an unavailable rival effect turns into a small payout.
  */
-export type ChestKind = "gold" | "steal" | "swap" | "shield" | "storm" | "dud";
+export type ChestKind = "gold" | "steal" | "swap" | "shield" | "storm";
 
 export type ChestOutcome = {
   id: string;
@@ -89,7 +90,7 @@ export type ChestReveal = {
   /** Which of the three chests was tapped, 0–2. */
   chest: number;
   kind: ChestKind;
-  /** What was inside: "Full kista", "Byte", "Tom kista". */
+  /** What was inside: "Myntregn", "Skattkarta", "Spegelbyte". */
   title: string;
   blurb: string;
   /** What it did to the opener's purse — negative on a bad swap. */
@@ -214,13 +215,12 @@ const PIRATE_DEFENSES: Defense[] = [
 ];
 
 const VAULT_CHESTS: ChestOutcome[] = [
-  { id: "pouch", name: "Myntregn", blurb: "300 mynt rakt ner i valvet.", weight: 24, kind: "gold", value: 300 },
-  { id: "jackpot", name: "Guldåder", blurb: "600 mynt — en sällsynt fullträff.", weight: 8, kind: "gold", value: 600 },    { id: "steal", name: "Skattkarta", blurb: "Tar en andel av en rivals oskyddade mynt.", weight: 22, kind: "steal", value: 20 },
-
+  { id: "pouch", name: "Myntregn", blurb: "300 mynt rakt ner i valvet.", weight: 30, kind: "gold", value: 300 },
+  { id: "jackpot", name: "Guldåder", blurb: "600 mynt — en sällsynt fullträff.", weight: 8, kind: "gold", value: 600 },
+  { id: "steal", name: "Skattkarta", blurb: "Tar en andel av en rivals oskyddade mynt.", weight: 22, kind: "steal", value: 20 },
   { id: "swap", name: "Spegelbyte", blurb: "Byter saldo med en slumpad rival.", weight: 8, kind: "swap" },
   { id: "shield", name: "Väktarsigill", blurb: "Stoppar nästa rån helt.", weight: 15, kind: "shield" },
-  { id: "storm", name: "Stormladdning", blurb: "Ditt nästa rätta svar ger +180 bonusmynt.", weight: 12, kind: "storm", value: 180 },
-  { id: "empty", name: "Eko-kista", blurb: "Bara ett eko. Nästa kista är ny.", weight: 11, kind: "dud" },
+  { id: "storm", name: "Stormladdning", blurb: "Ditt nästa rätta svar ger +180 bonusmynt.", weight: 17, kind: "storm", value: 180 },
 ];
 
 const CRYPTO_POWERS: Power[] = [
@@ -236,6 +236,8 @@ const CRYPTO_POWERS: Power[] = [
 
 /** A chest theft never takes more than this, so one lucky tap cannot end a match. */
 export const CHEST_STEAL_CAP = 400;
+/** A rival chest with no useful target still gives the opener a consolation payout. */
+export const CHEST_FALLBACK_REWARD = 300;
 
 export const MODE_RULES: Record<HeistMode, ModeRules> = {
   vault: {
@@ -477,12 +479,15 @@ export function chestOpen(state: HeistState, name: string): boolean {
 /** Weighted draw. `r` is 0–1 so the tests can force a branch. */
 function drawChest(chests: ChestOutcome[], r: number): ChestOutcome {
   const total = chests.reduce((sum, c) => sum + c.weight, 0);
-  let roll = r * total;
+  // Clamp injected/untrusted random sources too: r === 1 used to fall through
+  // to the last row, which was the old dud when a stale bundle was in use.
+  const roll = Math.min(1 - Number.EPSILON, Math.max(0, r)) * total;
+  let remaining = roll;
   for (const chest of chests) {
-    roll -= chest.weight;
-    if (roll < 0) return chest;
+    remaining -= chest.weight;
+    if (remaining < 0) return chest;
   }
-  return chests[chests.length - 1];
+  return chests[0];
 }
 
 /** One of the other seats, chosen by the draw. */
@@ -607,27 +612,49 @@ export function applyAction(
     } else if (outcome.kind === "steal") {
       const victim = randomRival(next, name, rng());
       if (!victim) {
-        pushEvent(next, `${name} öppnade ${outcome.name} men det fanns ingen att råna.`, now);
+        me.balance += CHEST_FALLBACK_REWARD;
+        pushEvent(
+          next,
+          `${name} öppnade ${outcome.name}, men det fanns ingen att råna — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
+          now
+        );
       } else {
         rival = victim.name;
         const steal = Math.max(
           0,
           Math.min(CHEST_STEAL_CAP, victim.balance - protectedGold(state.mode, victim), Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
         );
-        victim.balance -= steal;
-        me.balance += steal;
+        if (steal > 0) {
+          victim.balance -= steal;
+          me.balance += steal;
+        } else {
+          me.balance += CHEST_FALLBACK_REWARD;
+        }
         pushEvent(
           next,
           steal > 0
             ? `${name} öppnade ${outcome.name} och rånade ${victim.name}: ${steal} ${rules.currencyShort}.`
-            : `${name} öppnade ${outcome.name} men ${victim.name} hade tomt valv.`,
+            : `${name} öppnade ${outcome.name}, men ${victim.name} hade inget oskyddat guld — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
           now
         );
       }
     } else if (outcome.kind === "swap") {
       const partner = randomRival(next, name, rng());
       if (!partner) {
-        pushEvent(next, `${name} öppnade ${outcome.name} men ingen fanns att byta med.`, now);
+        me.balance += CHEST_FALLBACK_REWARD;
+        pushEvent(
+          next,
+          `${name} öppnade ${outcome.name}, men ingen fanns att byta med — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
+          now
+        );
+      } else if (partner.balance === me.balance) {
+        rival = partner.name;
+        me.balance += CHEST_FALLBACK_REWARD;
+        pushEvent(
+          next,
+          `${name} öppnade ${outcome.name}, men saldona var lika — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
+          now
+        );
       } else {
         rival = partner.name;
         const mine = me.balance;
@@ -652,8 +679,6 @@ export function applyAction(
     } else if (outcome.kind === "storm") {
       me.nextCorrectBonus += outcome.value ?? 180;
       pushEvent(next, `${name} laddade en storm: nästa rätta svar ger +${outcome.value ?? 180} ${rules.currencyShort}.`, now);
-    } else {
-      pushEvent(next, `${name} öppnade en eko-kista. Nästa kista väntar efter nästa fråga.`, now);
     }
 
     const reveal: ChestReveal = {

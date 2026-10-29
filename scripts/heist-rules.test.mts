@@ -6,6 +6,7 @@
  */
 import assert from "node:assert/strict";
 import {
+  CHEST_FALLBACK_REWARD,
   CHEST_STEAL_CAP,
   MODE_RULES,
   addCorrect,
@@ -247,7 +248,7 @@ check("a shield chest hands over a laser grid", () => {
 });
 
 check("a storm chest powers up the next correct answer", () => {
-  const out = applyAction(newHeist("vault", seats), "Alva", { kind: "chest", chest: 0 }, 1000, seq(0.82));
+  const out = applyAction(newHeist("vault", seats), "Alva", { kind: "chest", chest: 0 }, 1000, seq(0.9));
   assert.equal(out.ok, true);
   let h = (out as { ok: true; state: HeistState }).state;
   assert.equal(h.players.Alva.nextCorrectBonus, 180);
@@ -256,9 +257,41 @@ check("a storm chest powers up the next correct answer", () => {
   assert.equal(h.players.Alva.nextCorrectBonus, 0);
 });
 
-check("the empty chest costs nothing", () => {
-  const next = openChest(newHeist("vault", seats), "Alva", seq(0.99));
-  assert.equal(next.players.Alva.balance, 1000);
+check("every configured chest has a reward, including the removal of the dud", () => {
+  const chests = MODE_RULES.vault.chests ?? [];
+  assert.equal(chests.some((chest) => chest.kind === "dud" || chest.id === "empty"), false);
+  assert.equal(chests.reduce((total, chest) => total + chest.weight, 0), 100);
+  for (const roll of [0, 0.31, 0.39, 0.62, 0.71, 0.87, 0.99, 1]) {
+    const out = pullChest(newHeist("vault", seats), "Alva", 0, seq(roll, 0));
+    assert.ok(out.reveal);
+    assert.ok(chests.some((chest) => chest.kind === out.reveal?.kind));
+  }
+});
+
+check("a solo player gets a consolation payout instead of an empty rival chest", () => {
+  const solo = newHeist("vault", [{ name: "Alva", keen: null }]);
+  const steal = pullChest(solo, "Alva", 0, seq(0.4, 0));
+  assert.equal(steal.reveal?.kind, "steal");
+  assert.equal(steal.reveal?.delta, CHEST_FALLBACK_REWARD);
+  const swap = pullChest(nextRound(solo), "Alva", 0, seq(0.6, 0));
+  assert.equal(swap.reveal?.kind, "swap");
+  assert.equal(swap.reveal?.delta, CHEST_FALLBACK_REWARD);
+});
+
+check("a chest with nothing stealable becomes a consolation payout", () => {
+  const h = newHeist("vault", seats);
+  h.players.Bo.balance = 0;
+  const out = pullChest(h, "Alva", 0, seq(0.4, 0));
+  assert.equal(out.reveal?.kind, "steal");
+  assert.equal(out.reveal?.delta, CHEST_FALLBACK_REWARD);
+  assert.equal(out.state.players.Bo.balance, 0);
+});
+
+check("an even-saldo swap pays the consolation reward instead of showing a dud", () => {
+  const h = newHeist("vault", seats);
+  const out = pullChest(h, "Alva", 0, seq(0.6, 0));
+  assert.equal(out.reveal?.kind, "swap");
+  assert.equal(out.reveal?.delta, CHEST_FALLBACK_REWARD);
 });
 
 check("each of the three chests holds its own thing", () => {

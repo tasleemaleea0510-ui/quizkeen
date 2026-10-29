@@ -158,7 +158,6 @@ const KIND_ACCENT: Record<Reveal["kind"], string> = {
   swap: "text-violet-300",
   shield: "text-emerald-300",
   storm: "text-sky-300",
-  dud: "text-slate-400",
 };
 
 /**

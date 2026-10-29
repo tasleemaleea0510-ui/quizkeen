@@ -59,7 +59,7 @@ const STEPS = [
   {
     icon: <Gift className="h-5 w-5 text-amber-400" />,
     title: "Kistor och power-ups",
-    text: "Vault Raiders: öppna en kista per fråga — jackpot, stöld, byte med ledaren, sköld eller tom. Crypto Clash: “Dubbla” din plånbok en gång per match och håll spåret lågt. Pirate Heist: välj smygrån, snabbrån eller full attack.",
+    text: "Vault Raiders: öppna en kista per fråga — myntregn, skattkarta, spegelbyte, väktarsigill eller stormladdning. Om rånet saknar ett giltigt mål ger valvet tröstpris. Crypto Clash: “Dubbla” din plånbok en gång per match och håll spåret lågt. Pirate Heist: välj smygrån, snabbrån eller full attack.",
   },
   {
     icon: <Shield className="h-5 w-5 text-emerald-400" />,

@@ -78,6 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             until={blockUntilText(ipBlock)}
             ip={ipBlock.ip}
           />
+          <TranslateButton />
         </body>
       </html>
     );
@@ -139,6 +140,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             until={profile?.bannedUntil ? profile.bannedUntil.toISOString() : null}
             message={profile?.banMessage ?? null}
           />
+          <TranslateButton />
           {!banned && !settings?.shutdown && (
             <>
               <StudentChatBubble />
@@ -147,7 +149,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   in the separate command console. */}
               {profile && isStaffRole(profile.role) && <StaffPanel role={profile.role} />}
               <LiveShareClient />
-              <TranslateButton />
               <Overlays
                 broadcast={notice?.text ?? null}
                 broadcastUntil={notice?.until ?? null}
