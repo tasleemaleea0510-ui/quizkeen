@@ -8,13 +8,10 @@ import { Check, Coins, Sparkles, Trophy } from "lucide-react";
 /**
  * Choosing how a quiz is played, as a wall of posters.
  *
- * One card per mode, each with its own colour, its own Keen mascot and the two
- * numbers that actually decide a host's choice: what everyone starts with and
- * what first place pays. The selected card lifts, keeps a white edge and shows a
- * check, so the room can see the pick from the back row.
- *
- * A heist mode is a real economy, not a skin, so the cards say so in one line —
- * and Classic stays first, because most quizzes are still just a quiz.
+ * A mode now explains its loop as well as its currency: questions earn
+ * resources, a short side objective or strategic choice changes your options,
+ * then the scoreboard shows the consequence. It borrows familiar game-design
+ * rhythms — not another game's names, art or exact rules.
  */
 
 export type ModeCard = {
@@ -30,35 +27,35 @@ export type ModeCard = {
 export const MODE_CARDS: ModeCard[] = [
   {
     id: "classic",
-    kicker: "Ingen ekonomi",
+    kicker: "Rätt · snabbt · streak",
     keen: "crewmate",
     bg: "from-slate-500 via-slate-700 to-slate-900",
     glow: "bg-indigo-500/20",
-    chips: ["Frågor och poäng"],
+    chips: ["Snabbhet + träffsäkerhet", "Streakbonus upp till 75"],
   },
   {
     id: "vault",
-    kicker: "Kistor och rån",
+    kicker: "Välj · vänd · vänd om",
     keen: "chubbypig",
     bg: "from-amber-400 via-orange-500 to-rose-600",
     glow: "bg-amber-500/20",
-    chips: ["1 000 valvmynt", "100 Mint till vinnaren"],
+    chips: ["Kistor byter ställningen", "Sköldar och stormladdning"],
   },
   {
     id: "crypto",
-    kicker: "Hacka och dubbla",
+    kicker: "Tänk · hacka · skydda",
     keen: "invader",
     bg: "from-cyan-400 via-sky-500 to-indigo-700",
     glow: "bg-sky-500/20",
-    chips: ["1 000 crypto", "120 Mint till vinnaren"],
+    chips: ["5 roterande skillhack", "Crypto + verktyg"],
   },
   {
     id: "pirate",
-    kicker: "Skepp och besättning",
+    kicker: "Välj risk · samla byte",
     keen: "doodlekraken",
     bg: "from-emerald-400 via-teal-600 to-slate-900",
     glow: "bg-teal-500/20",
-    chips: ["1 000 piratguld", "110 Mint till vinnaren"],
+    chips: ["Smyg · snabb · full attack", "Välj mål, bygg försvar"],
   },
 ];
 
@@ -82,6 +79,7 @@ export default function GameModePicker({
         const active = value === card.id;
         const keen = KEEN_BY_ID[card.keen];
         const rules = card.id === "classic" ? null : MODE_RULES[card.id];
+        const chips = card.chips;
         return (
           <button
             key={card.id}
@@ -98,12 +96,8 @@ export default function GameModePicker({
             )}
           >
             <span className={cn("absolute inset-0 bg-gradient-to-br", card.bg)} aria-hidden />
-            {/* A soft highlight so the card reads as a poster, not a swatch. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-white/20 blur-2xl"
-            />
-            <span className="relative flex min-h-[136px] flex-col gap-2 p-4">
+            <span aria-hidden className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-white/20 blur-2xl" />
+            <span className="relative flex min-h-[154px] flex-col gap-2 p-4">
               <span className="flex items-start justify-between gap-2">
                 <span className="min-w-0">
                   <span className="inline-flex rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/80">
@@ -112,41 +106,22 @@ export default function GameModePicker({
                   <span className="mt-1.5 block font-display text-lg font-extrabold leading-tight text-white drop-shadow">
                     {rules?.name ?? "Klassisk quiz"}
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-medium leading-snug text-white/80">
-                    {rules?.tagline ?? "Bara frågor, svar och poäng."}
+                  <span className="mt-0.5 block max-w-[34rem] text-[11px] font-medium leading-snug text-white/80">
+                    {rules?.tagline ?? "Alla får samma frågor. Hastighet ger poäng; en rättstreak bygger en lagom stor bonus."}
                   </span>
                 </span>
-                {keen && (
-                  <KeenAvatar
-                    keen={keen}
-                    size={64}
-                    className="shrink-0 drop-shadow-lg transition-transform duration-200 group-hover:scale-105"
-                  />
-                )}
+                {keen && <KeenAvatar keen={keen} size={58} className="shrink-0 drop-shadow-lg transition-transform duration-200 group-hover:scale-105" />}
               </span>
               <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-                {card.chips.map((chip) => (
-                  <span
-                    key={chip}
-                    className="inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-[10px] font-bold text-white/90"
-                  >
-                    {chip.includes("Mint") ? (
-                      <Trophy className="h-3 w-3" />
-                    ) : card.id === "classic" ? (
-                      <Sparkles className="h-3 w-3" />
-                    ) : (
-                      <Coins className="h-3 w-3" />
-                    )}
+                {chips.map((chip) => (
+                  <span key={chip} className="inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-[10px] font-bold text-white/90">
+                    {chip.includes("Mint") ? <Trophy className="h-3 w-3" /> : card.id === "classic" ? <Sparkles className="h-3 w-3" /> : <Coins className="h-3 w-3" />}
                     <span data-no-translate>{chip}</span>
                   </span>
                 ))}
               </span>
             </span>
-            {active && (
-              <span className="absolute bottom-3 right-3 grid h-6 w-6 place-items-center rounded-full bg-white text-slate-900 shadow-md">
-                <Check className="h-4 w-4" strokeWidth={3} />
-              </span>
-            )}
+            {active && <span className="absolute bottom-3 right-3 grid h-6 w-6 place-items-center rounded-full bg-white text-slate-900 shadow-md"><Check className="h-4 w-4" strokeWidth={3} /></span>}
           </button>
         );
       })}

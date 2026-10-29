@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
@@ -30,6 +30,7 @@ import {
   newHeist,
   nextRound,
   standings,
+  classicStreakBonus,
   type ChestReveal as ChestRevealData,
   type HeistAction,
   type HeistState,
@@ -61,11 +62,13 @@ function safeSend(channel: any, message: unknown) {
 
 export default function HostPage() {
   const params = useParams();
+  const router = useRouter();
   const quizId = params.quizId as string;
 
   const [pin] = useState(() => generateGamePin());
   const [quiz, setQuiz] = useState<{ title: string; questions: Q[] } | null>(null);
   const [phase, setPhase] = useState<"lobby" | "question" | "reveal" | "end">("lobby");
+  const [leaving, setLeaving] = useState(false);
   const [qIndex, setQIndex] = useState(0);
   const [players, setPlayers] = useState<string[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -87,6 +90,7 @@ export default function HostPage() {
   // Vault Raiders that everybody should see at the same moment, so the host
   // shows it too instead of leaving it on the puller's phone.
   const [chestReveal, setChestReveal] = useState<ChestRevealData | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
@@ -103,10 +107,13 @@ export default function HostPage() {
   const qIndexRef = useRef(qIndex);
   const quizRef = useRef<{ title: string; questions: Q[] } | null>(null);
   const startedRef = useRef(false);
+  const questionStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modeRef = useRef<ModeId>("classic");
   const heistRef = useRef<HeistState | null>(null);
   // The Keen each lobby player wears, so the heist board draws real characters.
   const keensRef = useRef<Record<string, string | null>>({});
+  const streaksRef = useRef<Record<string, number>>({});
+  const awardedRef = useRef(false);
 
   useEffect(() => { scoresRef.current = scores; }, [scores]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
@@ -210,7 +217,7 @@ export default function HostPage() {
         setChestReveal(result.reveal);
         safeSend(game, { type: "broadcast", event: "heist-reveal", payload: result.reveal });
       }
-      publishHeist(result.state);
+      publishHeist(result.state, result.feedback ? { to: name, text: result.feedback } : undefined);
     });
     game.on("broadcast", { event: "sync" }, () => {
       const qz = quizRef.current;
@@ -230,7 +237,7 @@ export default function HostPage() {
       } else if (ph === "reveal") {
         safeSend(gameRef.current, {
           type: "broadcast", event: "state",
-          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current },
+          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current, streaks: streaksRef.current },
         });
       } else if (ph === "end") {
         safeSend(gameRef.current, {
@@ -290,6 +297,7 @@ export default function HostPage() {
     // Last question's chest should not still be hanging over the projector.
     setChestReveal(null);
     broadcast("question", { index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length });
+    phaseRef.current = "question";
     setPhase("question");
   }
 
@@ -299,6 +307,8 @@ export default function HostPage() {
     // Freeze the player list now: everyone about to leave the lobby for the
     // game screen is exactly who the first question should wait for.
     setRoster(players);
+    awardedRef.current = false;
+    streaksRef.current = {};
     const chosen = modeRef.current;
     if (chosen !== "classic" && players.length > 0) {
       // Every seat starts equal — the mode rules say so, and it is what makes a
@@ -307,7 +317,10 @@ export default function HostPage() {
     }
     safeSend(lobbyRef.current, { type: "broadcast", event: "start", payload: { mode: chosen } });
     setQIndex(0);
-    setTimeout(() => sendQuestion(0), 3000);
+    questionStartTimerRef.current = setTimeout(() => {
+      questionStartTimerRef.current = null;
+      sendQuestion(0);
+    }, 3000);
   }
 
   function reveal() {
@@ -315,6 +328,7 @@ export default function HostPage() {
     const q = quizRef.current?.questions[qIndexRef.current];
     if (!q) return;
     revealedRef.current = true;
+    phaseRef.current = "reveal";
 
     const newScores = { ...scoresRef.current };
     let nextHeist = heistRef.current;
@@ -323,14 +337,25 @@ export default function HostPage() {
       // answers is not the same as knowing which ones they are.
       if (isExactAnswer(a.choices, q.correctIndexes)) {
         const speed = Math.max(0, 50 - Math.floor((a.t - startRef.current) / 400));
-        newScores[name] = (newScores[name] || 0) + 100 + speed;
+        const streak = (streaksRef.current[name] ?? 0) + 1;
+        streaksRef.current[name] = streak;
+        const combo = modeRef.current === "classic" ? classicStreakBonus(streak) : 0;
+        newScores[name] = (newScores[name] || 0) + 100 + speed + combo;
         if (nextHeist) nextHeist = addCorrect(nextHeist, name);
+      } else {
+        streaksRef.current[name] = 0;
       }
     });
+    // Sitting out a question breaks the streak too; no answer is not a free pass.
+    roster.forEach((name) => {
+      if (!answersRef.current[name]) streaksRef.current[name] = 0;
+    });
+    scoresRef.current = newScores;
     setScores(newScores);
-    broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores });
+    broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores, streaks: streaksRef.current });
     if (nextHeist) publishHeist(nextHeist);
     setPhase("reveal");
+    phaseRef.current = "reveal";
   }
 
   // The clock and the watcher run outside React's render, so they ask this ref
@@ -339,8 +364,12 @@ export default function HostPage() {
     revealRef.current = reveal;
   });
 
+  useEffect(() => () => {
+    if (questionStartTimerRef.current) clearTimeout(questionStartTimerRef.current);
+  }, []);
+
   function next() {
-    if (!quiz) return;
+    if (!quiz || phaseRef.current !== "reveal") return;
     const n = qIndex + 1;
     if (n < quiz.questions.length) {
       setQIndex(n);
@@ -351,6 +380,8 @@ export default function HostPage() {
   }
 
   function finish() {
+    if (!startedRef.current || awardedRef.current || phaseRef.current === "end") return;
+    awardedRef.current = true;
     const finished = heistRef.current;
     // Mint per display name, so the player's own screen can show what it earned.
     const mintByName: Record<string, number> = {};
@@ -362,13 +393,13 @@ export default function HostPage() {
         const paid = payout.find((p) => p.username === (seat.account ?? seat.name));
         if (paid) mintByName[display] = paid.mint;
       }
-      awardXP(
+      void awardXP(
         quizId,
         payout.map((p) => {
           const seat = Object.values(finished.players).find((s) => (s.account ?? s.name) === p.username);
           return { username: p.username, xp: seat ? scoresRef.current[seat.name] ?? 0 : 0, coins: p.mint };
         })
-      );
+      ).catch((error) => console.error("Could not award game XP", error));
     } else {
       const top = Object.entries(scoresRef.current)
         .sort((a, b) => b[1] - a[1])
@@ -377,9 +408,10 @@ export default function HostPage() {
           xp: s,
           coins: [50, 30, 20][i] || 10,
         }));
-      awardXP(quizId, top);
+      void awardXP(quizId, top).catch((error) => console.error("Could not award game XP", error));
     }
     broadcast("end", { scores: scoresRef.current, mint: mintByName });
+    phaseRef.current = "end";
     setPhase("end");
   }
 
@@ -441,6 +473,16 @@ export default function HostPage() {
           <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-extrabold tracking-widest text-indigo-200">
             <span data-no-translate>{pin}</span>
           </span>
+          <button
+            type="button"
+            onClick={() => setConfirmLeave(true)}
+            aria-label="Lämna spelet"
+            title="Lämna spelet"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/[0.08] px-2 text-[10px] font-extrabold text-rose-200 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15 sm:px-3 sm:text-xs"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Lämna</span>
+          </button>
           <FullscreenButton />
         </div>
       </header>
@@ -528,7 +570,7 @@ export default function HostPage() {
               <div className="mb-3">
                 <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">Välj spel-läge</h1>
                 <p className="mt-0.5 text-sm text-slate-400">
-                  Samma frågor, fyra sätt att spela. Läget går att byta fram till start.
+                  Samma frågor. En särskild spel-loop för varje läge — välj hur klassen ska tävla.
                 </p>
               </div>
               <GameModePicker value={mode} onChange={setMode} />
@@ -582,6 +624,16 @@ export default function HostPage() {
         {phase !== "lobby" && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
             <main className="min-w-0 space-y-4">
+              {mode === "crypto" && phase === "reveal" && heist && (
+                <p className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-100/80">
+                  <b className="text-emerald-200">SIDOHACK:</b> Mellan frågorna får spelarna en kort, roterande skillutmaning — sikta, matcha symbolen, upprepa signalen, knäck koden eller håll omstarten. Färdigheten ger crypto; kunskapsfrågorna ger fortfarande XP.
+                </p>
+              )}
+              {mode === "classic" && phase === "reveal" && (
+                <p className="rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] px-3 py-2 text-xs text-indigo-100/80">
+                  <b className="text-indigo-200">KLASSISK STREAK:</b> Rätt i följd bygger en bonus på 15 per svar, upp till +75. Missa en fråga och nästa streak börjar om.
+                </p>
+              )}
               <div className="flex items-center gap-3">
                 <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">Framsteg</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
@@ -898,6 +950,67 @@ export default function HostPage() {
         )}
         </div>
       </div>
+
+      {/* Host leaves the match and its channels cleanly, not into a stranded
+          lobby. A confirm prevents the keyboard shortcut/button from ending
+          a class's live round by accident. */}
+      {confirmLeave && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-md"
+          role="presentation"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmLeave(false); }}
+        >
+          <section role="alertdialog" aria-modal="true" aria-labelledby="host-leave-title" aria-describedby="host-leave-description" className="w-full max-w-sm animate-pop rounded-3xl border border-white/10 bg-slate-900 p-5 shadow-2xl sm:p-6">
+            <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-rose-400/25 bg-rose-500/10 text-rose-300"><LogOut className="h-5 w-5" /></div>
+            <h2 id="host-leave-title" className="font-display text-xl font-extrabold text-white">Lämna spelet?</h2>
+            <p id="host-leave-description" className="mt-2 text-sm leading-relaxed text-slate-400">{phase === "lobby" ? "Lobbyn stängs eller starten avbryts; spelarna skickas tillbaka och ingen blir kvar och väntar." : "Matchen avslutas nu och alla får se slutställningen."}</p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" autoFocus disabled={leaving} onClick={() => setConfirmLeave(false)} className="h-10 rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm font-bold text-slate-200 transition-colors hover:bg-white/10 disabled:opacity-50">Stanna kvar</button>
+              <button type="button" disabled={leaving} onClick={async () => {
+                if (leaving) return;
+                setLeaving(true);
+                if (phaseRef.current === "lobby" && !startedRef.current) {
+                  // Cancel on both channels: a player may already have followed
+                  // the start event into the game screen during the 3s countdown.
+                  await Promise.allSettled([
+                    lobbyRef.current?.send({ type: "broadcast", event: "cancel", payload: { pin } }),
+                    gameRef.current?.send({ type: "broadcast", event: "cancel", payload: { pin } }),
+                  ]);
+                  if (questionStartTimerRef.current) clearTimeout(questionStartTimerRef.current);
+                  questionStartTimerRef.current = null;
+                  startedRef.current = true;
+                  await Promise.allSettled([
+                    supabaseRef.current.removeChannel(lobbyRef.current),
+                    supabaseRef.current.removeChannel(gameRef.current),
+                  ]);
+                  router.replace("/dashboard/quizzes");
+                  return;
+                }
+                if (phaseRef.current === "question" && !revealedRef.current) revealRef.current();
+                // finish() can also run when the 3s start countdown is active
+                // but the first question has not arrived yet.
+                if (phaseRef.current === "lobby") {
+                  await Promise.allSettled([
+                    lobbyRef.current?.send({ type: "broadcast", event: "cancel", payload: { pin } }),
+                    gameRef.current?.send({ type: "broadcast", event: "cancel", payload: { pin } }),
+                  ]);
+                  if (questionStartTimerRef.current) clearTimeout(questionStartTimerRef.current);
+                } else {
+                  startedRef.current = true;
+                  // Publish standings and pay out before disconnecting the host.
+                  finish();
+                }
+                if (phaseRef.current === "end") await new Promise((resolve) => setTimeout(resolve, 500));
+                await Promise.allSettled([
+                  supabaseRef.current.removeChannel(lobbyRef.current),
+                  supabaseRef.current.removeChannel(gameRef.current),
+                ]);
+                router.replace("/dashboard/quizzes");
+              }} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-500/90 px-4 text-sm font-extrabold text-white transition-colors hover:bg-rose-500 disabled:cursor-wait disabled:opacity-60"><LogOut className="h-4 w-4" />{leaving ? "Avslutar…" : "Lämna spelet"}</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* What the room just watched someone pull out of a chest. */}
       {chestReveal && <ChestReveal reveal={chestReveal} onClose={() => setChestReveal(null)} />}

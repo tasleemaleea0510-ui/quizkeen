@@ -140,7 +140,7 @@ export default function HeistPanel({
           </div>
         )}
 
-        {/* Crypto Hack: the button that doubles the wallet, once. */}
+        {/* Cyber Hack: the once-per-match wallet overdrive. */}
         {rules.powers && (
           <div className="grid gap-1.5 sm:grid-cols-2">
             {rules.powers.map((p) => {

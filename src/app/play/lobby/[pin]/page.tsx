@@ -95,6 +95,12 @@ function LobbyInner() {
         window.location.href = `/play/game/${pin}?name=${encodeURIComponent(name)}`;
       });
 
+      // The host may close the lobby before the match begins. Leave the waiting
+      // room and its realtime subscription rather than trapping guests there.
+      channel.on("broadcast", { event: "cancel" }, () => {
+        window.location.href = "/play";
+      });
+
       channel.on("broadcast", { event: "pos" }, (msg: any) => {
         const payload = (msg.payload ?? {}) as { name?: string; k?: string | null };
         const who = payload.name;

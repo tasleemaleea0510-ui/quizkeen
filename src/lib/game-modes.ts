@@ -1,10 +1,10 @@
 /**
- * The three heist modes — the rules, in one place.
+ * Three heist modes — the rules, in one place.
  *
  * A quiz match can run as a plain quiz or as one of three economies: Vault
  * Raiders, Crypto Clash or Pirate Heist. All three share the same loop (answer
- * right, earn the match currency, spend it on raiding or defending), so the
- * engine is one file with three rule sets rather than three games.
+ * right, earn mode currency, then spend it on a unique choice), so the engine
+ * is one file with three rule sets rather than three games.
  *
  * Everything here is pure: a host carries a `HeistState` in memory and this
  * module turns "X raided Y" into the next state. That keeps the whole economy
@@ -61,7 +61,7 @@ export type RaidStyle = {
  * with the leader or nothing at all — is what makes the mode loud in a
  * classroom, so the chest is worth more drama than any single raid.
  */
-export type ChestKind = "gold" | "steal" | "swap" | "shield" | "dud";
+export type ChestKind = "gold" | "steal" | "swap" | "shield" | "storm" | "dud";
 
 export type ChestOutcome = {
   id: string;
@@ -100,7 +100,57 @@ export type ChestReveal = {
   text: string;
 };
 
-/** A one-tap power-up, Crypto Hack style. */
+/**
+ * The short skill drill that rotates through Cyber Hack between quiz questions.
+ * The `answer` is checked by the host; the visible puzzle data is also built
+ * here so every player sees the same rules for the current round.
+ */
+export type CyberHackChallenge =
+  | { kind: "virus"; title: string; prompt: string; targetCount: number; answer: string }
+  | { kind: "blueprint"; title: string; prompt: string; shape: string; options: string[]; answer: string }
+  | { kind: "sequence"; title: string; prompt: string; pattern: number[]; answer: string }
+  | { kind: "passcode"; title: string; prompt: string; code: string; answer: string }
+  | { kind: "reboot"; title: string; prompt: string; holdMs: number; answer: string };
+
+/** Pick the round's Cyber Hack drill consistently on the host and every player. */
+export function hackChallengeFor(round: number, playerName: string): CyberHackChallenge {
+  let seed = 17;
+  for (const char of `${Math.max(0, round)}:${playerName}`) {
+    seed = (Math.imul(seed, 31) + char.charCodeAt(0)) >>> 0;
+  }
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed;
+  };
+  const kind = ["virus", "blueprint", "sequence", "passcode", "reboot"][Math.max(0, round - 1) % 5];
+
+  if (kind === "virus") {
+    return { kind, title: "Purge the signal", prompt: "Catch five moving firewall sparks before they vanish.", targetCount: 5, answer: "5" };
+  }
+  if (kind === "blueprint") {
+    const options = ["triangle", "diamond", "circle", "square"];
+    const shape = options[next() % options.length];
+    return { kind, title: "Read the blueprint", prompt: "Match the outlined symbol to its name.", shape, options, answer: shape };
+  }
+  if (kind === "sequence") {
+    const pattern = Array.from({ length: 4 }, () => next() % 4);
+    return { kind, title: "Trace the signal", prompt: "Watch the signal, then repeat it in the same order.", pattern, answer: pattern.join(",") };
+  }
+  if (kind === "passcode") {
+    const code = String(1000 + (next() % 9000));
+    return { kind, title: "Crack the access code", prompt: "Enter the four-digit code shown on the console.", code, answer: code };
+  }
+  return { kind: "reboot", title: "Reboot the relay", prompt: "Hold the reboot switch until the meter reaches 100%.", holdMs: 1400, answer: "reboot" };
+}
+
+/** Classic: reward accuracy streaks without letting them eclipse the quiz. */
+export function classicStreakBonus(streak: number): number {
+  // The first correct answer earns the normal score; streak bonus starts on
+  // the second consecutive hit and caps before it can beat quiz knowledge.
+  return Math.min(75, Math.max(0, Math.floor(streak) - 1) * 15);
+}
+
+/** A one-tap power-up, Cyber Hack style. */
 export type Power = {
   id: string;
   name: string;
@@ -164,12 +214,13 @@ const PIRATE_DEFENSES: Defense[] = [
 ];
 
 const VAULT_CHESTS: ChestOutcome[] = [
-  { id: "pouch", name: "Liten påse", blurb: "300 mynt rakt ner i valvet.", weight: 26, kind: "gold", value: 300 },
-  { id: "chest", name: "Full kista", blurb: "600 mynt — jackpot.", weight: 9, kind: "gold", value: 600 },
-  { id: "steal", name: "Stöld", blurb: "Rånar en slumpad rival.", weight: 24, kind: "steal", value: 20 },
-  { id: "swap", name: "Byte", blurb: "Byter saldo med en slumpad rival.", weight: 8, kind: "swap" },
-  { id: "shield", name: "Sköld", blurb: "Ett gratis lasergrid.", weight: 16, kind: "shield" },
-  { id: "empty", name: "Tom kista", blurb: "Ingenting alls. Otur.", weight: 17, kind: "dud" },
+  { id: "pouch", name: "Myntregn", blurb: "300 mynt rakt ner i valvet.", weight: 24, kind: "gold", value: 300 },
+  { id: "jackpot", name: "Guldåder", blurb: "600 mynt — en sällsynt fullträff.", weight: 8, kind: "gold", value: 600 },    { id: "steal", name: "Skattkarta", blurb: "Tar en andel av en rivals oskyddade mynt.", weight: 22, kind: "steal", value: 20 },
+
+  { id: "swap", name: "Spegelbyte", blurb: "Byter saldo med en slumpad rival.", weight: 8, kind: "swap" },
+  { id: "shield", name: "Väktarsigill", blurb: "Stoppar nästa rån helt.", weight: 15, kind: "shield" },
+  { id: "storm", name: "Stormladdning", blurb: "Ditt nästa rätta svar ger +180 bonusmynt.", weight: 12, kind: "storm", value: 180 },
+  { id: "empty", name: "Eko-kista", blurb: "Bara ett eko. Nästa kista är ny.", weight: 11, kind: "dud" },
 ];
 
 const CRYPTO_POWERS: Power[] = [
@@ -208,8 +259,8 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
   },
   crypto: {
     id: "crypto",
-    name: "Crypto Clash",
-    tagline: "Mine:a, hacka, håll dig osynlig.",
+    name: "Cyber Hack",
+    tagline: "Lös ett snabbt hack, välj ditt mål, håll nätverket rent.",
     currency: "Crypto",
     currencyShort: "crypto",
     startBalance: 1000,
@@ -278,8 +329,14 @@ export type HeistPlayer = {
   raidDiscount: number;
   /** The round a chest was last opened in; -1 means none yet. */
   chestRound: number;
-  /** Crypto Clash: "Dubbla" is a once-a-match button. */
+  /** Cyber Hack: "Dubbla" is a once-a-match button. */
   doubled: boolean;
+  /** Cyber Hack: at most one skill drill can be attempted per question. */
+  hackRound: number;
+  hackProgress: number;
+  hackScore: number;
+  /** Vault Raiders: added to the next correct-answer reward, then consumed. */
+  nextCorrectBonus: number;
 };
 
 export type HeistEvent = { id: string; at: number; text: string };
@@ -298,10 +355,11 @@ export type HeistAction =
   /** `chest` is which of the three was tapped, 0–2. */
   | { kind: "chest"; chest?: number }
   | { kind: "power"; power: string }
+  | { kind: "hack"; answer: string }
   | { kind: "save" };
 
 export type ActionResult =
-  | { ok: true; state: HeistState; reveal?: ChestReveal }
+  | { ok: true; state: HeistState; reveal?: ChestReveal; feedback?: string }
   | { ok: false; error: string };
 
 export type Standings = { name: string; keen: string | null; balance: number; raids: number; correct: number }[];
@@ -345,6 +403,10 @@ export function newHeist(
       raidDiscount: 0,
       chestRound: -1,
       doubled: false,
+      hackRound: -1,
+      hackProgress: 0,
+      hackScore: 0,
+      nextCorrectBonus: 0,
     };
   }
   return { mode, round: 0, players, events: [] };
@@ -360,7 +422,8 @@ export function addCorrect(state: HeistState, name: string): HeistState {
   const rules = MODE_RULES[state.mode];
   const next = clone(state);
   const p = next.players[name];
-  p.balance += rules.correctBalance;
+  p.balance += rules.correctBalance + p.nextCorrectBonus;
+  p.nextCorrectBonus = 0;
   p.correct += 1;
   if (p.maxEnergy > 0) p.energy = Math.min(p.maxEnergy, p.energy + rules.correctEnergy);
   return next;
@@ -549,7 +612,7 @@ export function applyAction(
         rival = victim.name;
         const steal = Math.max(
           0,
-          Math.min(CHEST_STEAL_CAP, Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
+          Math.min(CHEST_STEAL_CAP, victim.balance - protectedGold(state.mode, victim), Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
         );
         victim.balance -= steal;
         me.balance += steal;
@@ -581,13 +644,16 @@ export function applyAction(
       // coins instead of stacking into an unraidable vault.
       if (me.defenses.includes("grid")) {
         me.balance += 300;
-        pushEvent(next, `${name} hade redan ett lasergrid — kistan gav 300 ${rules.currencyShort} i stället.`, now);
+        pushEvent(next, `${name} hade redan ett lasergrid — sigillet gav 300 ${rules.currencyShort} i stället.`, now);
       } else {
         me.defenses.push("grid");
         pushEvent(next, `${name} hittade ett lasergrid i kistan.`, now);
       }
+    } else if (outcome.kind === "storm") {
+      me.nextCorrectBonus += outcome.value ?? 180;
+      pushEvent(next, `${name} laddade en storm: nästa rätta svar ger +${outcome.value ?? 180} ${rules.currencyShort}.`, now);
     } else {
-      pushEvent(next, `${name} öppnade en tom kista.`, now);
+      pushEvent(next, `${name} öppnade en eko-kista. Nästa kista väntar efter nästa fråga.`, now);
     }
 
     const reveal: ChestReveal = {
@@ -606,7 +672,35 @@ export function applyAction(
     return { ok: true, state: next, reveal };
   }
 
-  // ── Crypto Hack power-up ───────────────────────────────────────────────
+  // ── Cyber Hack: a skill drill between questions ────────────────────────
+  if (action.kind === "hack") {
+    if (state.mode !== "crypto") return { ok: false, error: "Hackutmaningen finns bara i Cyber Hack." };
+    if (me.hackRound === state.round) return { ok: false, error: "Du har redan försökt hacka den här frågan." };
+
+    const next = clone(state);
+    const player = next.players[name];
+    const challenge = hackChallengeFor(state.round, name);
+    const success = action.answer === challenge.answer;
+    player.hackRound = state.round;
+    player.hackScore += success ? 1 : 0;
+    player.hackProgress = success ? player.hackProgress + 1 : 0;
+
+    if (success) {
+      const reward = 180 + Math.min(120, player.hackProgress * 20);
+      player.balance += reward;
+      player.energy = Math.min(player.maxEnergy, player.energy + 1);
+      player.trace = Math.max(0, player.trace - 10);
+      pushEvent(next, `${name} löste ${challenge.title}: +${reward} crypto och ett verktyg.`, now);
+      return { ok: true, state: next, feedback: `Hack lyckades! +${reward} crypto · +1 verktyg · −10 spår · hackkedja ${player.hackProgress}.` };
+    }
+
+    player.trace = Math.min(100, player.trace + 10);
+    pushEvent(next, `${name} missade ${challenge.title} och lämnade ett spår.`, now);
+    return { ok: true, state: next, feedback: "Inte den här gången — +10 spår. En hackkedja bröts; nästa utmaning öppnar snart." };
+  }
+
+
+  // ── Cyber Hack power-up ─────────────────────────────────────────────────
   if (action.kind === "power") {
     const power = rules.powers?.find((p) => p.id === action.power);
     if (!power) return { ok: false, error: "Den power-upen finns inte i det här läget." };

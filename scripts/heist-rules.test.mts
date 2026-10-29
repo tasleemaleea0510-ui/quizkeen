@@ -12,6 +12,8 @@ import {
   applyAction,
   chestOpen,
   decayTrace,
+  hackChallengeFor,
+  classicStreakBonus,
   mintPayout,
   newHeist,
   nextRound,
@@ -196,6 +198,15 @@ check("buying a shield needs the coins and stacks nothing", () => {
   assert.equal(broke.players.Alva.balance, 100, "a failed purchase must not charge");
 });
 
+console.log("\nClassic mode");
+check("streak bonus rewards consistency but has a clear cap", () => {
+  assert.equal(classicStreakBonus(0), 0);
+  assert.equal(classicStreakBonus(1), 0);
+  assert.equal(classicStreakBonus(2), 15);
+  assert.equal(classicStreakBonus(6), 75);
+  assert.equal(classicStreakBonus(12), 75);
+});
+
 console.log("\nGold Quest chests");
 check("a chest pays its coins", () => {
   const h = openChest(newHeist("vault", seats), "Alva", seq(0));
@@ -233,6 +244,16 @@ check("a swap chest trades purses with a rival", () => {
 check("a shield chest hands over a laser grid", () => {
   const next = openChest(newHeist("vault", seats), "Alva", seq(0.75));
   assert.deepEqual(next.players.Alva.defenses, ["grid"]);
+});
+
+check("a storm chest powers up the next correct answer", () => {
+  const out = applyAction(newHeist("vault", seats), "Alva", { kind: "chest", chest: 0 }, 1000, seq(0.82));
+  assert.equal(out.ok, true);
+  let h = (out as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.nextCorrectBonus, 180);
+  h = addCorrect(h, "Alva");
+  assert.equal(h.players.Alva.balance, 1280);
+  assert.equal(h.players.Alva.nextCorrectBonus, 0);
 });
 
 check("the empty chest costs nothing", () => {
@@ -282,6 +303,51 @@ check("the other modes have no chests", () => {
     const out = applyAction(newHeist(mode, seats), "Alva", { kind: "chest" }, 1000);
     assert.equal(out.ok, false);
   }
+});
+
+console.log("\nCyber Hack skill drills");
+check("the five skill challenges rotate deterministically", () => {
+  const kinds = [1, 2, 3, 4, 5].map((round) => hackChallengeFor(round, "Alva").kind);
+  assert.deepEqual(kinds, ["virus", "blueprint", "sequence", "passcode", "reboot"]);
+  assert.deepEqual(hackChallengeFor(3, "Alva"), hackChallengeFor(3, "Alva"));
+  assert.notDeepEqual(hackChallengeFor(3, "Alva"), hackChallengeFor(3, "Bo"));
+});
+
+check("a successful drill pays a growing capped combo reward and can only be used once per round", () => {
+  let h = newHeist("crypto", seats);
+  h = nextRound(h);
+  const challenge = hackChallengeFor(h.round, "Alva");
+  const first = applyAction(h, "Alva", { kind: "hack", answer: challenge.answer }, 1000);
+  assert.equal(first.ok, true);
+  h = (first as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.balance, 1200);
+  assert.equal(h.players.Alva.hackProgress, 1);
+  assert.equal(h.players.Alva.hackScore, 1);
+  const duplicate = applyAction(h, "Alva", { kind: "hack", answer: challenge.answer }, 1001);
+  assert.equal(duplicate.ok, false);
+  h = nextRound(h);
+  const secondChallenge = hackChallengeFor(h.round, "Alva");
+  const second = applyAction(h, "Alva", { kind: "hack", answer: secondChallenge.answer }, 2000);
+  assert.equal(second.ok, true);
+  h = (second as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.balance, 1420);
+  assert.equal(h.players.Alva.hackProgress, 2);
+  assert.equal(h.players.Alva.hackScore, 2);
+});
+
+check("a wrong drill adds trace and breaks the streak", () => {
+  let h = newHeist("crypto", seats);
+  h = nextRound(h);
+  const challenge = hackChallengeFor(h.round, "Alva");
+  const success = applyAction(h, "Alva", { kind: "hack", answer: challenge.answer }, 1000);
+  h = (success as { ok: true; state: HeistState }).state;
+  h = nextRound(h);
+  const wrong = applyAction(h, "Alva", { kind: "hack", answer: "not-the-answer" }, 2000);
+  assert.equal(wrong.ok, true);
+  h = (wrong as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.trace, 10);
+  assert.equal(h.players.Alva.hackProgress, 0);
+  assert.equal(h.players.Alva.hackScore, 1);
 });
 
 console.log("\nCrypto Clash");

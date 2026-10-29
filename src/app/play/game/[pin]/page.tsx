@@ -10,6 +10,7 @@ import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
 import HeistPanel from "@/components/heist-panel";
+import CyberHackChallenge from "@/components/cyber-hack-challenge";
 import { ChestPick, ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
 import GameStage from "@/components/game/game-stage";
@@ -53,6 +54,8 @@ function GameInner() {
   const [sent, setSent] = useState(false);
   const [correct, setCorrect] = useState<number[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [classicStreak, setClassicStreak] = useState(0);
+  const classicStreakRef = useRef(0);
   // The heist layer, when the host picked one of the three modes. The board is
   // whatever the host last broadcast — this screen never edits it itself.
   const [heist, setHeist] = useState<HeistState | null>(null);
@@ -80,6 +83,8 @@ function GameInner() {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { questionRef.current = question; }, [question]);
 
+  const streakBonus = classicStreak > 1 ? Math.min(75, (classicStreak - 1) * 15) : 0;
+
   const supabaseRef = useRef(createClient());
   const gameRef = useRef<any>(null);
   const accountRef = useRef("");
@@ -97,14 +102,24 @@ function GameInner() {
     game.on("broadcast", { event: "question" }, (msg) => {
       setQuestion(msg.payload as Question);
       resetAnswer();
+      classicStreakRef.current = 0;
+      setClassicStreak(0);
       setPhase("question");
     });
 
     game.on("broadcast", { event: "reveal" }, (msg) => {
-      const p = msg.payload as { correctIndexes?: number[]; correctIndex?: number; scores: Record<string, number> };
+      const p = msg.payload as { correctIndexes?: number[]; correctIndex?: number; scores: Record<string, number>; streaks?: Record<string, number> };
       setCorrect(correctList(p));
       setScores(p.scores || {});
+      if (typeof p.streaks?.[name] === "number") {
+        classicStreakRef.current = p.streaks[name];
+        setClassicStreak(p.streaks[name]);
+      }
       setPhase("reveal");
+    });
+
+    game.on("broadcast", { event: "cancel" }, () => {
+      window.location.replace("/play");
     });
 
     game.on("broadcast", { event: "end" }, (msg) => {
@@ -136,11 +151,17 @@ function GameInner() {
       if (p.kind === "question") {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
         resetAnswer();
+        classicStreakRef.current = 0;
+        setClassicStreak(0);
         setPhase("question");
       } else if (p.kind === "reveal") {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
         setCorrect(correctList(p));
         setScores(p.scores || {});
+        if (typeof p.streaks?.[name] === "number") {
+          classicStreakRef.current = p.streaks[name];
+          setClassicStreak(p.streaks[name]);
+        }
         setPhase("reveal");
       } else if (p.kind === "end") {
         setScores(p.scores || {});
@@ -291,7 +312,7 @@ function GameInner() {
           On a laptop this is two columns and neither scrolls. On a phone the
           right rail drops underneath and the whole thing scrolls, because a
           phone has one column and no wall to project onto. */}
-      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_384px] lg:overflow-hidden">
+      <div className={cn("relative z-10 grid min-h-0 flex-1 grid-cols-1", showHeist ? "overflow-y-auto lg:grid-cols-[minmax(0,1fr)_384px] lg:overflow-hidden" : "overflow-y-auto")}>
         <section className="relative flex min-h-0 flex-col lg:overflow-y-auto">
           <div className="m-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
             {phase === "waiting" && (
@@ -463,6 +484,11 @@ function GameInner() {
                   <p className="mt-1 font-mono text-lg font-bold text-white">
                     <CountUp value={scores[name] ?? 0} /> p
                   </p>
+                  {!modeRules && classicStreak > 1 && (
+                    <p className="mt-1 text-xs font-extrabold text-indigo-200">
+                      {classicStreak} i rad · +{streakBonus} streakbonus denna runda
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -585,7 +611,17 @@ function GameInner() {
               theme.edge
             )}
           >
-            <div className="p-3">
+            <div className="space-y-3 p-3">
+              {heist.mode === "crypto" && phase === "reveal" && (
+                <CyberHackChallenge
+                  round={heist.round}
+                  playerName={name}
+                  used={heist.players[name]?.hackRound === heist.round}
+                  pending={heistSending}
+                  onAction={heistAction}
+                  note={heistNote}
+                />
+              )}
               <HeistPanel
                 state={heist}
                 me={name}
