@@ -26,6 +26,13 @@ import {
  */
 const SECTIONS = [
   {
+    icon: BookOpen,
+    title: "Spelmanual",
+    accent: "text-amber-300",
+    body: "Alla fyra lägen, kistornas odds, försvarens priser och Mint-trappan. Manualen läser samma regler som spelet, så siffrorna stämmer alltid.",
+    links: [{ href: "/manual", label: "Öppna manualen" }],
+  },
+  {
     icon: Gamepad2,
     title: "Spela",
     accent: "text-indigo-300",

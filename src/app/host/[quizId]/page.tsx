@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut, BookOpen } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
@@ -26,6 +26,7 @@ import {
   MODE_RULES,
   addCorrect,
   applyAction,
+  breakStreak,
   mintPayout,
   newHeist,
   nextRound,
@@ -206,6 +207,20 @@ export default function HostPage() {
         safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Matchen är inte igång." } });
         return;
       }
+      // A chest is a between-questions decision, and the Cyber Hack drill is a
+      // reward for finishing one. Both are refused while the clock runs, even
+      // if a stale client still shows the button.
+      if ((action.kind === "chest" || action.kind === "hack") && phaseRef.current !== "reveal") {
+        safeSend(game, {
+          type: "broadcast",
+          event: "heist-note",
+          payload: {
+            to: name,
+            text: action.kind === "chest" ? "Kistan öppnas mellan frågorna." : "Hacket öppnas mellan frågorna.",
+          },
+        });
+        return;
+      }
       const result = applyAction(h, name, action, Date.now());
       if (!result.ok) {
         safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: result.error } });
@@ -344,11 +359,15 @@ export default function HostPage() {
         if (nextHeist) nextHeist = addCorrect(nextHeist, name);
       } else {
         streaksRef.current[name] = 0;
+        if (nextHeist) nextHeist = breakStreak(nextHeist, name);
       }
     });
     // Sitting out a question breaks the streak too; no answer is not a free pass.
     roster.forEach((name) => {
-      if (!answersRef.current[name]) streaksRef.current[name] = 0;
+      if (!answersRef.current[name]) {
+        streaksRef.current[name] = 0;
+        if (nextHeist) nextHeist = breakStreak(nextHeist, name);
+      }
     });
     scoresRef.current = newScores;
     setScores(newScores);
@@ -483,6 +502,15 @@ export default function HostPage() {
             <LogOut className="h-4 w-4" />
             <span>Lämna</span>
           </button>
+          <Link
+            href="/manual"
+            target="_blank"
+            title="Spelmanual"
+            aria-label="Spelmanual"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition-colors hover:border-white/25 hover:text-white"
+          >
+            <BookOpen className="h-4 w-4" />
+          </Link>
           <FullscreenButton />
         </div>
       </header>
@@ -567,11 +595,20 @@ export default function HostPage() {
             </aside>
 
             <section className="order-2 lg:order-1">
-              <div className="mb-3">
-                <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">Välj spel-läge</h1>
-                <p className="mt-0.5 text-sm text-slate-400">
-                  Samma frågor. En särskild spel-loop för varje läge — välj hur klassen ska tävla.
-                </p>
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">Välj spel-läge</h1>
+                  <p className="mt-0.5 text-sm text-slate-400">
+                    Samma frågor. En särskild spel-loop för varje läge — välj hur klassen ska tävla.
+                  </p>
+                </div>
+                <Link
+                  href="/manual"
+                  target="_blank"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-slate-300 transition-colors hover:border-white/25 hover:text-white"
+                >
+                  Läs manualen <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
               <GameModePicker value={mode} onChange={setMode} />
               {roundRules && (
@@ -597,6 +634,12 @@ export default function HostPage() {
                     .
                   </p>
                   <p className="mt-1">
+                    {roundRules.maxEnergy > 0 && (
+                      <>
+                        {"Varje ny fråga ger 1 "}
+                        {roundRules.energyName.toLowerCase()}.{" "}
+                      </>
+                    )}
                     Placering 1–3 ger{" "}
                     <b className="text-slate-200" data-no-translate>
                       {roundRules.mint.first}/{roundRules.mint.second}/{roundRules.mint.third}

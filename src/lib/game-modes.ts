@@ -193,24 +193,24 @@ export type ModeRules = {
 };
 
 const VAULT_DEFENSES: Defense[] = [
-  { id: "door", name: "Ståldörr", cost: 300, kind: "reduce", value: 20, blurb: "Tar bort 20 % av nästa stöld." },
-  { id: "grid", name: "Lasergrid", cost: 450, kind: "block", blurb: "Stoppar ett rån helt." },
-  { id: "decoy", name: "Skendvalv", cost: 350, kind: "block", blurb: "Stoppar ett rån och avslöjar tjuven.", reveals: true },
-  { id: "cell", name: "Energicell", cost: 500, kind: "energy", blurb: "Ger 1 raid-energi direkt." },
-  { id: "walls", name: "Förstärkta väggar", cost: 700, kind: "reduce", value: 15, charges: 2, blurb: "Tar bort 15 % av de två nästa stölderna." },
-  { id: "key", name: "Mästernyckel", cost: 600, kind: "discount", blurb: "Nästa rån kostar 1 raid-energi mindre." },
+  { id: "door", name: "Ståldörr", cost: 150, kind: "reduce", value: 25, blurb: "Tar bort 25 % av nästa stöld." },
+  { id: "grid", name: "Lasergrid", cost: 300, kind: "block", blurb: "Stoppar ett rån helt." },
+  { id: "decoy", name: "Skendvalv", cost: 500, kind: "block", charges: 2, blurb: "Stoppar två rån, avslöjar tjuven och kostar tjuven 100 mynt.", reveals: true },
+  { id: "cell", name: "Energicell", cost: 150, kind: "energy", blurb: "Ger 1 raid-energi direkt." },
+  { id: "walls", name: "Förstärkta väggar", cost: 300, kind: "reduce", value: 25, charges: 2, blurb: "Tar bort 25 % av de två nästa stölderna." },
+  { id: "key", name: "Mästernyckel", cost: 150, kind: "discount", blurb: "Nästa rån kostar 1 raid-energi mindre." },
 ];
 
 const CRYPTO_DEFENSES: Defense[] = [
-  { id: "firewall", name: "Brandvägg", cost: 300, kind: "reduce", value: 15, blurb: "Tar bort 15 % av nästa hack." },
-  { id: "wallet", name: "Skendosa", cost: 450, kind: "block", blurb: "Stoppar ett hack och avslöjar hackaren.", reveals: true },
-  { id: "cleaner", name: "Spårstädare", cost: 250, kind: "trace", value: 30, blurb: "Sänker ditt spår med 30." },
-  { id: "slot", name: "Extra verktyg", cost: 500, kind: "slot", blurb: "Höjer max antal verktygsladdningar med 1." },
+  { id: "firewall", name: "Brandvägg", cost: 200, kind: "reduce", value: 40, blurb: "Tar bort 40 % av nästa hack." },
+  { id: "wallet", name: "Skendosa", cost: 400, kind: "block", blurb: "Stoppar ett hack och avslöjar hackaren.", reveals: true },
+  { id: "cleaner", name: "Spårstädare", cost: 200, kind: "trace", value: 30, blurb: "Sänker ditt spår med 30." },
+  { id: "slot", name: "Extra verktyg", cost: 400, kind: "slot", blurb: "Höjer max antal verktygsladdningar med 1." },
 ];
 
 const PIRATE_DEFENSES: Defense[] = [
-  { id: "guard", name: "Vaktbesättning", cost: 350, kind: "reduce", value: 20, blurb: "Tar bort 20 % av nästa stöld." },
-  { id: "decoy", name: "Skattkista", cost: 300, kind: "block", blurb: "Stoppar ett rån och avslöjar piraten.", reveals: true },
+  { id: "guard", name: "Vaktbesättning", cost: 150, kind: "reduce", value: 30, blurb: "Tar bort 30 % av nästa stöld." },
+  { id: "decoy", name: "Skattkista", cost: 400, kind: "block", blurb: "Stoppar ett rån och kostar piraten 100 guld.", reveals: true },
   { id: "cargo", name: "Låst lastutrymme", cost: 500, kind: "protect", value: 500, blurb: "500 guld ligger utanför rånarnas räckhåll." },
 ];
 
@@ -227,7 +227,7 @@ const CRYPTO_POWERS: Power[] = [
   {
     id: "double",
     name: "Dubbla",
-    blurb: "Fördubblar din crypto — bara en gång per match.",
+    blurb: "Fördubblar din crypto — upp till +900. En gång per match.",
     cost: 0,
     effect: "double",
     once: true,
@@ -238,6 +238,15 @@ const CRYPTO_POWERS: Power[] = [
 export const CHEST_STEAL_CAP = 400;
 /** A rival chest with no useful target still gives the opener a consolation payout. */
 export const CHEST_FALLBACK_REWARD = 300;
+/** "Dubbla" doubles the purse, but never by more than this. */
+export const POWER_GAIN_CAP = 900;
+/** A revealed raider pays this much for walking into the trap. */
+export const RAID_EXPOSURE_FEE = 100;
+/** Every new question tops the raid energy back up by one. */
+export const ROUND_ENERGY = 1;
+/** How long a robbed player cannot be hit again. */
+export const PROTECTION_MS = 30000;
+const TRACE_DECAY = 10;
 
 export const MODE_RULES: Record<HeistMode, ModeRules> = {
   vault: {
@@ -261,8 +270,8 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
   },
   crypto: {
     id: "crypto",
-    name: "Cyber Hack",
-    tagline: "Lös ett snabbt hack, välj ditt mål, håll nätverket rent.",
+    name: "Crypto Clash",
+    tagline: "Hacka, håll spåret nere och undvik att bli avslöjad.",
     currency: "Crypto",
     currencyShort: "crypto",
     startBalance: 1000,
@@ -282,7 +291,7 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
   pirate: {
     id: "pirate",
     name: "Pirate Heist",
-    tagline: "Välj hur djärvt du rånar.",
+    tagline: "Betala för risken — ju djärvare rån, desto större byte.",
     currency: "Piratguld",
     currencyShort: "guld",
     startBalance: 1000,
@@ -295,9 +304,13 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
     raidPct: 0,
     raidCap: 0,
     styles: [
-      { id: "stealth", name: "Smygrån", cost: 100, chance: 0.8, pct: 10, cap: 350, verb: "smygrånade" },
-      { id: "quick", name: "Snabbrån", cost: 200, chance: 0.65, pct: 15, cap: 500, verb: "snabbrånade" },
-      { id: "full", name: "Full attack", cost: 350, chance: 0.45, pct: 25, cap: 700, verb: "gick till full attack mot" },
+      // Cheap and reliable against a thin purse; the cap keeps it from being
+      // the best answer forever.
+      { id: "stealth", name: "Smygrån", cost: 50, chance: 0.85, pct: 10, cap: 300, verb: "smygrånade" },
+      // The middle: a real chance to miss, a much bigger ceiling.
+      { id: "quick", name: "Snabbrån", cost: 200, chance: 0.65, pct: 18, cap: 600, verb: "snabbrånade" },
+      // The comeback play: only pays when the target is rich, which is the point.
+      { id: "full", name: "Full attack", cost: 300, chance: 0.45, pct: 40, cap: 1200, verb: "gick till full attack mot" },
     ],
     defenses: PIRATE_DEFENSES,
     mint: { first: 110, second: 75, third: 50, rest: 30, perRaid: 10, bonusCap: 30 },
@@ -339,6 +352,8 @@ export type HeistPlayer = {
   hackScore: number;
   /** Vault Raiders: added to the next correct-answer reward, then consumed. */
   nextCorrectBonus: number;
+  /** Consecutive correct answers. Every mode pays a small streak reward. */
+  streak: number;
 };
 
 export type HeistEvent = { id: string; at: number; text: string };
@@ -409,14 +424,25 @@ export function newHeist(
       hackProgress: 0,
       hackScore: 0,
       nextCorrectBonus: 0,
+      streak: 0,
     };
   }
   return { mode, round: 0, players, events: [] };
 }
 
 /**
- * A correct answer: the match currency and (where the mode has it) one energy.
- * Energy stops at the cap; the coins never do.
+ * What a correct-answer streak is worth on top of the flat reward. The first
+ * correct answer pays the normal amount; from the second in a row the reward
+ * grows by 25 and caps at 75, so consistency matters without beating knowledge.
+ * Classic mode has its own points version in `classicStreakBonus`.
+ */
+export function heistStreakBonus(streak: number): number {
+  return Math.min(75, Math.max(0, Math.floor(streak) - 1) * 25);
+}
+
+/**
+ * A correct answer: the match currency, a streak step, and (where the mode has
+ * it) one energy. Energy stops at the cap; the coins never do.
  */
 export function addCorrect(state: HeistState, name: string): HeistState {
   const player = state.players[name];
@@ -424,15 +450,42 @@ export function addCorrect(state: HeistState, name: string): HeistState {
   const rules = MODE_RULES[state.mode];
   const next = clone(state);
   const p = next.players[name];
-  p.balance += rules.correctBalance + p.nextCorrectBonus;
+  // `?? 0` keeps a match that was already running when this field shipped
+  // from turning every later answer into NaN.
+  p.streak = (p.streak ?? 0) + 1;
+  p.balance += rules.correctBalance + p.nextCorrectBonus + heistStreakBonus(p.streak);
   p.nextCorrectBonus = 0;
   p.correct += 1;
   if (p.maxEnergy > 0) p.energy = Math.min(p.maxEnergy, p.energy + rules.correctEnergy);
   return next;
 }
 
+/**
+ * A wrong or missing answer ends the streak ladder. `addCorrect` raises it;
+ * this is the other half, called by the host for every seat that missed.
+ */
+export function breakStreak(state: HeistState, name: string): HeistState {
+  const player = state.players[name];
+  if (!player || player.streak === 0) return state;
+  const next = clone(state);
+  next.players[name].streak = 0;
+  return next;
+}
+
+/**
+ * A new question starts a new round.
+ *
+ * Every round pays out one energy (so a player who missed a question is never
+ * locked out of the raid game) and cools trace by ten (so being exposed is a
+ * temporary setback rather than a life sentence).
+ */
 export function nextRound(state: HeistState): HeistState {
-  return { ...state, round: state.round + 1 };
+  const advanced = clone(state);
+  advanced.round += 1;
+  for (const p of Object.values(advanced.players)) {
+    if (p.maxEnergy > 0) p.energy = Math.min(p.maxEnergy, p.energy + ROUND_ENERGY);
+  }
+  return decayTrace(advanced) ?? advanced;
 }
 
 export function approxBalance(value: number): string {
@@ -443,6 +496,19 @@ export function approxBalance(value: number): string {
 
 export function defenseById(mode: HeistMode, id: string): Defense | undefined {
   return MODE_RULES[mode].defenses.find((d) => d.id === id);
+}
+
+/**
+ * What one raid costs, in the mode's own energy. Pirate raids are bought with
+ * gold (see `styles`), so they report zero here; an exposed Crypto hacker pays
+ * one extra tool, and a master key shaves one off, never below one.
+ */
+export function raidCostFor(mode: HeistMode, player: HeistPlayer): number {
+  const rules = MODE_RULES[mode];
+  if (rules.styles || rules.raidCost <= 0) return 0;
+  const exposed = rules.trace && player.trace >= rules.trace.exposed ? 1 : 0;
+  const discount = player.raidDiscount > 0 ? 1 : 0;
+  return Math.max(1, rules.raidCost + exposed - discount);
 }
 
 /** How many of a defense a player still holds. A wall counts twice. */
@@ -667,14 +733,20 @@ export function applyAction(
         );
       }
     } else if (outcome.kind === "shield") {
-      // A grid is only worth holding one at a time; a second one pays out in
-      // coins instead of stacking into an unraidable vault.
-      if (me.defenses.includes("grid")) {
-        me.balance += 300;
-        pushEvent(next, `${name} hade redan ett lasergrid — sigillet gav 300 ${rules.currencyShort} i stället.`, now);
+      // The seal arms the mode's block defense, not a hardcoded id. Holding a
+      // second one pays out in coins instead of stacking into an unraidable
+      // vault.
+      const shield = rules.defenses.find((d) => d.kind === "block");
+      if (!shield || me.defenses.includes(shield.id)) {
+        me.balance += CHEST_FALLBACK_REWARD;
+        pushEvent(
+          next,
+          `${name} hade redan ${shield?.name ?? "ett skydd"} — sigillet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i stället.`,
+          now
+        );
       } else {
-        me.defenses.push("grid");
-        pushEvent(next, `${name} hittade ett lasergrid i kistan.`, now);
+        me.defenses.push(shield.id);
+        pushEvent(next, `${name} hittade ${shield.name} i kistan.`, now);
       }
     } else if (outcome.kind === "storm") {
       me.nextCorrectBonus += outcome.value ?? 180;
@@ -699,11 +771,10 @@ export function applyAction(
 
   // ── Cyber Hack: a skill drill between questions ────────────────────────
   if (action.kind === "hack") {
-    if (state.mode !== "crypto") return { ok: false, error: "Hackutmaningen finns bara i Cyber Hack." };
+    if (state.mode !== "crypto") return { ok: false, error: "Hackutmaningen finns bara i Crypto Clash." };
     if (me.hackRound === state.round) return { ok: false, error: "Du har redan försökt hacka den här frågan." };
 
-    const next = clone(state);
-    const player = next.players[name];
+    const player = me;
     const challenge = hackChallengeFor(state.round, name);
     const success = action.answer === challenge.answer;
     player.hackRound = state.round;
@@ -721,6 +792,9 @@ export function applyAction(
 
     player.trace = Math.min(100, player.trace + 10);
     pushEvent(next, `${name} missade ${challenge.title} och lämnade ett spår.`, now);
+    if (rules.trace && player.trace >= rules.trace.exposed) {
+      pushEvent(next, `${name} är avslöjad — spåret är uppe i ${player.trace}. Hacket kostar nu ett extra verktyg.`, now);
+    }
     return { ok: true, state: next, feedback: "Inte den här gången — +10 spår. En hackkedja bröts; nästa utmaning öppnar snart." };
   }
 
@@ -734,9 +808,11 @@ export function applyAction(
       return { ok: false, error: `Du behöver ${power.cost} ${rules.currencyShort} för ${power.name}.` };
     }
     me.balance -= power.cost;
-    if (power.effect === "double") me.balance *= 2;
+    // Doubling is a comeback tool, not an instant win: the gain is capped.
+    const gain = power.effect === "double" ? Math.min(POWER_GAIN_CAP, me.balance) : 0;
+    me.balance += gain;
     me.doubled = true;
-    pushEvent(next, `${name} använde ${power.name}: ${me.balance} ${rules.currencyShort}.`, now);
+    pushEvent(next, `${name} använde ${power.name}: +${gain} ${rules.currencyShort} (${me.balance} totalt).`, now);
     return { ok: true, state: next };
   }
 
@@ -763,10 +839,15 @@ export function applyAction(
       return { ok: true, state: next };
     }
   } else if (rules.raidCost > 0) {
-    // Mästernyckel shaves one energy off a single raid, never below one.
-    const cost = Math.max(1, rules.raidCost - (me.raidDiscount > 0 ? 1 : 0));
+    // Mästernyckel shaves one energy off a single raid and an exposed Crypto
+    // hacker pays one more; neither can push the cost below one.
+    const cost = raidCostFor(state.mode, me);
     if (me.energy < cost) {
-      return { ok: false, error: `Du behöver ${cost} ${rules.energyName.toLowerCase()}.` };
+      const exposed = Boolean(rules.trace && me.trace >= rules.trace.exposed);
+      return {
+        ok: false,
+        error: `Du behöver ${cost} ${rules.energyName.toLowerCase()}${exposed ? " — du är avslöjad, så hacket kostar 1 extra" : ""}.`,
+      };
     }
     me.energy -= cost;
     if (me.raidDiscount > 0) me.raidDiscount = 0;
@@ -784,11 +865,17 @@ export function applyAction(
     if (block) {
       removeDefense(target, block.id);
       steal = 0;
+      // A trap that exposes the thief costs them something. Without this a
+      // decoy was just a more expensive version of a plain block; now the
+      // reveal is a rule, and the projector can name who tried.
+      const penalty = block.reveals ? Math.min(RAID_EXPOSURE_FEE, Math.max(0, me.balance)) : 0;
+      if (penalty > 0) me.balance -= penalty;
+      const attempt = rules.id === "crypto" ? "hack" : "rån";
       pushEvent(
         next,
         block.reveals
-          ? `${target.name}s ${block.name} stoppade ${name}s rån.`
-          : `${target.name}s ${block.name} stoppade ett rån.`,
+          ? `${target.name}s ${block.name} stoppade ${name}s ${attempt} och avslöjade tjuven${penalty > 0 ? ` (−${penalty} ${rules.currencyShort})` : ""}.`
+          : `${target.name}s ${block.name} stoppade ett ${attempt}.`,
         now
       );
     } else {
@@ -800,7 +887,7 @@ export function applyAction(
       }
     }
   } else {
-    pushEvent(next, `${name} kom inte åt ${target.name}s guld.`, now);
+    pushEvent(next, `${name} kom inte åt ${target.name}s ${rules.id === "crypto" ? "crypto" : "guld"}.`, now);
   }
 
   steal = Math.max(0, Math.min(steal, reachable));
@@ -813,15 +900,13 @@ export function applyAction(
       me.raided.push(target.name);
       me.raids += 1;
     }
-    pushEvent(
-      next,
-      `${name} ${style ? style.verb : "rånade"} ${target.name}: ${steal} ${rules.currencyShort}.`,
-      now
-    );
+    const verb = style ? style.verb : rules.id === "crypto" ? "hackade" : "rånade";
+    pushEvent(next, `${name} ${verb} ${target.name}: ${steal} ${rules.currencyShort}.`, now);
   }
-  // Every attempt buys the victim a moment of peace, blocked or not, so nobody
-  // can be hit four times while the host reads the next question.
-  target.protectedUntil = now + 15000;
+  // Every attempt buys the victim a moment of peace, blocked or not. Thirty
+  // seconds covers a whole question, so nobody can be hit four times while the
+  // host reads the next one.
+  target.protectedUntil = now + PROTECTION_MS;
 
   if (rules.trace) {
     me.trace = Math.min(100, me.trace + (steal > 0 ? rules.trace.success : rules.trace.fail));
@@ -833,14 +918,14 @@ export function applyAction(
   return { ok: true, state: next };
 }
 
-/** Crypto Clash: trace cools by 10 every half minute. Returns null if nothing moved. */
+/** Crypto Clash: trace cools by 10 per round. Returns null if nothing moved. */
 export function decayTrace(state: HeistState): HeistState | null {
   if (!MODE_RULES[state.mode].trace) return null;
   let changed = false;
   const next = clone(state);
   for (const p of Object.values(next.players)) {
     if (p.trace > 0) {
-      p.trace = Math.max(0, p.trace - 10);
+      p.trace = Math.max(0, p.trace - TRACE_DECAY);
       changed = true;
     }
   }

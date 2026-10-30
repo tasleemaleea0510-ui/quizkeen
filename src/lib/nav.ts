@@ -98,6 +98,7 @@ export const NAV_ITEMS: NavEntry[] = [
   // ── Mer ────────────────────────────────────────────────────────────────
   { href: "/chat", label: "Chatt", short: "Chatt", hint: "Prata med klasskompisar", icon: MessagesSquare, group: "mer", keywords: "meddela prata vänner" },
   { href: "/settings", label: "Inställningar", hint: "Namn, färg och ljud", icon: Settings, group: "mer", keywords: "profil konto ändra" },
+  { href: "/manual", label: "Spelmanual", hint: "Regler, odds och alla lägen", icon: BookOpen, group: "mer", keywords: "manual regler game modes kista rån hack mint" },
   { href: "/help", label: "Hjälp & guide", hint: "Så funkar allt", icon: HelpCircle, group: "mer", keywords: "guide hur gör jag support" },
   {
     href: "/system/staff",

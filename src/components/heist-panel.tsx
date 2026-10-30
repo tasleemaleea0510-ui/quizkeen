@@ -9,10 +9,11 @@ import {
   defenseById,
   maxedOut,
   protectedGold,
+  raidCostFor,
   type HeistAction,
   type HeistState,
 } from "@/lib/game-modes";
-import { Coins, Crosshair, Gift, Loader2, Rocket, Shield, Sparkles, Swords, Zap } from "lucide-react";
+import { Coins, Crosshair, Flame, Gift, Loader2, Rocket, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 /**
  * The heist panel — what a player does between two questions.
@@ -27,12 +28,15 @@ export default function HeistPanel({
   me,
   note,
   pending,
+  chestAllowed,
   onAction,
 }: {
   state: HeistState;
   me: string;
   note?: string | null;
   pending: boolean;
+  /** Chests open between questions, when the host is on the reveal screen. */
+  chestAllowed: boolean;
   onAction: (action: HeistAction) => void;
 }) {
   const rules = MODE_RULES[state.mode];
@@ -52,6 +56,16 @@ export default function HeistPanel({
 
   const energyFull = profile.maxEnergy > 0 && profile.energy >= profile.maxEnergy;
   const safeguarded = protectedGold(state.mode, profile);
+  const exhausted = Boolean(rules.trace && profile.trace >= rules.trace.exposed);
+  const raidCost = raidCostFor(state.mode, profile);
+  // A two-charge wall or decoy is two ids in the same array; group them for the
+  // chips so a wall reads "×2" instead of appearing twice under one key.
+  const held = Object.entries(
+    profile.defenses.reduce<Record<string, number>>((acc, id) => {
+      acc[id] = (acc[id] ?? 0) + 1;
+      return acc;
+    }, {})
+  );
 
   return (
     /* The panel is a HUD column, not a card in a corner: it takes the height it
@@ -84,6 +98,13 @@ export default function HeistPanel({
               <span className="font-semibold text-emerald-200/70">skyddat</span>
             </span>
           )}
+          {profile.streak > 1 && (
+            <span className="flex items-center gap-1 rounded-full border border-orange-500/25 bg-orange-500/10 px-2.5 py-1 text-xs font-extrabold text-orange-200">
+              <Flame className="h-3.5 w-3.5" />
+              <span data-no-translate>{profile.streak}</span>
+              <span>i rad</span>
+            </span>
+          )}
           {profile.raidDiscount > 0 && (
             <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-xs font-extrabold text-sky-200">
               billigt nästa rån
@@ -92,12 +113,13 @@ export default function HeistPanel({
           {rules.trace && (
             <span
               className={`rounded-full border px-2.5 py-1 text-xs font-extrabold ${
-                profile.trace >= rules.trace.exposed
+                exhausted
                   ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
                   : "border-white/10 bg-white/5 text-slate-300"
               }`}
             >
               Spår {profile.trace}
+              {exhausted && " · avslöjad"}
             </span>
           )}
         </div>
@@ -118,7 +140,7 @@ export default function HeistPanel({
                   <button
                     key={i}
                     type="button"
-                    disabled={pending || !ready}
+                    disabled={pending || !ready || !chestAllowed}
                     // The tap picks a specific box, so the three are not the same
                     // button three times: the rules draw against the index.
                     onClick={() => onAction({ kind: "chest", chest: i })}
@@ -135,7 +157,9 @@ export default function HeistPanel({
             <p className="mt-1 text-[10px] font-semibold text-slate-500">
               {profile.chestRound === state.round
                 ? "Öppnad — nästa fråga ger en ny kista."
-                : "Mynt, stöld, byte eller en stormladdning."}
+                : !chestAllowed
+                  ? "Öppnar mellan frågorna."
+                  : "Mynt, stöld, byte eller en stormladdning."}
             </p>
           </div>
         )}
@@ -171,6 +195,16 @@ export default function HeistPanel({
             <Crosshair className="h-3.5 w-3.5" />
             {rules.id === "crypto" ? "Hacka en rival" : "Råna en rival"}
           </p>
+          {rules.raidCost > 0 && (
+            <p className="mb-1.5 text-[10px] font-semibold text-slate-500">
+              {rules.id === "crypto" ? "Hack kostar" : "Rån kostar"}{" "}
+              <span data-no-translate className="text-slate-300">
+                {raidCost}
+              </span>{" "}
+              {rules.energyName.toLowerCase()}
+              {exhausted && <span className="text-rose-300"> · avslöjad, +1</span>}
+            </p>
+          )}
           {/* Pirate Heist picks the risk first, then the ship. */}
           {rules.styles && (
             <div className="mb-1.5 flex flex-wrap gap-1.5">
@@ -259,9 +293,9 @@ export default function HeistPanel({
             <span className="text-slate-500">{openShop ? "Dölj" : "Visa"}</span>
           </button>
 
-          {profile.defenses.length > 0 && (
+          {held.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {profile.defenses.map((id) => {
+              {held.map(([id, count]) => {
                 const d = defenseById(state.mode, id);
                 if (!d) return null;
                 return (
@@ -270,6 +304,7 @@ export default function HeistPanel({
                     className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200"
                   >
                     {d.name}
+                    {count > 1 && <span data-no-translate> ×{count}</span>}
                   </span>
                 );
               })}

@@ -9,15 +9,21 @@ import {
   CHEST_FALLBACK_REWARD,
   CHEST_STEAL_CAP,
   MODE_RULES,
+  POWER_GAIN_CAP,
+  PROTECTION_MS,
+  RAID_EXPOSURE_FEE,
   addCorrect,
   applyAction,
+  breakStreak,
   chestOpen,
   decayTrace,
   hackChallengeFor,
   classicStreakBonus,
+  heistStreakBonus,
   mintPayout,
   newHeist,
   nextRound,
+  raidCostFor,
   standings,
   type ChestReveal,
   type HeistState,
@@ -91,7 +97,47 @@ check("energy stops at the cap, the coins do not", () => {
   let h = newHeist("vault", seats);
   for (let i = 0; i < 6; i++) h = addCorrect(h, "Alva");
   assert.equal(h.players.Alva.energy, 5);
-  assert.equal(h.players.Alva.balance, 1600);
+  // 100 a hit, plus the streak reward (25/50/75, then capped at 75).
+  assert.equal(h.players.Alva.balance, 1900);
+  assert.equal(h.players.Alva.streak, 6);
+});
+
+check("a streak pays more, but only up to a point", () => {
+  assert.equal(heistStreakBonus(1), 0);
+  assert.equal(heistStreakBonus(2), 25);
+  assert.equal(heistStreakBonus(3), 50);
+  assert.equal(heistStreakBonus(4), 75);
+  assert.equal(heistStreakBonus(12), 75);
+});
+
+check("a wrong answer ends the streak", () => {
+  let h = newHeist("vault", seats);
+  h = addCorrect(h, "Alva");
+  h = addCorrect(h, "Alva");
+  assert.equal(h.players.Alva.streak, 2);
+  h = breakStreak(h, "Alva");
+  assert.equal(h.players.Alva.streak, 0);
+  h = addCorrect(h, "Alva");
+  // 1000 + 100 + (100 + 25) + 100: after the reset the third hit pays no bonus.
+  assert.equal(h.players.Alva.balance, 1325, "the ladder restarts at the first step");
+});
+
+check("a new round tops up one energy for everyone", () => {
+  let h = newHeist("vault", seats);
+  h.players.Alva.energy = 1;
+  h.players.Bo.energy = 4;
+  h.players.Cia.energy = 5;
+  h = nextRound(h);
+  assert.equal(h.players.Alva.energy, 2);
+  assert.equal(h.players.Bo.energy, 5);
+  assert.equal(h.players.Cia.energy, 5, "the cap still applies");
+});
+
+check("a new round also cools trace, so being exposed ends", () => {
+  let h = newHeist("crypto", seats);
+  h.players.Alva.trace = 15;
+  h = nextRound(h);
+  assert.equal(h.players.Alva.trace, 5);
 });
 
 check("a raid steals 15 % and costs two energy", () => {
@@ -127,12 +173,12 @@ check("you cannot raid yourself", () => {
   assert.equal(out.ok, false);
 });
 
-check("a steel door removes 20 % and is spent", () => {
+check("a steel door removes 25 % and is spent", () => {
   let h = newHeist("vault", seats);
   setBalance(h, "Bo", 3000);
   h.players.Bo.defenses.push("door");
   h = raid(h, "Alva", "Bo", 1000);
-  assert.equal(h.players.Bo.balance, 2640); // 450 → 360 stolen
+  assert.equal(h.players.Bo.balance, 2663); // 450 → 337 stolen
   assert.deepEqual(h.players.Bo.defenses, []);
 });
 
@@ -153,10 +199,10 @@ check("reinforced walls absorb two thefts", () => {
   let h = (bought as { ok: true; state: HeistState }).state;
   setBalance(h, "Bo", 3000);
   h = raid(h, "Alva", "Bo", 1000);
-  assert.equal(h.players.Bo.balance, 2618); // 450 − 15 %
+  assert.equal(h.players.Bo.balance, 2663); // 450 − 25 %
   assert.equal(h.players.Bo.defenses.length, 1, "one charge left");
-  h = raid(h, "Cia", "Bo", 17000);
-  assert.equal(h.players.Bo.balance, 2285); // 392 − 15 %
+  h = raid(h, "Cia", "Bo", 32000);
+  assert.equal(h.players.Bo.balance, 2364); // 399 − 25 %
   assert.deepEqual(h.players.Bo.defenses, []);
 });
 
@@ -164,7 +210,7 @@ check("a master key shaves one energy off one raid", () => {
   const bought = applyAction(newHeist("vault", seats), "Alva", { kind: "fortify", defense: "key" }, 1000);
   assert.equal(bought.ok, true);
   let h = (bought as { ok: true; state: HeistState }).state;
-  assert.equal(h.players.Alva.balance, 400);
+  assert.equal(h.players.Alva.balance, MODE_RULES.vault.startBalance - 150);
   const twice = applyAction(h, "Alva", { kind: "fortify", defense: "key" }, 1000);
   assert.equal(twice.ok, false, "one key at a time");
   h = raid(h, "Alva", "Bo", 1000);
@@ -174,14 +220,28 @@ check("a master key shaves one energy off one raid", () => {
   assert.equal(h.players.Alva.energy, 0, "the next raid costs two again");
 });
 
-check("a robbed player is protected for fifteen seconds", () => {
+check("a robbed player is protected for a whole question", () => {
   let h = newHeist("vault", seats);
   setBalance(h, "Bo", 5000);
   h = raid(h, "Alva", "Bo", 1000);
   const out = applyAction(h, "Cia", { kind: "raid", target: "Bo" }, 2000);
   assert.equal(out.ok, false);
-  const later = applyAction(h, "Cia", { kind: "raid", target: "Bo" }, 17000);
+  assert.equal(PROTECTION_MS, 30000);
+  const early = applyAction(h, "Cia", { kind: "raid", target: "Bo" }, 29999);
+  assert.equal(early.ok, false);
+  const later = applyAction(h, "Cia", { kind: "raid", target: "Bo" }, 31000);
   assert.equal(later.ok, true);
+});
+
+check("a decoy blocks, names the thief and charges the trap fee", () => {
+  let h = newHeist("vault", seats);
+  setBalance(h, "Bo", 3000);
+  h.players.Bo.defenses.push("decoy", "decoy");
+  h = raid(h, "Alva", "Bo", 1000);
+  assert.equal(h.players.Bo.balance, 3000);
+  assert.equal(h.players.Alva.balance, 1000 - RAID_EXPOSURE_FEE);
+  assert.equal(h.players.Bo.defenses.length, 1, "the second charge stays armed");
+  assert.match(h.events[0].text, /avslöjade/);
 });
 
 check("buying a shield needs the coins and stacks nothing", () => {
@@ -418,14 +478,34 @@ check("an extra tool slot is sold once", () => {
   assert.equal(second.ok, false);
 });
 
-check("doubling doubles the wallet, once a match", () => {
+check("doubling adds at most the cap, once a match", () => {
   const first = applyAction(newHeist("crypto", seats), "Alva", { kind: "power", power: "double" }, 1000);
   assert.equal(first.ok, true);
   const h = (first as { ok: true; state: HeistState }).state;
-  assert.equal(h.players.Alva.balance, 2000);
+  assert.equal(h.players.Alva.balance, MODE_RULES.crypto.startBalance + POWER_GAIN_CAP);
   const again = applyAction(h, "Alva", { kind: "power", power: "double" }, 1000);
   assert.equal(again.ok, false);
-  assert.equal(h.players.Alva.balance, 2000, "the refused press must not pay again");
+  assert.equal(h.players.Alva.balance, MODE_RULES.crypto.startBalance + POWER_GAIN_CAP, "the refused press must not pay again");
+});
+
+check("an exposed hacker pays an extra tool", () => {
+  const h = newHeist("crypto", seats);
+  h.players.Alva.trace = 70;
+  assert.equal(raidCostFor("crypto", h.players.Alva), 3);
+  h.players.Alva.raidDiscount = 1;
+  assert.equal(raidCostFor("crypto", h.players.Alva), 2, "a master key still helps");
+  const out = applyAction(h, "Alva", { kind: "raid", target: "Bo" }, 1000);
+  assert.equal(out.ok, true);
+  assert.equal((out as { ok: true; state: HeistState }).state.players.Alva.energy, 1, "3 start − 2 with the key");
+});
+
+check("a drill miss that crosses the line exposes the hacker", () => {
+  const h = newHeist("crypto", seats);
+  h.players.Alva.trace = 65;
+  const wrong = applyAction(h, "Alva", { kind: "hack", answer: "not-the-answer" }, 2000);
+  assert.equal(wrong.ok, true);
+  assert.equal((wrong as { ok: true; state: HeistState }).state.players.Alva.trace, 75);
+  assert.match((wrong as { ok: true; state: HeistState }).state.events[0].text, /avslöjad/);
 });
 
 check("a power-up from another mode is refused", () => {
@@ -447,8 +527,8 @@ check("a successful quick raid pays the fee and steals", () => {
   let h = newHeist("pirate", seats);
   setBalance(h, "Bo", 3000);
   h = raid(h, "Alva", "Bo", 1000, "quick");
-  assert.equal(h.players.Alva.balance, 1250); // 1000 − 200 + 450
-  assert.equal(h.players.Bo.balance, 2550);
+  assert.equal(h.players.Alva.balance, 1000 - 200 + 540); // 18 % of the purse
+  assert.equal(h.players.Bo.balance, 2460);
 });
 
 check("a failed raid still costs the fee", () => {
@@ -457,7 +537,7 @@ check("a failed raid still costs the fee", () => {
   const out = applyAction(h, "Alva", { kind: "raid", target: "Bo", style: "full" }, 1000, () => 0.99);
   assert.equal(out.ok, true);
   const next = (out as { ok: true; state: HeistState }).state;
-  assert.equal(next.players.Alva.balance, 650);
+  assert.equal(next.players.Alva.balance, 700);
   assert.equal(next.players.Bo.balance, 3000);
   assert.equal(next.players.Alva.raids, 0);
 });
@@ -475,8 +555,8 @@ check("a cargo hold keeps 500 gold out of reach", () => {
   let h = (bought as { ok: true; state: HeistState }).state;
   setBalance(h, "Bo", 3000);
   h = raid(h, "Alva", "Bo", 1000, "quick");
-  assert.equal(h.players.Bo.balance, 2625); // 15 % of (3000 − 500)
-  assert.equal(h.players.Alva.balance, 1175);
+  assert.equal(h.players.Bo.balance, 2550); // 18 % of (3000 − 500)
+  assert.equal(h.players.Alva.balance, 1000 - 200 + 450);
   assert.deepEqual(h.players.Bo.defenses, ["cargo"], "the hold is not spent");
 });
 
@@ -484,6 +564,21 @@ check("every style must be named", () => {
   const h = newHeist("pirate", seats);
   const out = applyAction(h, "Alva", { kind: "raid", target: "Bo" }, 1000);
   assert.equal(out.ok, false);
+});
+
+check("the three pirate styles are a real risk ladder", () => {
+  const styles = MODE_RULES.pirate.styles ?? [];
+  assert.equal(styles.length, 3);
+  const [stealth, quick, full] = styles;
+  assert.ok(stealth.cost < quick.cost && quick.cost < full.cost);
+  assert.ok(stealth.chance > quick.chance && quick.chance > full.chance);
+  assert.ok(stealth.cap < quick.cap && quick.cap < full.cap);
+  // A rich target makes the all-out raid the best expected play; a poor one
+  // makes the cheap sneak better, so the choice depends on the board.
+  const expected = (s: { chance: number; cap: number; pct: number; cost: number }, purse: number) =>
+    s.chance * Math.min(s.cap, Math.floor((purse * s.pct) / 100)) - s.cost;
+  assert.ok(expected(full, 3000) > expected(stealth, 3000));
+  assert.ok(expected(stealth, 1000) > expected(full, 1000));
 });
 
 console.log("\nStandings and Mint");
@@ -510,10 +605,10 @@ check("robbing the same rival twice pays one bonus step", () => {
   setBalance(h, "Bo", 5000);
   h = raid(h, "Alva", "Bo", 1000);
   h.players.Alva.energy = 5;
-  h = raid(h, "Alva", "Bo", 17000);
+  h = raid(h, "Alva", "Bo", 32000);
   assert.equal(h.players.Alva.raids, 1, "one rival, one step");
   h.players.Alva.energy = 5;
-  h = raid(h, "Alva", "Cia", 34000);
+  h = raid(h, "Alva", "Cia", 64000);
   assert.equal(h.players.Alva.raids, 2, "a new rival counts again");
 });
 

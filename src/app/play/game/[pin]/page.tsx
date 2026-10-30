@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight, LogOut } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight, LogOut, BookOpen } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
@@ -20,6 +20,7 @@ import { ANSWER_TINTS as COLORS } from "@/lib/answer-tints";
 import {
   MODE_RULES,
   chestOpen,
+  standings,
   type ChestReveal as ChestRevealData,
   type HeistAction,
   type HeistState,
@@ -101,6 +102,9 @@ function GameInner() {
 
     game.on("broadcast", { event: "question" }, (msg) => {
       setQuestion(msg.payload as Question);
+      // A chest overlay from the previous question must not sit on top of the
+      // next one while the host is already reading it out.
+      setChestReveal(null);
       resetAnswer();
       classicStreakRef.current = 0;
       setClassicStreak(0);
@@ -150,6 +154,7 @@ function GameInner() {
       const p = msg.payload as any;
       if (p.kind === "question") {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
+        setChestReveal(null);
         resetAnswer();
         classicStreakRef.current = 0;
         setClassicStreak(0);
@@ -254,6 +259,9 @@ function GameInner() {
 
   const theme = stageTheme(heist?.mode ?? null);
   const modeRules = heist ? MODE_RULES[heist.mode] : null;
+  // The purse is the mode's own scoreboard; the quiz points are a second one.
+  // The end screen shows both, because Mint is paid by the first.
+  const heistFinal = heist ? standings(heist) : [];
 
   return (
     <GameStage mode={heist?.mode ?? null}>
@@ -304,6 +312,15 @@ function GameInner() {
             <LogOut className="h-4 w-4" />
             <span>Lämna</span>
           </button>
+          <Link
+            href="/manual"
+            target="_blank"
+            title="Spelmanual"
+            aria-label="Spelmanual"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition-colors hover:border-white/25 hover:text-white"
+          >
+            <BookOpen className="h-4 w-4" />
+          </Link>
           <FullscreenButton />
         </div>
       </header>
@@ -505,6 +522,10 @@ function GameInner() {
                   </p>
                 </div>
 
+                <p className="text-center text-[11px] font-extrabold uppercase tracking-widest text-slate-500">
+                  Quizpoäng
+                </p>
+
                 {/* Top three, drawn as cards rather than rows: the end of a
                     match is the part people screenshot. */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -570,6 +591,45 @@ function GameInner() {
                   </p>
                 )}
 
+                {heist && modeRules && heistFinal.length > 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="flex items-center justify-between gap-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                      <span data-no-translate>{modeRules.name}</span>
+                      <span>{modeRules.currency}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      Matchställning — Mint betalas efter den här ordningen.
+                    </p>
+                    <ol className="mt-2 space-y-1">
+                      {heistFinal.map((p, i) => (
+                        <li
+                          key={p.name}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm",
+                            p.name === name
+                              ? "bg-amber-500/15 text-amber-100 ring-1 ring-inset ring-amber-400/30"
+                              : "text-slate-300"
+                          )}
+                        >
+                          <span className="w-4 shrink-0 font-mono text-[11px] font-bold text-slate-500">
+                            {i + 1}
+                          </span>
+                          <span data-no-translate className="min-w-0 flex-1 truncate font-bold">
+                            {p.name}
+                          </span>
+                          {i === 0 && <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-300" />}
+                          <span
+                            data-no-translate
+                            className="shrink-0 font-mono text-xs font-extrabold text-amber-200"
+                          >
+                            {p.balance.toLocaleString("sv-SE")}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
                 {myMint !== null && (
                   <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-400/35 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
                     <span>Du fick</span>
@@ -627,6 +687,7 @@ function GameInner() {
                 me={name}
                 note={heistNote}
                 pending={heistSending}
+                chestAllowed={phase === "reveal"}
                 onAction={heistAction}
               />
             </div>

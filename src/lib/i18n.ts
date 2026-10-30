@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 /**
  * QuizKeen translation engine.
  *
@@ -31,12 +33,41 @@ export function readLang(): Lang {
   }
 }
 
+export const LANG_EVENT = "qk-lang-change";
+
 export function writeLang(lang: Lang) {
   try {
     window.localStorage.setItem(LANG_KEY, lang);
   } catch {
     /* storage may be unavailable — translation still works this session */
   }
+  try {
+    window.dispatchEvent(new CustomEvent(LANG_EVENT, { detail: lang }));
+  } catch {
+    /* an old browser without CustomEvent still gets the DOM translation */
+  }
+}
+
+/**
+ * The current language as React state, for surfaces that render their own
+ * content in both languages instead of letting the DOM patcher rewrite it.
+ * The manual is the first of these: an article is too long to translate word
+ * by word, and rendering it from localized strings is exact.
+ */
+export function useLang(): Lang {
+  const [lang, setLang] = useState<Lang>("sv");
+
+  useEffect(() => {
+    setLang(readLang());
+    const onChange = (event: Event) => {
+      const detail = (event as CustomEvent<Lang>).detail;
+      setLang(detail === "en" || detail === "sv" ? detail : readLang());
+    };
+    window.addEventListener(LANG_EVENT, onChange);
+    return () => window.removeEventListener(LANG_EVENT, onChange);
+  }, []);
+
+  return lang;
 }
 
 /** [swedish, english] — the single source of truth for both directions. */
@@ -1096,6 +1127,77 @@ const PAIRS: [string, string][] = [
   ["Crypto Clash", "Crypto Clash"],
   ["Cyber Hack", "Cyber Hack"],
   ["Pirate Heist", "Pirate Heist"],
+  ["Fyll valvet, råna grannen, bygg larm.", "Fill the vault, raid your neighbour, build alarms."],
+  ["Hacka, håll spåret nere och undvik att bli avslöjad.", "Hack, keep your trace low and avoid getting exposed."],
+  ["Betala för risken — ju djärvare rån, desto större byte.", "Pay for the risk — the bolder the raid, the bigger the loot."],
+  ["Valvmynt", "Vault coins"],
+  ["valvmynt", "vault coins"],
+  ["Piratguld", "Pirate gold"],
+  ["piratguld", "pirate gold"],
+  ["Raid-energi", "Raid energy"],
+  ["raid-energi", "raid energy"],
+  ["Verktyg", "Tools"],
+  ["verktyg", "tools"],
+  ["Besättning", "Crew"],
+  ["besättning", "crew"],
+  ["Guld", "Gold"],
+  ["guld", "gold"],
+  ["Spår", "Trace"],
+  ["avslöjad", "exposed"],
+  ["Avslöjad", "Exposed"],
+  ["Rån kostar", "A raid costs"],
+  ["Hack kostar", "A hack costs"],
+  ["Öppnar mellan frågorna.", "Opens between questions."],
+  ["Kistan öppnas mellan frågorna.", "Chests open between questions."],
+  ["Hacket öppnas mellan frågorna.", "The hack opens between questions."],
+  ["Läs manualen", "Read the manual"],
+  ["Öppna manualen", "Open the manual"],
+  ["Quizpoäng", "Quiz points"],
+  ["Varje ny fråga ger 1", "Every new question gives 1"],
+  ["Matchställning — Mint betalas efter den här ordningen.", "Match standings — Mint is paid in this order."],
+  ["Spelmanual", "Game manual"],
+  ["Alla fyra lägen, kistornas odds, försvarens priser och Mint-trappan. Manualen läser samma regler som spelet, så siffrorna stämmer alltid.", "All four modes, the chest odds, the defense prices and the Mint ladder. The manual reads the same rules as the game, so the numbers are always right."],
+  ["skyddat", "protected"],
+  ["billigt nästa rån", "a cheaper next raid"],
+  // Defense names and effects, used by both the shop and the manual.
+  ["Ståldörr", "Steel door"],
+  ["Lasergrid", "Laser grid"],
+  ["Skendvalv", "Decoy vault"],
+  ["Energicell", "Energy cell"],
+  ["Förstärkta väggar", "Reinforced walls"],
+  ["Mästernyckel", "Master key"],
+  ["Brandvägg", "Firewall"],
+  ["Skendosa", "Decoy wallet"],
+  ["Spårstädare", "Trace cleaner"],
+  ["Extra verktyg", "Extra tool slot"],
+  ["Vaktbesättning", "Guard crew"],
+  ["Skattkista", "Treasure chest"],
+  ["Låst lastutrymme", "Locked cargo hold"],
+  ["Tar bort 25 % av nästa stöld.", "Removes 25% of the next theft."],
+  ["Tar bort 20 % av nästa stöld.", "Removes 20% of the next theft."],
+  ["Tar bort 30 % av nästa stöld.", "Removes 30% of the next theft."],
+  ["Stoppar ett rån helt.", "Blocks one raid completely."],
+  ["Stoppar två rån, avslöjar tjuven och kostar tjuven 100 mynt.", "Blocks two raids, exposes the thief and costs them 100 coins."],
+  ["Ger 1 raid-energi direkt.", "Gives 1 raid energy immediately."],
+  ["Tar bort 25 % av de två nästa stölderna.", "Removes 25% of the next two thefts."],
+  ["Tar bort 15 % av de två nästa stölderna.", "Removes 15% of the next two thefts."],
+  ["Nästa rån kostar 1 raid-energi mindre.", "The next raid costs 1 less raid energy."],
+  ["Tar bort 40 % av nästa hack.", "Removes 40% of the next hack."],
+  ["Tar bort 15 % av nästa hack.", "Removes 15% of the next hack."],
+  ["Stoppar ett hack och avslöjar hackaren.", "Blocks one hack and exposes the hacker."],
+  ["Sänker ditt spår med 30.", "Lowers your trace by 30."],
+  ["Höjer max antal verktygsladdningar med 1.", "Raises your maximum tool charges by 1."],
+  ["Stoppar ett rån och kostar piraten 100 guld.", "Blocks one raid and costs the pirate 100 gold."],
+  ["500 guld ligger utanför rånarnas räckhåll.", "500 gold sits out of the raiders' reach."],
+  ["Smygrån", "Stealth raid"],
+  ["Snabbrån", "Quick raid"],
+  ["Full attack", "All-out attack"],
+  ["Dubbla", "Double"],
+  ["Fördubblar din crypto — upp till +900. En gång per match.", "Doubles your crypto — up to +900. Once per match."],
+  ["stoppade", "stopped"],
+  ["och avslöjade tjuven", "and exposed the thief"],
+  ["är avslöjad — spåret är uppe i", "is exposed — the trace is at"],
+  ["Hacket kostar nu ett extra verktyg.", "Hacking now costs one extra tool."],
   ["Vault", "Vault"],
   ["Crypto", "Crypto"],
   ["Kistor byter ställningen", "Chests can change the standings"],
