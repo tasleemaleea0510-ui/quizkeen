@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   CHEST_FALLBACK_REWARD,
   CHEST_STEAL_CAP,
+  MODE_IDENTITY,
   MODE_RULES,
   POWER_GAIN_CAP,
   PROTECTION_MS,
@@ -17,13 +18,17 @@ import {
   breakStreak,
   chestOpen,
   decayTrace,
+  exposureAt,
   hackChallengeFor,
   classicStreakBonus,
   heistStreakBonus,
   mintPayout,
   newHeist,
   nextRound,
+  powerUsed,
+  projectedSteal,
   raidCostFor,
+  reachableGold,
   standings,
   type ChestReveal,
   type HeistState,
@@ -617,6 +622,79 @@ check("a signed-in seat pays its account, not the nickname", () => {
   h.players.Alva.account = "alva_account";
   const paid = mintPayout(h).find((p) => p.username === "alva_account");
   assert.ok(paid, "the payout should use the account name");
+});
+
+// ── Panel honesty and mode identity ──────────────────────────────────────
+
+check("the projected steal is what a raid actually takes", () => {
+  let h = newHeist("vault", seats);
+  setBalance(h, "Bo", 2000);
+  const projected = projectedSteal(h.mode, h.players.Bo);
+  h = raid(h, "Alva", "Bo", 1000);
+  assert.equal(h.players.Bo.balance, 2000 - projected, "the button promises the outcome");
+});
+
+check("a projected steal respects the cap and the cargo hold", () => {
+  const h = newHeist("pirate", seats);
+  setBalance(h, "Bo", 9000);
+  h.players.Bo.defenses.push("cargo");
+  const full = MODE_RULES.pirate.styles?.find((s) => s.id === "full");
+  assert.ok(full, "the all-out style exists");
+  assert.equal(projectedSteal(h.mode, h.players.Bo, full), full.cap, "capped, not 40 % of 9000");
+  assert.equal(reachableGold(h.mode, h.players.Bo), 9000 - 500, "the hold is out of reach");
+});
+
+check("only Crypto Clash has an exposure line", () => {
+  assert.equal(exposureAt("crypto"), MODE_RULES.crypto.trace?.exposed);
+  assert.equal(exposureAt("vault"), null);
+  assert.equal(exposureAt("pirate"), null);
+});
+
+check("Spårfritt wipes the trace, once per match", () => {
+  let h = newHeist("crypto", seats);
+  h.players.Alva.trace = 65;
+  h.players.Alva.balance = 1000;
+  const out = applyAction(h, "Alva", { kind: "power", power: "untrace" }, 1000);
+  assert.equal(out.ok, true, "the power-up should be accepted");
+  h = (out as { ok: true; state: HeistState }).state;
+  assert.equal(h.players.Alva.trace, 0, "the trail is gone");
+  assert.equal(h.players.Alva.balance, 750, "and it cost its 250 crypto");
+  const again = applyAction(h, "Alva", { kind: "power", power: "untrace" }, 2000);
+  assert.equal(again.ok, false, "a one-shot power cannot be bought twice");
+});
+
+check("Spårfritt is refused when you cannot pay for it", () => {
+  const h = newHeist("crypto", seats);
+  h.players.Alva.trace = 40;
+  h.players.Alva.balance = 100;
+  const out = applyAction(h, "Alva", { kind: "power", power: "untrace" }, 1000);
+  assert.equal(out.ok, false);
+  assert.equal(h.players.Alva.trace, 40, "nothing happened to the trace");
+});
+
+check("each power is used up by its own effect, not a shared flag", () => {
+  const power = MODE_RULES.crypto.powers?.find((p) => p.id === "untrace");
+  assert.ok(power, "the untrace power exists");
+  const player = newHeist("crypto", seats).players.Alva;
+  assert.equal(powerUsed(player, power), false);
+  player.untraced = true;
+  assert.equal(powerUsed(player, power), true);
+  const double = MODE_RULES.crypto.powers?.find((p) => p.id === "double");
+  assert.ok(double);
+  assert.equal(powerUsed(player, double), false, "using Spårfritt does not spend Dubbla");
+});
+
+check("the mode identity quotes the rules it describes", () => {
+  for (const id of ["vault", "crypto", "pirate"] as const) {
+    const rules = MODE_RULES[id];
+    assert.ok(
+      MODE_IDENTITY[id].earns.sv.includes(String(rules.correctBalance)),
+      `${id} should quote its own reward`
+    );
+    assert.ok(MODE_IDENTITY[id].twist.en.length > 0 && MODE_IDENTITY[id].risk.en.length > 0);
+  }
+  assert.ok(MODE_IDENTITY.crypto.twist.en.includes(String(MODE_RULES.crypto.trace?.exposed)));
+  assert.ok(MODE_IDENTITY.pirate.spends.sv.includes("50"), "pirate quotes its cheapest raid");
 });
 
 console.log(`\n${passed} checks passed.`);

@@ -8,6 +8,7 @@ import { translateText, useLang } from "@/lib/i18n";
 import {
   CHEST_FALLBACK_REWARD,
   CHEST_STEAL_CAP,
+  MODE_IDENTITY,
   MODE_RULES,
   POWER_GAIN_CAP,
   PROTECTION_MS,
@@ -16,6 +17,7 @@ import {
   heistStreakBonus,
   type Defense,
   type HeistMode,
+  type Power,
 } from "@/lib/game-modes";
 import {
   ArrowRight,
@@ -168,6 +170,16 @@ export default function ManualPage() {
     return defenses.map((d) => [tr(d.name), `${d.cost} ${currency}`, tr(d.blurb)]);
   }
 
+  /** What a power-up does, said once per effect rather than once per button. */
+  function powerEffect(power: Power): string {
+    return power.effect === "double"
+      ? L(
+          `Dubblar din crypto, men högst +${POWER_GAIN_CAP}. En gång per match.`,
+          `Doubles your crypto, but by no more than +${POWER_GAIN_CAP}. Once per match.`
+        )
+      : L("Nollställer spåret direkt. En gång per match.", "Wipes your trace to zero instantly. Once per match.");
+  }
+
   const mintRows = [
     ["Vault Raiders", vault.mint, L("mynt", "coins")],
     ["Crypto Clash", crypto.mint, "crypto"],
@@ -176,6 +188,7 @@ export default function ManualPage() {
 
   const anchors = [
     { id: "klassisk", label: L("Klassisk quiz", "Classic quiz") },
+    { id: "vilket", label: L("Vilket läge?", "Which mode?") },
     { id: "vault", label: "Vault Raiders" },
     { id: "crypto", label: "Crypto Clash" },
     { id: "pirate", label: "Pirate Heist" },
@@ -355,6 +368,60 @@ export default function ManualPage() {
         ))}
       </div>
 
+      {/* ── Which mode ────────────────────────────────────────────────────── */}
+      <section id="vilket" className="surface mt-4 scroll-mt-24 p-5 sm:p-6">
+        <h2 className="section-title flex items-center gap-2">
+          <Swords className="h-5 w-5 text-amber-300" />
+          {L("Vilket läge ska du välja?", "Which mode should you pick?")}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+          {L(
+            "Alla tre ekonomierna följer samma rytm: svara rätt, tjäna valuta, satsa den mellan frågorna. Det som skiljer dem är vad ett misstag kostar dig. Tabellen är hela skillnaden.",
+            "All three economies follow the same rhythm: answer correctly, earn currency, spend it between questions. What separates them is what a mistake costs you. The table is the whole difference."
+          )}
+        </p>
+        <RuleTable
+          head={[
+            L("Läge", "Mode"),
+            L("Start", "Start"),
+            L("Per rätt svar", "Per correct answer"),
+            L("Ett rån kostar", "A raid costs"),
+            L("Det unika", "The twist"),
+            L("Ett misstag kostar", "A mistake costs"),
+          ]}
+          rows={[
+            [
+              L("Klassisk quiz", "Classic quiz"),
+              "0",
+              L("100 p + fart", "100 p + speed"),
+              L("inget — ingen ekonomi", "nothing — no economy"),
+              L("Streakbonus i poäng", "Streak bonus in points"),
+              L("bara poäng", "points only"),
+            ],
+            ...(["vault", "crypto", "pirate"] as const).map((id) => {
+              const rules = MODE_RULES[id];
+              const identity = MODE_IDENTITY[id];
+              return [
+                <span key={id} className="font-bold text-white">
+                  {rules.name}
+                </span>,
+                rules.startBalance.toLocaleString("sv-SE"),
+                identity.earns[lang],
+                identity.spends[lang],
+                identity.twist[lang],
+                identity.risk[lang],
+              ];
+            }),
+          ]}
+        />
+        <ul className="space-y-1.5 pt-3">
+          <Tip>{L("Vill du ha mest dramatik i klassrummet: Vault Raiders — en kista kan vända hela ställningen.", "Want the most classroom drama: Vault Raiders — one chest can flip the whole table.")}</Tip>
+          <Tip>{L("Vill du att eleverna ska läsa varandra: Crypto Clash — spåret och de avrundade saldona straffar den som gapar efter mest.", "Want students to read each other: Crypto Clash — trace and the rounded balances punish whoever grabs for the most.")}</Tip>
+          <Tip>{L("Vill du ha comeback och gissningar: Pirate Heist — dyrare rån tar mer, men kan misslyckas helt.", "Want comebacks and gambles: Pirate Heist — dearer raids take more, but can fail outright.")}</Tip>
+          <Tip>{L("Vill du bara ha quizet: Klassisk quiz — snabbast och mest rätt vinner, utan ekonomi.", "Just want the quiz: Classic quiz — fastest and most correct wins, no economy.")}</Tip>
+        </ul>
+      </section>
+
       <div className="mt-4 space-y-4">
         {/* ── Classic ─────────────────────────────────────────────────────── */}
         <ModeSection
@@ -529,13 +596,11 @@ export default function ManualPage() {
             {L("Power-up", "Power-up")}
           </h3>
           <RuleTable
-            head={[L("Power-up", "Power-up"), L("Effekt", "Effect")]}
+            head={[L("Power-up", "Power-up"), L("Pris", "Price"), L("Effekt", "Effect")]}
             rows={(crypto.powers ?? []).map((power) => [
               tr(power.name),
-              L(
-                `Dubblar din crypto, men högst +${POWER_GAIN_CAP}. En gång per match.`,
-                `Doubles your crypto, but by no more than +${POWER_GAIN_CAP}. Once per match.`
-              ),
+              power.cost > 0 ? `${power.cost} crypto` : L("gratis", "free"),
+              powerEffect(power),
             ])}
           />
 
@@ -552,6 +617,7 @@ export default function ManualPage() {
             <Tip>{L("Hacka den som har mest — 12 % av en stor plånbok slår 12 % av en liten.", "Hack the richest player — 12% of a big purse beats 12% of a small one.")}</Tip>
             <Tip>{L("Ligg under 70 i spår innan du hackar igen; spårstädaren är billigare än ett extra verktyg.", "Stay below 70 trace before hacking again; the cleaner is cheaper than an extra tool.")}</Tip>
             <Tip>{L("Spara Dubbla till ett läge där taket på +900 faktiskt används.", "Save Double for a position where the +900 cap is actually used.")}</Tip>
+            <Tip>{L("Rivalernas saldon visas avrundade här — du hackar delvis i blindo, och det är meningen.", "Rival balances are rounded here — you hack partly blind, and that is the point.")}</Tip>
           </ul>
         </ModeSection>
 

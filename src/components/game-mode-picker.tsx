@@ -1,7 +1,7 @@
 "use client";
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { KEEN_BY_ID } from "@/lib/keens";
-import { HEIST_MODES, MODE_RULES, type ModeId } from "@/lib/game-modes";
+import { MODE_IDENTITY, MODE_RULES, type ModeId } from "@/lib/game-modes";
 import { cn } from "@/lib/utils";
 import { Check, Coins, Sparkles, Trophy } from "lucide-react";
 
@@ -79,6 +79,10 @@ export default function GameModePicker({
         const active = value === card.id;
         const keen = KEEN_BY_ID[card.keen];
         const rules = card.id === "classic" ? null : MODE_RULES[card.id];
+        // The numbers each mode is actually played with, in one line: three
+        // modes that all read "earn currency, raid a rival" are otherwise
+        // impossible to tell apart before the match starts.
+        const identity = card.id === "classic" ? null : MODE_IDENTITY[card.id];
         const chips = card.chips;
         return (
           <button
@@ -109,6 +113,13 @@ export default function GameModePicker({
                   <span className="mt-0.5 block max-w-[34rem] text-[11px] font-medium leading-snug text-white/80">
                     {rules?.tagline ?? "Alla får samma frågor. Hastighet ger poäng; en rättstreak bygger en lagom stor bonus."}
                   </span>
+                  {identity && (
+                    <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-bold text-white/70">
+                      <span data-no-translate>{identity.earns.sv}</span>
+                      <span className="text-white/40">·</span>
+                      <span data-no-translate>{identity.spends.sv}</span>
+                    </span>
+                  )}
                 </span>
                 {keen && <KeenAvatar keen={keen} size={58} className="shrink-0 drop-shadow-lg transition-transform duration-200 group-hover:scale-105" />}
               </span>

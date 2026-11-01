@@ -7,7 +7,10 @@ import {
   MODE_RULES,
   approxBalance,
   defenseById,
+  exposureAt,
   maxedOut,
+  powerUsed,
+  projectedSteal,
   protectedGold,
   raidCostFor,
   type HeistAction,
@@ -56,8 +59,17 @@ export default function HeistPanel({
 
   const energyFull = profile.maxEnergy > 0 && profile.energy >= profile.maxEnergy;
   const safeguarded = protectedGold(state.mode, profile);
-  const exhausted = Boolean(rules.trace && profile.trace >= rules.trace.exposed);
+  const exposedAt = exposureAt(state.mode);
+  const exhausted = Boolean(exposedAt !== null && profile.trace >= exposedAt);
   const raidCost = raidCostFor(state.mode, profile);
+  // A raid you cannot pay for is disabled rather than a button that turns into
+  // an error note: the panel should never offer a move the rules will refuse.
+  const raidUnaffordable = rules.styles
+    ? profile.balance < (chosenStyle?.cost ?? 0)
+    : profile.energy < raidCost;
+  const raidCostLabel = rules.styles
+    ? `${chosenStyle?.cost ?? 0} ${rules.currencyShort}`
+    : `${raidCost} ${rules.energyName.toLowerCase()}`;
   // A two-charge wall or decoy is two ids in the same array; group them for the
   // chips so a wall reads "×2" instead of appearing twice under one key.
   const held = Object.entries(
@@ -126,40 +138,42 @@ export default function HeistPanel({
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-3 pt-3">
-        {/* Gold Quest: one face-down chest a round, and nobody knows what is in it. */}
+        {/* Gold Quest: one face-down chest a round. The pull itself is the
+            full-screen `ChestPick` overlay, so this is a status line rather
+            than a second, smaller set of chest buttons that duplicated it. */}
         {rules.chests && (
+          <p className="flex items-start gap-1.5 rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200">
+            <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {profile.chestRound === state.round
+              ? "Kistan är öppnad — nästa fråga ger en ny."
+              : chestAllowed
+                ? "Kistan är öppen: välj en av tre i rutan ovanför."
+                : "En kista per fråga — den öppnas när frågan är avgjord."}
+          </p>
+        )}
+
+        {/* Crypto's heat, against the line where it starts costing you tools. */}
+        {exposedAt !== null && (
           <div>
-            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              <Gift className="h-3.5 w-3.5" />
-              Öppna en kista
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[0, 1, 2].map((i) => {
-                const ready = profile.chestRound !== state.round;
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    disabled={pending || !ready || !chestAllowed}
-                    // The tap picks a specific box, so the three are not the same
-                    // button three times: the rules draw against the index.
-                    onClick={() => onAction({ kind: "chest", chest: i })}
-                    className="group relative overflow-hidden rounded-xl border border-amber-400/30 bg-gradient-to-b from-amber-500/25 to-amber-900/20 px-2 py-2.5 text-center transition-all hover:border-amber-300/70 hover:from-amber-400/35 disabled:opacity-40"
-                  >
-                    <Gift className="mx-auto h-5 w-5 text-amber-200 transition-transform duration-200 group-hover:scale-110" />
-                    <span className="mt-1 block text-[10px] font-extrabold uppercase tracking-wider text-amber-100/80">
-                      Kista {i + 1}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider">
+              <span className="text-slate-400">Spår</span>
+              <span className={exhausted ? "text-rose-300" : "text-slate-500"}>
+                <span data-no-translate>
+                  {profile.trace}/{exposedAt}
+                </span>
+                {exhausted ? " · avslöjad" : " · avslöjad vid " + exposedAt}
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={exhausted ? "h-full rounded-full bg-rose-400" : "h-full rounded-full bg-sky-400"}
+                style={{ width: `${Math.min(100, (profile.trace / exposedAt) * 100)}%` }}
+              />
             </div>
             <p className="mt-1 text-[10px] font-semibold text-slate-500">
-              {profile.chestRound === state.round
-                ? "Öppnad — nästa fråga ger en ny kista."
-                : !chestAllowed
-                  ? "Öppnar mellan frågorna."
-                  : "Mynt, stöld, byte eller en stormladdning."}
+              {exhausted
+                ? "Avslöjad: varje hack kostar ett verktyg mer."
+                : "Ett lyckat hack ger +15 spår, ett stoppat +25. Spåret svalnar 10 per fråga."}
             </p>
           </div>
         )}
@@ -168,7 +182,7 @@ export default function HeistPanel({
         {rules.powers && (
           <div className="grid gap-1.5 sm:grid-cols-2">
             {rules.powers.map((p) => {
-              const used = p.once && profile.doubled;
+              const used = p.once && powerUsed(profile, p);
               return (
                 <button
                   key={p.id}
@@ -205,6 +219,13 @@ export default function HeistPanel({
               {exhausted && <span className="text-rose-300"> · avslöjad, +1</span>}
             </p>
           )}
+          {raidUnaffordable && (
+            <p className="mb-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
+              {rules.styles
+                ? `Du har ${profile.balance} ${rules.currencyShort} — ${chosenStyle?.name ?? "rånet"} kostar ${raidCostLabel}.`
+                : `Du behöver ${raidCostLabel} — du har ${profile.energy}/${profile.maxEnergy}.`}
+            </p>
+          )}
           {/* Pirate Heist picks the risk first, then the ship. */}
           {rules.styles && (
             <div className="mb-1.5 flex flex-wrap gap-1.5">
@@ -224,7 +245,7 @@ export default function HeistPanel({
                   >
                     <span className="block font-extrabold">{s.name}</span>
                     <span className="block text-[10px] text-slate-400">
-                      {s.cost} {rules.currencyShort} · {Math.round(s.chance * 100)} % · {s.pct} %
+                      {s.cost} {rules.currencyShort} · {Math.round(s.chance * 100)} % · {s.pct} % (max {s.cap})
                     </span>
                   </button>
                 );
@@ -237,13 +258,23 @@ export default function HeistPanel({
               const shielded = p.protectedUntil > Date.now();
               const blocked = rules.defenses.some((d) => d.kind === "block" && p.defenses.includes(d.id));
               const guarded = protectedGold(state.mode, p) > 0;
+              // What this move would actually take, so the choice between a cheap
+              // sneak and an all-out attack is made on numbers, not guesswork.
+              const take = projectedSteal(state.mode, p, chosenStyle);
+              const takeShown = rules.id === "crypto" ? approxBalance(take) : take.toLocaleString("sv-SE");
               return (
                 <button
                   key={p.name}
                   type="button"
-                  disabled={pending || shielded}
+                  disabled={pending || shielded || raidUnaffordable}
                   onClick={() => onAction({ kind: "raid", target: p.name, style: chosenStyle?.id })}
-                  title={shielded ? `${p.name} är tillfälligt skyddad` : `Råna ${p.name}`}
+                  title={
+                    shielded
+                      ? `${p.name} är tillfälligt skyddad`
+                      : raidUnaffordable
+                        ? `Du har inte råd: ${raidCostLabel}`
+                        : `Råna ${p.name} — tar cirka ${take} ${rules.currencyShort}`
+                  }
                   className="group flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-2 py-1.5 text-left transition-colors hover:border-rose-400/40 hover:bg-rose-500/10 disabled:opacity-45"
                 >
                   {keen ? (
@@ -261,6 +292,9 @@ export default function HeistPanel({
                       {blocked && " · sköld"}
                       {guarded && " · lastutrymme"}
                     </span>
+                  </span>
+                  <span className="shrink-0 rounded-md bg-rose-500/15 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-rose-200">
+                    +<span data-no-translate>{takeShown}</span>
                   </span>
                   <Shield className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-rose-300" />
                 </button>

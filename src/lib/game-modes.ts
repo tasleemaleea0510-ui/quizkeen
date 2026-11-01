@@ -157,10 +157,16 @@ export type Power = {
   name: string;
   blurb: string;
   cost: number;
-  effect: "double";
+  /** `double` grows the purse, `untrace` wipes the trail. */
+  effect: "double" | "untrace";
   /** Only one use per match. */
   once: boolean;
 };
+
+/** True when this player has already spent the one-shot power. */
+export function powerUsed(player: HeistPlayer, power: Power): boolean {
+  return power.effect === "double" ? player.doubled : player.untraced;
+}
 
 export type ModeRules = {
   id: HeistMode;
@@ -230,6 +236,16 @@ const CRYPTO_POWERS: Power[] = [
     blurb: "Fördubblar din crypto — upp till +900. En gång per match.",
     cost: 0,
     effect: "double",
+    once: true,
+  },
+  // The only way back down from the exposure line without waiting for trace to
+  // cool: buys a hacker a second window at the cost of a big slice of crypto.
+  {
+    id: "untrace",
+    name: "Spårfritt",
+    blurb: "Nollställer ditt spår direkt. En gång per match.",
+    cost: 250,
+    effect: "untrace",
     once: true,
   },
 ];
@@ -319,6 +335,92 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
 
 export const HEIST_MODES: HeistMode[] = ["vault", "crypto", "pirate"];
 
+/**
+ * The one-line reason each mode exists, for the picker and the manual.
+ *
+ * Three modes that all read "earn currency, raid a rival" are indistinguishable
+ * from the outside, which is the confusion this answers: what you earn, what a
+ * move costs, the twist that is unique to the mode, and what it can cost you.
+ * Every number is read out of `MODE_RULES`, so a balance change updates the
+ * poster as well as the panel.
+ */
+export type ModeIdentity = {
+  earns: { sv: string; en: string };
+  spends: { sv: string; en: string };
+  twist: { sv: string; en: string };
+  risk: { sv: string; en: string };
+};
+
+export const MODE_IDENTITY: Record<HeistMode, ModeIdentity> = {
+  vault: (() => {
+    const rules = MODE_RULES.vault;
+    return {
+      earns: {
+        sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
+        en: `+${rules.correctBalance} ${rules.currencyShort} per correct answer`,
+      },
+      spends: {
+        sv: `${rules.raidCost} ${rules.energyName.toLowerCase()} per rån`,
+        en: `${rules.raidCost} ${rules.energyName.toLowerCase()} per raid`,
+      },
+      twist: {
+        sv: `En kista per fråga (${rules.chests?.length ?? 0} utfall) som kan byta hela ställningen`,
+        en: `One chest per question (${rules.chests?.length ?? 0} outcomes) that can flip the whole table`,
+      },
+      risk: {
+        sv: "Låg — ett rån kan blockas, men du förlorar aldrig mer än energin",
+        en: "Low — a raid can be blocked, but you never lose more than the energy",
+      },
+    };
+  })(),
+  crypto: (() => {
+    const rules = MODE_RULES.crypto;
+    const exposed = rules.trace?.exposed ?? 70;
+    return {
+      earns: {
+        sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
+        en: `+${rules.correctBalance} ${rules.currencyShort} per correct answer`,
+      },
+      spends: {
+        sv: `${rules.raidCost} ${rules.energyName.toLowerCase()} per hack`,
+        en: `${rules.raidCost} ${rules.energyName.toLowerCase()} per hack`,
+      },
+      twist: {
+        sv: `Spåret: vid ${exposed} blir du avslöjad och hacken kostar ett verktyg mer`,
+        en: `Trace: at ${exposed} you are exposed and hacks cost one extra tool`,
+      },
+      risk: {
+        sv: "Medel — rivalernas saldon visas bara ungefärligt, så du hackar delvis i blindo",
+        en: "Medium — rival balances are shown only approximately, so you hack partly blind",
+      },
+    };
+  })(),
+  pirate: (() => {
+    const rules = MODE_RULES.pirate;
+    const styles = rules.styles ?? [];
+    const cheapest = Math.min(...styles.map((s) => s.cost));
+    const dearest = Math.max(...styles.map((s) => s.cost));
+    return {
+      earns: {
+        sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
+        en: `+${rules.correctBalance} ${rules.currencyShort} per correct answer`,
+      },
+      spends: {
+        sv: `${cheapest}–${dearest} ${rules.currencyShort} per rån, ingen energi`,
+        en: `${cheapest}–${dearest} ${rules.currencyShort} per raid, no energy`,
+      },
+      twist: {
+        sv: `${styles.length} rån med egen chans, andel och tak — du väljer risken`,
+        en: `${styles.length} raids with their own chance, share and cap — you pick the risk`,
+      },
+      risk: {
+        sv: "Hög — ett misslyckat rån kostar avgiften ändå",
+        en: "High — a failed raid still costs its fee",
+      },
+    };
+  })(),
+};
+
 export function isHeistMode(mode: string | null | undefined): mode is HeistMode {
   return mode === "vault" || mode === "crypto" || mode === "pirate";
 }
@@ -346,6 +448,8 @@ export type HeistPlayer = {
   chestRound: number;
   /** Cyber Hack: "Dubbla" is a once-a-match button. */
   doubled: boolean;
+  /** Cyber Hack: "Spårfritt" wipes trace, also once a match. */
+  untraced: boolean;
   /** Cyber Hack: at most one skill drill can be attempted per question. */
   hackRound: number;
   hackProgress: number;
@@ -420,6 +524,7 @@ export function newHeist(
       raidDiscount: 0,
       chestRound: -1,
       doubled: false,
+      untraced: false,
       hackRound: -1,
       hackProgress: 0,
       hackScore: 0,
@@ -533,6 +638,32 @@ export function protectedGold(mode: HeistMode, player: HeistPlayer): number {
     const d = defenseById(mode, id);
     return d?.kind === "protect" ? sum + (d.value ?? 0) : sum;
   }, 0);
+}
+
+/** What is actually on the table if you raid this player right now. */
+export function reachableGold(mode: HeistMode, target: HeistPlayer): number {
+  return Math.max(0, target.balance - protectedGold(mode, target));
+}
+
+/**
+ * What a raid would take before the target's block or reduction answers it.
+ *
+ * The panel shows this number on every rival so the choice between a cheap
+ * sneak and an all-out attack is made on evidence rather than on arithmetic
+ * the player has to do in their head between two questions. It is also what
+ * `applyAction` resolves, so the promise on the button and the outcome cannot
+ * disagree.
+ */
+export function projectedSteal(mode: HeistMode, target: HeistPlayer, style?: RaidStyle): number {
+  const rules = MODE_RULES[mode];
+  const pct = style ? style.pct : rules.raidPct;
+  const cap = style ? style.cap : rules.raidCap;
+  return Math.max(0, Math.min(cap, Math.floor((reachableGold(mode, target) * pct) / 100)));
+}
+
+/** The trace level at which a Crypto hacker is exposed, or null in other modes. */
+export function exposureAt(mode: HeistMode): number | null {
+  return MODE_RULES[mode].trace?.exposed ?? null;
 }
 
 /** True when this player still has a chest to open this round. */
@@ -803,16 +934,29 @@ export function applyAction(
   if (action.kind === "power") {
     const power = rules.powers?.find((p) => p.id === action.power);
     if (!power) return { ok: false, error: "Den power-upen finns inte i det här läget." };
-    if (power.once && me.doubled) return { ok: false, error: `Du har redan använt ${power.name} en gång.` };
+    if (power.once && powerUsed(me, power)) return { ok: false, error: `Du har redan använt ${power.name} en gång.` };
     if (me.balance < power.cost) {
       return { ok: false, error: `Du behöver ${power.cost} ${rules.currencyShort} för ${power.name}.` };
     }
     me.balance -= power.cost;
-    // Doubling is a comeback tool, not an instant win: the gain is capped.
-    const gain = power.effect === "double" ? Math.min(POWER_GAIN_CAP, me.balance) : 0;
-    me.balance += gain;
-    me.doubled = true;
-    pushEvent(next, `${name} använde ${power.name}: +${gain} ${rules.currencyShort} (${me.balance} totalt).`, now);
+    if (power.effect === "double") {
+      // Doubling is a comeback tool, not an instant win: the gain is capped.
+      const gain = Math.min(POWER_GAIN_CAP, me.balance);
+      me.balance += gain;
+      me.doubled = true;
+      pushEvent(next, `${name} använde ${power.name}: +${gain} ${rules.currencyShort} (${me.balance} totalt).`, now);
+    } else {
+      const wiped = me.trace;
+      me.trace = 0;
+      me.untraced = true;
+      pushEvent(
+        next,
+        wiped > 0
+          ? `${name} använde ${power.name} och nollställde spåret (−${wiped}).`
+          : `${name} använde ${power.name} utan att ha något spår att tvätta.`,
+        now
+      );
+    }
     return { ok: true, state: next };
   }
 
@@ -853,11 +997,9 @@ export function applyAction(
     if (me.raidDiscount > 0) me.raidDiscount = 0;
   }
 
-  const pct = style ? style.pct : rules.raidPct;
-  const cap = style ? style.cap : rules.raidCap;
   // Cargo Hold keeps a slice of the purse out of every raid.
-  const reachable = Math.max(0, target.balance - protectedGold(state.mode, target));
-  let steal = Math.min(cap, Math.floor((reachable * pct) / 100));
+  const reachable = reachableGold(state.mode, target);
+  let steal = projectedSteal(state.mode, target, style);
 
   // A defense is only spent when there was something to defend.
   if (steal > 0) {
