@@ -54,25 +54,24 @@ export type RaidStyle = {
 };
 
 /**
- * A face-down chest, Gold Quest style.
+ * A chest, but not three copies of the same lottery.
  *
- * Three identical chests sit in front of the player and only the draw decides
- * what was in the one they tapped. That gamble — a jackpot, a robbery, a swap
- * with the leader, a shield or a storm — is what makes the mode loud in a
- * classroom, so the chest is worth more drama than any single raid. Every pull
- * has a useful outcome; an unavailable rival effect turns into a small payout.
+ * Vault Raiders puts three boxes in front of the player and used to draw every
+ * one of them from the same table, which made "choose a chest" a decoration.
+ * Each box is now a different bet, printed before the tap: a guaranteed payout,
+ * a slice of the biggest rival, or a coin flip that can cost you. That is the
+ * decision, and it is why the chest is worth a full screen.
  */
-export type ChestKind = "gold" | "steal" | "swap" | "shield" | "storm";
+export type ChestKind = "gold" | "steal" | "bust";
 
-export type ChestOutcome = {
-  id: string;
+export type ChestOffer = {
+  id: "safe" | "raid" | "wild";
   name: string;
   blurb: string;
-  /** Relative chance; the table does not have to add up to 100. */
-  weight: number;
+  /** Printed before the tap: "Alltid +90" / "50 / 50". */
+  odds: string;
+  /** What the box is built to do, for the reveal's accent. */
   kind: ChestKind;
-  /** Coins for `gold`, percent of the rival's purse for `steal`. */
-  value?: number;
 };
 
 /**
@@ -157,15 +156,18 @@ export type Power = {
   name: string;
   blurb: string;
   cost: number;
-  /** `double` grows the purse, `untrace` wipes the trail. */
-  effect: "double" | "untrace";
+  /** `untrace` wipes the trail, `insider` arms one quiet, heavy hack. */
+  effect: "untrace" | "insider";
   /** Only one use per match. */
   once: boolean;
 };
 
-/** True when this player has already spent the one-shot power. */
+/** True when this player has already bought the one-shot power. */
 export function powerUsed(player: HeistPlayer, power: Power): boolean {
-  return power.effect === "double" ? player.doubled : player.untraced;
+  // A power is spent when it is bought, not when its effect happens to be
+  // cleared. Insider is consumed by the next hack; without a separate ledger
+  // that would let a player buy it a second time straight afterwards.
+  return (player.usedPowers ?? []).includes(power.id);
 }
 
 export type ModeRules = {
@@ -187,8 +189,8 @@ export type ModeRules = {
   raidCap: number;
   /** Pirate Heist picks one of these instead of a standard raid. */
   styles?: RaidStyle[];
-  /** Vault Raiders: the face-down chests opened once a round. */
-  chests?: ChestOutcome[];
+  /** Vault Raiders: the three boxes, one tap a round. */
+  chests?: ChestOffer[];
   /** Crypto Clash: the power-ups beyond a plain hack. */
   powers?: Power[];
   /** Crypto Clash only: trace added on a landed and a blocked hack, and the
@@ -198,72 +200,124 @@ export type ModeRules = {
   mint: { first: number; second: number; third: number; rest: number; perRaid: number; bonusCap: number };
 };
 
+// Defenses are priced as insurance, not as a tax: a 40 % door costs less than
+// the raid it answers on a big purse and more than it saves on a small one, so
+// protecting the vault is what the leader does and raiding it is what everyone
+// else does. The old prices all cost more than they could ever save.
 const VAULT_DEFENSES: Defense[] = [
-  { id: "door", name: "Ståldörr", cost: 150, kind: "reduce", value: 25, blurb: "Tar bort 25 % av nästa stöld." },
-  { id: "grid", name: "Lasergrid", cost: 300, kind: "block", blurb: "Stoppar ett rån helt." },
-  { id: "decoy", name: "Skendvalv", cost: 500, kind: "block", charges: 2, blurb: "Stoppar två rån, avslöjar tjuven och kostar tjuven 100 mynt.", reveals: true },
-  { id: "cell", name: "Energicell", cost: 150, kind: "energy", blurb: "Ger 1 raid-energi direkt." },
-  { id: "walls", name: "Förstärkta väggar", cost: 300, kind: "reduce", value: 25, charges: 2, blurb: "Tar bort 25 % av de två nästa stölderna." },
-  { id: "key", name: "Mästernyckel", cost: 150, kind: "discount", blurb: "Nästa rån kostar 1 raid-energi mindre." },
+  { id: "door", name: "Ståldörr", cost: 120, kind: "reduce", value: 40, blurb: "Tar bort 40 % av nästa stöld." },
+  { id: "grid", name: "Lasergrid", cost: 260, kind: "block", blurb: "Stoppar ett rån helt." },
+  { id: "decoy", name: "Skendvalv", cost: 450, kind: "block", charges: 2, blurb: "Stoppar två rån, avslöjar tjuven och kostar tjuven 100 mynt.", reveals: true },
+  { id: "cell", name: "Energicell", cost: 100, kind: "energy", blurb: "Ger 1 raid-energi direkt." },
+  { id: "walls", name: "Förstärkta väggar", cost: 240, kind: "reduce", value: 40, charges: 2, blurb: "Tar bort 40 % av de två nästa stölderna." },
+  { id: "key", name: "Mästernyckel", cost: 100, kind: "discount", blurb: "Nästa rån kostar 1 raid-energi mindre." },
 ];
 
 const CRYPTO_DEFENSES: Defense[] = [
-  { id: "firewall", name: "Brandvägg", cost: 200, kind: "reduce", value: 40, blurb: "Tar bort 40 % av nästa hack." },
-  { id: "wallet", name: "Skendosa", cost: 400, kind: "block", blurb: "Stoppar ett hack och avslöjar hackaren.", reveals: true },
-  { id: "cleaner", name: "Spårstädare", cost: 200, kind: "trace", value: 30, blurb: "Sänker ditt spår med 30." },
-  { id: "slot", name: "Extra verktyg", cost: 400, kind: "slot", blurb: "Höjer max antal verktygsladdningar med 1." },
+  { id: "firewall", name: "Brandvägg", cost: 160, kind: "reduce", value: 45, blurb: "Tar bort 45 % av nästa hack." },
+  { id: "wallet", name: "Skendosa", cost: 380, kind: "block", blurb: "Stoppar ett hack och avslöjar hackaren.", reveals: true },
+  { id: "cleaner", name: "Spårstädare", cost: 180, kind: "trace", value: 30, blurb: "Sänker ditt spår med 30." },
+  { id: "slot", name: "Extra verktyg", cost: 350, kind: "slot", blurb: "Höjer max antal verktygsladdningar med 1." },
 ];
 
 const PIRATE_DEFENSES: Defense[] = [
-  { id: "guard", name: "Vaktbesättning", cost: 150, kind: "reduce", value: 30, blurb: "Tar bort 30 % av nästa stöld." },
-  { id: "decoy", name: "Skattkista", cost: 400, kind: "block", blurb: "Stoppar ett rån och kostar piraten 100 guld.", reveals: true },
-  { id: "cargo", name: "Låst lastutrymme", cost: 500, kind: "protect", value: 500, blurb: "500 guld ligger utanför rånarnas räckhåll." },
+  { id: "guard", name: "Vaktbesättning", cost: 120, kind: "reduce", value: 35, blurb: "Tar bort 35 % av nästa stöld." },
+  { id: "decoy", name: "Skattkista", cost: 350, kind: "block", blurb: "Stoppar ett rån och kostar piraten 100 guld.", reveals: true },
+  { id: "cargo", name: "Låst lastutrymme", cost: 420, kind: "protect", value: 500, blurb: "500 guld ligger utanför rånarnas räckhåll hela matchen." },
+  { id: "crew", name: "Extra besättning", cost: 250, kind: "slot", blurb: "Höjer ditt maxtak för besättning med 1." },
 ];
 
-const VAULT_CHESTS: ChestOutcome[] = [
-  { id: "pouch", name: "Myntregn", blurb: "300 mynt rakt ner i valvet.", weight: 30, kind: "gold", value: 300 },
-  { id: "jackpot", name: "Guldåder", blurb: "600 mynt — en sällsynt fullträff.", weight: 8, kind: "gold", value: 600 },
-  { id: "steal", name: "Skattkarta", blurb: "Tar en andel av en rivals oskyddade mynt.", weight: 22, kind: "steal", value: 20 },
-  { id: "swap", name: "Spegelbyte", blurb: "Byter saldo med en slumpad rival.", weight: 8, kind: "swap" },
-  { id: "shield", name: "Väktarsigill", blurb: "Stoppar nästa rån helt.", weight: 15, kind: "shield" },
-  { id: "storm", name: "Stormladdning", blurb: "Ditt nästa rätta svar ger +180 bonusmynt.", weight: 17, kind: "storm", value: 180 },
+const VAULT_CHEST_OFFERS: ChestOffer[] = [
+  {
+    id: "safe",
+    name: "Säker kista",
+    blurb: "Mynt rakt ner i valvet — inget kan gå fel.",
+    odds: "Alltid +90",
+    kind: "gold",
+  },
+  {
+    id: "raid",
+    name: "Råntkista",
+    blurb: "Tar 15 % av den rikaste rivalens oskyddade valv, högst 250.",
+    odds: "Mot ledaren",
+    kind: "steal",
+  },
+  {
+    id: "wild",
+    name: "Vågad kista",
+    blurb: "Ett myntkast: stort byte eller en tullavgift till valvet.",
+    odds: "50 / 50",
+    kind: "bust",
+  },
 ];
 
 const CRYPTO_POWERS: Power[] = [
-  {
-    id: "double",
-    name: "Dubbla",
-    blurb: "Fördubblar din crypto — upp till +900. En gång per match.",
-    cost: 0,
-    effect: "double",
-    once: true,
-  },
-  // The only way back down from the exposure line without waiting for trace to
-  // cool: buys a hacker a second window at the cost of a big slice of crypto.
+  // Both powers answer the same question — when do you want to be seen? — from
+  // opposite sides: one erases the trail, the other spends it on one big hit.
   {
     id: "untrace",
     name: "Spårfritt",
     blurb: "Nollställer ditt spår direkt. En gång per match.",
-    cost: 250,
+    cost: 200,
     effect: "untrace",
+    once: true,
+  },
+  {
+    id: "insider",
+    name: "Insider",
+    blurb: "Nästa hack kostar 1 verktyg och tar 25 % (max 1 000). En gång per match.",
+    cost: 200,
+    effect: "insider",
     once: true,
   },
 ];
 
-/** A chest theft never takes more than this, so one lucky tap cannot end a match. */
-export const CHEST_STEAL_CAP = 400;
-/** A rival chest with no useful target still gives the opener a consolation payout. */
-export const CHEST_FALLBACK_REWARD = 300;
-/** "Dubbla" doubles the purse, but never by more than this. */
-export const POWER_GAIN_CAP = 900;
+/** The safe chest: the payout that cannot lose. */
+export const CHEST_SAFE_REWARD = 90;
+/** The raid chest takes this share of the richest rival, capped. */
+export const CHEST_RAID_PCT = 15;
+export const CHEST_RAID_CAP = 250;
+/** The wild chest: one coin flip between this win and this loss. */
+export const CHEST_WILD_WIN = 350;
+export const CHEST_WILD_LOSS = 100;
+export const CHEST_WILD_CHANCE = 0.5;
+/** A chest with no useful target still pays this, never nothing. */
+export const CHEST_FALLBACK_REWARD = 90;
 /** A revealed raider pays this much for walking into the trap. */
 export const RAID_EXPOSURE_FEE = 100;
 /** Every new question tops the raid energy back up by one. */
 export const ROUND_ENERGY = 1;
 /** How long a robbed player cannot be hit again. */
 export const PROTECTION_MS = 30000;
-const TRACE_DECAY = 10;
+/** Crypto's trace cools by this much at the start of every question. */
+export const TRACE_DECAY = 8;
+/** A quiet hack: two tools for a slice of the purse. */
+export const QUIET_HACK = { pct: 12, cap: 600 } as const;
+/** Going loud: one more tool, a bigger slice, and the whole room knows. */
+export const EXPOSED_HACK = { pct: 20, cap: 900, tools: 1, trace: 20 } as const;
+/** Insider: one hack at 25 %, for a single tool, whatever the trace says. */
+export const INSIDER_HACK = { pct: 25, cap: 1000, tools: 1 } as const;
+/**
+ * Being exposed has to cost something the victim can feel. Everyone can see an
+ * exposed hacker's exact balance, and every hack against them lands bigger: the
+ * room knows where the wallet is. Without this, "Avslöjad" was only a bigger
+ * hack for the person who got there.
+ */
+export const EXPOSED_TARGET_MULTIPLIER = 1.5;
 
+/**
+ * The three economies, on one skeleton.
+ *
+ * Every mode starts on the same purse, pays the same kind of correct answer and
+ * spends one action resource that refills once per question and once per right
+ * answer. What differs is the decision:
+ *  - Vault Raiders spends the action on a raid and hands every player one of
+ *    three boxes, each a different bet, so the gamble is a real choice.
+ *  - Crypto Clash spends it on a hack, and the trace decides whether the hack is
+ *    quiet and small or loud and big.
+ *  - Pirate Heist spends it on a raid whose odds you choose; the fee is an ante,
+ *    not the price of the loot, so bolder dice are worth more on average.
+ */
 export const MODE_RULES: Record<HeistMode, ModeRules> = {
   vault: {
     id: "vault",
@@ -272,34 +326,37 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
     currency: "Valvmynt",
     currencyShort: "mynt",
     startBalance: 1000,
-    startEnergy: 3,
-    maxEnergy: 5,
+    startEnergy: 2,
+    maxEnergy: 4,
     energyName: "Raid-energi",
     correctBalance: 100,
     correctEnergy: 1,
     raidCost: 2,
     raidPct: 15,
     raidCap: 500,
-    chests: VAULT_CHESTS,
+    chests: VAULT_CHEST_OFFERS,
     defenses: VAULT_DEFENSES,
     mint: { first: 100, second: 70, third: 50, rest: 30, perRaid: 10, bonusCap: 30 },
   },
   crypto: {
     id: "crypto",
     name: "Crypto Clash",
-    tagline: "Hacka, håll spåret nere och undvik att bli avslöjad.",
+    tagline: "Hacka tyst, eller gå högljutt när spåret redan är högt.",
     currency: "Crypto",
     currencyShort: "crypto",
     startBalance: 1000,
-    startEnergy: 3,
+    startEnergy: 2,
     maxEnergy: 4,
     energyName: "Verktyg",
     correctBalance: 120,
     correctEnergy: 1,
     raidCost: 2,
-    raidPct: 12,
-    raidCap: 600,
-    trace: { success: 15, fail: 25, exposed: 70 },
+    raidPct: QUIET_HACK.pct,
+    raidCap: QUIET_HACK.cap,
+    // 22 trace per landed hack and 8 cooling per question means a steady hacker
+    // crosses the line around question five — early enough to matter, late
+    // enough that it is a decision rather than an accident.
+    trace: { success: 22, fail: 32, exposed: 65 },
     powers: CRYPTO_POWERS,
     defenses: CRYPTO_DEFENSES,
     mint: { first: 120, second: 80, third: 50, rest: 30, perRaid: 5, bonusCap: 25 },
@@ -307,26 +364,25 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
   pirate: {
     id: "pirate",
     name: "Pirate Heist",
-    tagline: "Betala för risken — ju djärvare rån, desto större byte.",
+    tagline: "Välj dina tärningar — djärvare rån tar mer, men missar oftare.",
     currency: "Piratguld",
     currencyShort: "guld",
     startBalance: 1000,
-    startEnergy: 0,
-    maxEnergy: 0,
+    startEnergy: 2,
+    maxEnergy: 4,
     energyName: "Besättning",
     correctBalance: 100,
-    correctEnergy: 0,
-    raidCost: 0,
+    correctEnergy: 1,
+    raidCost: 2,
     raidPct: 0,
     raidCap: 0,
     styles: [
-      // Cheap and reliable against a thin purse; the cap keeps it from being
-      // the best answer forever.
-      { id: "stealth", name: "Smygrån", cost: 50, chance: 0.85, pct: 10, cap: 300, verb: "smygrånade" },
-      // The middle: a real chance to miss, a much bigger ceiling.
-      { id: "quick", name: "Snabbrån", cost: 200, chance: 0.65, pct: 18, cap: 600, verb: "snabbrånade" },
-      // The comeback play: only pays when the target is rich, which is the point.
-      { id: "full", name: "Full attack", cost: 300, chance: 0.45, pct: 40, cap: 1200, verb: "gick till full attack mot" },
+      // The fee is an ante, not the price of the loot: bolder dice cost a little
+      // more and miss more often, but their expected take is higher at every
+      // purse size. The old fees (50/200/300) made the bold raids lose money.
+      { id: "stealth", name: "Smygrån", cost: 40, chance: 0.85, pct: 8, cap: 300, verb: "smygrånade" },
+      { id: "quick", name: "Snabbrån", cost: 60, chance: 0.65, pct: 16, cap: 700, verb: "snabbrånade" },
+      { id: "full", name: "Full attack", cost: 90, chance: 0.45, pct: 32, cap: 1200, verb: "gick till full attack mot" },
     ],
     defenses: PIRATE_DEFENSES,
     mint: { first: 110, second: 75, third: 50, rest: 30, perRaid: 10, bonusCap: 30 },
@@ -364,18 +420,18 @@ export const MODE_IDENTITY: Record<HeistMode, ModeIdentity> = {
         en: `${rules.raidCost} ${rules.energyName.toLowerCase()} per raid`,
       },
       twist: {
-        sv: `En kista per fråga (${rules.chests?.length ?? 0} utfall) som kan byta hela ställningen`,
-        en: `One chest per question (${rules.chests?.length ?? 0} outcomes) that can flip the whole table`,
+        sv: `En kista per fråga, ${rules.chests?.length ?? 0} olika vad: säker, mot ledaren eller 50/50`,
+        en: `One chest a question, ${rules.chests?.length ?? 0} different bets: safe, leader or 50/50`,
       },
       risk: {
-        sv: "Låg — ett rån kan blockas, men du förlorar aldrig mer än energin",
-        en: "Low — a raid can be blocked, but you never lose more than the energy",
+        sv: "Låg — bara den vågade kistan kan kosta dig mynt; ett rån kan blockas men kostar bara energi",
+        en: "Low — only the wild chest can cost you coins; a raid can be blocked but only costs energy",
       },
     };
   })(),
   crypto: (() => {
     const rules = MODE_RULES.crypto;
-    const exposed = rules.trace?.exposed ?? 70;
+    const exposed = rules.trace?.exposed ?? 65;
     return {
       earns: {
         sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
@@ -386,12 +442,12 @@ export const MODE_IDENTITY: Record<HeistMode, ModeIdentity> = {
         en: `${rules.raidCost} ${rules.energyName.toLowerCase()} per hack`,
       },
       twist: {
-        sv: `Spåret: vid ${exposed} blir du avslöjad och hacken kostar ett verktyg mer`,
-        en: `Trace: at ${exposed} you are exposed and hacks cost one extra tool`,
+        sv: `Vid ${exposed} spår blir hacket högljutt: ${EXPOSED_HACK.tools} verktyg extra men ${EXPOSED_HACK.pct} % (max ${EXPOSED_HACK.cap})`,
+        en: `At ${exposed} trace a hack goes loud: ${EXPOSED_HACK.tools} extra tool but ${EXPOSED_HACK.pct}% (max ${EXPOSED_HACK.cap})`,
       },
       risk: {
-        sv: "Medel — rivalernas saldon visas bara ungefärligt, så du hackar delvis i blindo",
-        en: "Medium — rival balances are shown only approximately, so you hack partly blind",
+        sv: `Hög — en avslöjad hackare syns exakt och alla tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer av hen`,
+        en: `High — an exposed hacker is shown exactly and everyone takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more from them`,
       },
     };
   })(),
@@ -400,22 +456,23 @@ export const MODE_IDENTITY: Record<HeistMode, ModeIdentity> = {
     const styles = rules.styles ?? [];
     const cheapest = Math.min(...styles.map((s) => s.cost));
     const dearest = Math.max(...styles.map((s) => s.cost));
+    const boldest = styles[styles.length - 1];
     return {
       earns: {
         sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
         en: `+${rules.correctBalance} ${rules.currencyShort} per correct answer`,
       },
       spends: {
-        sv: `${cheapest}–${dearest} ${rules.currencyShort} per rån, ingen energi`,
-        en: `${cheapest}–${dearest} ${rules.currencyShort} per raid, no energy`,
+        sv: `${rules.raidCost} ${rules.energyName.toLowerCase()} + ${cheapest}–${dearest} ${rules.currencyShort} per rån`,
+        en: `${rules.raidCost} ${rules.energyName.toLowerCase()} + ${cheapest}–${dearest} ${rules.currencyShort} per raid`,
       },
       twist: {
-        sv: `${styles.length} rån med egen chans, andel och tak — du väljer risken`,
-        en: `${styles.length} raids with their own chance, share and cap — you pick the risk`,
+        sv: `${styles.length} tärningar: ${Math.round((boldest?.chance ?? 0) * 100)} % chans för ${boldest?.pct ?? 0} % — ju djärvare, desto större förväntat byte`,
+        en: `${styles.length} dice: ${Math.round((boldest?.chance ?? 0) * 100)}% chance for ${boldest?.pct ?? 0}% — bolder pays more on average`,
       },
       risk: {
         sv: "Hög — ett misslyckat rån kostar avgiften ändå",
-        en: "High — a failed raid still costs its fee",
+        en: "High — a failed raid keeps the fee",
       },
     };
   })(),
@@ -446,10 +503,10 @@ export type HeistPlayer = {
   raidDiscount: number;
   /** The round a chest was last opened in; -1 means none yet. */
   chestRound: number;
-  /** Cyber Hack: "Dubbla" is a once-a-match button. */
-  doubled: boolean;
-  /** Cyber Hack: "Spårfritt" wipes trace, also once a match. */
-  untraced: boolean;
+  /** Cyber Hack: "Insider" is armed and the next hack spends it. */
+  insider: boolean;
+  /** One-shot powers already bought, by id, so none can be bought twice. */
+  usedPowers: string[];
   /** Cyber Hack: at most one skill drill can be attempted per question. */
   hackRound: number;
   hackProgress: number;
@@ -491,7 +548,13 @@ let eventSeq = 0;
 function clone(state: HeistState): HeistState {
   const players: Record<string, HeistPlayer> = {};
   for (const [name, p] of Object.entries(state.players)) {
-    players[name] = { ...p, defenses: [...p.defenses], raided: [...p.raided] };
+    players[name] = {
+      ...p,
+      defenses: [...p.defenses],
+      raided: [...p.raided],
+      // A match that started before this field shipped has no ledger yet.
+      usedPowers: [...(p.usedPowers ?? [])],
+    };
   }
   return { ...state, players, events: [...state.events] };
 }
@@ -523,8 +586,8 @@ export function newHeist(
       protectedUntil: 0,
       raidDiscount: 0,
       chestRound: -1,
-      doubled: false,
-      untraced: false,
+      insider: false,
+      usedPowers: [],
       hackRound: -1,
       hackProgress: 0,
       hackScore: 0,
@@ -580,9 +643,9 @@ export function breakStreak(state: HeistState, name: string): HeistState {
 /**
  * A new question starts a new round.
  *
- * Every round pays out one energy (so a player who missed a question is never
- * locked out of the raid game) and cools trace by ten (so being exposed is a
- * temporary setback rather than a life sentence).
+ * Every round pays out one action point (so a player who missed a question is
+ * never locked out of the raid game) and cools trace by `TRACE_DECAY`, so being
+ * exposed is a window rather than a life sentence.
  */
 export function nextRound(state: HeistState): HeistState {
   const advanced = clone(state);
@@ -604,16 +667,22 @@ export function defenseById(mode: HeistMode, id: string): Defense | undefined {
 }
 
 /**
- * What one raid costs, in the mode's own energy. Pirate raids are bought with
- * gold (see `styles`), so they report zero here; an exposed Crypto hacker pays
- * one extra tool, and a master key shaves one off, never below one.
+ * What one raid costs, in the mode's own action resource.
+ *
+ * Every mode charges the same two points for an attempt, which is what makes
+ * "one raid per question" true everywhere. Crypto's exposed hacker pays one
+ * more tool, an armed Insider needs only one, and a Vault master key shaves one
+ * off, never below one. Pirate's gold fee is separate and lives on the style.
  */
 export function raidCostFor(mode: HeistMode, player: HeistPlayer): number {
   const rules = MODE_RULES[mode];
-  if (rules.styles || rules.raidCost <= 0) return 0;
-  const exposed = rules.trace && player.trace >= rules.trace.exposed ? 1 : 0;
-  const discount = player.raidDiscount > 0 ? 1 : 0;
-  return Math.max(1, rules.raidCost + exposed - discount);
+  if (rules.id === "crypto") {
+    if (player.insider) return INSIDER_HACK.tools;
+    const exposed = Boolean(rules.trace && player.trace >= rules.trace.exposed);
+    return rules.raidCost + (exposed ? EXPOSED_HACK.tools : 0);
+  }
+  if (rules.styles) return rules.raidCost;
+  return Math.max(1, rules.raidCost - (player.raidDiscount > 0 ? 1 : 0));
 }
 
 /** How many of a defense a player still holds. A wall counts twice. */
@@ -621,10 +690,16 @@ export function ownedCharges(player: HeistPlayer, id: string): number {
   return player.defenses.filter((d) => d === id).length;
 }
 
-/** True when the shop should refuse to sell this again. */
+/**
+ * True when the shop should refuse to sell this again.
+ *
+ * A charged defense is armed until it is used up, not topped up mid-way: a
+ * two-charge wall that could be refilled at one charge would quietly become a
+ * three-charge wall, which is not what the shop says it sells.
+ */
 export function maxedOut(mode: HeistMode, player: HeistPlayer, defense: Defense): boolean {
   if (defense.kind === "protect" || defense.kind === "block" || defense.kind === "reduce") {
-    return ownedCharges(player, defense.id) >= (defense.charges ?? 1);
+    return ownedCharges(player, defense.id) > 0;
   }
   if (defense.kind === "discount") return player.raidDiscount > 0;
   // One extra tool slot per match, like every other permanent upgrade.
@@ -646,6 +721,40 @@ export function reachableGold(mode: HeistMode, target: HeistPlayer): number {
 }
 
 /**
+ * What the attacker's move is worth before the target's block or reduction
+ * answers it. The three numbers that decide a raid live here and nowhere else,
+ * so the button, the feed and the host cannot disagree about the odds.
+ */
+export type AttackTuning = {
+  pct: number;
+  cap: number;
+  chance: number;
+  /** Pirate's gold ante; zero in the other modes. */
+  fee: number;
+  exposed: boolean;
+  insider: boolean;
+};
+
+export function attackTuning(
+  mode: HeistMode,
+  player: HeistPlayer,
+  style?: RaidStyle
+): AttackTuning {
+  const rules = MODE_RULES[mode];
+  if (style) {
+    return { pct: style.pct, cap: style.cap, chance: style.chance, fee: style.cost, exposed: false, insider: false };
+  }
+  const exposed = Boolean(rules.trace && player.trace >= rules.trace.exposed);
+  if (mode === "crypto" && player.insider) {
+    return { pct: INSIDER_HACK.pct, cap: INSIDER_HACK.cap, chance: 1, fee: 0, exposed, insider: true };
+  }
+  if (mode === "crypto" && exposed) {
+    return { pct: EXPOSED_HACK.pct, cap: EXPOSED_HACK.cap, chance: 1, fee: 0, exposed, insider: false };
+  }
+  return { pct: rules.raidPct, cap: rules.raidCap, chance: 1, fee: 0, exposed, insider: false };
+}
+
+/**
  * What a raid would take before the target's block or reduction answers it.
  *
  * The panel shows this number on every rival so the choice between a cheap
@@ -654,16 +763,39 @@ export function reachableGold(mode: HeistMode, target: HeistPlayer): number {
  * `applyAction` resolves, so the promise on the button and the outcome cannot
  * disagree.
  */
-export function projectedSteal(mode: HeistMode, target: HeistPlayer, style?: RaidStyle): number {
-  const rules = MODE_RULES[mode];
-  const pct = style ? style.pct : rules.raidPct;
-  const cap = style ? style.cap : rules.raidCap;
-  return Math.max(0, Math.min(cap, Math.floor((reachableGold(mode, target) * pct) / 100)));
+export function projectedSteal(
+  mode: HeistMode,
+  target: HeistPlayer,
+  opts: { raider?: HeistPlayer; style?: RaidStyle } = {}
+): number {
+  const tuning = opts.raider
+    ? attackTuning(mode, opts.raider, opts.style)
+    : opts.style
+      ? { pct: opts.style.pct, cap: opts.style.cap }
+      : { pct: MODE_RULES[mode].raidPct, cap: MODE_RULES[mode].raidCap };
+  const bonus = exposedBonus(mode, target);
+  return Math.max(
+    0,
+    Math.min(Math.floor(tuning.cap * bonus), Math.floor((reachableGold(mode, target) * tuning.pct * bonus) / 100))
+  );
 }
 
 /** The trace level at which a Crypto hacker is exposed, or null in other modes. */
 export function exposureAt(mode: HeistMode): number | null {
   return MODE_RULES[mode].trace?.exposed ?? null;
+}
+
+/**
+ * How much easier an exposed player is to rob, as a multiplier.
+ *
+ * Only Crypto Clash has a trace, and only while the target is over the line.
+ * Read by the button, the feed and `applyAction`, so the faint "+50 %" on a
+ * rival's row is the number the hack actually pays.
+ */
+export function exposedBonus(mode: HeistMode, target: HeistPlayer): number {
+  const rules = MODE_RULES[mode];
+  if (!rules.trace) return 1;
+  return target.trace >= rules.trace.exposed ? EXPOSED_TARGET_MULTIPLIER : 1;
 }
 
 /** True when this player still has a chest to open this round. */
@@ -673,26 +805,6 @@ export function chestOpen(state: HeistState, name: string): boolean {
   return player.chestRound !== state.round;
 }
 
-/** Weighted draw. `r` is 0–1 so the tests can force a branch. */
-function drawChest(chests: ChestOutcome[], r: number): ChestOutcome {
-  const total = chests.reduce((sum, c) => sum + c.weight, 0);
-  // Clamp injected/untrusted random sources too: r === 1 used to fall through
-  // to the last row, which was the old dud when a stale bundle was in use.
-  const roll = Math.min(1 - Number.EPSILON, Math.max(0, r)) * total;
-  let remaining = roll;
-  for (const chest of chests) {
-    remaining -= chest.weight;
-    if (remaining < 0) return chest;
-  }
-  return chests[0];
-}
-
-/** One of the other seats, chosen by the draw. */
-function randomRival(state: HeistState, name: string, r: number): HeistPlayer | undefined {
-  const rivals = Object.values(state.players).filter((p) => p.name !== name);
-  if (rivals.length === 0) return undefined;
-  return rivals[Math.min(rivals.length - 1, Math.floor(r * rivals.length))];
-}
 
 /** The defense that answers an incoming raid: a block first, then a reduction. */
 function findDefense(mode: HeistMode, target: HeistPlayer, kind: "block" | "reduce"): Defense | undefined {
@@ -740,14 +852,9 @@ export function applyAction(
     if (me.balance < defense.cost) {
       return { ok: false, error: `Du behöver ${defense.cost} ${rules.currencyShort} för ${defense.name}.` };
     }
-    const passive = defense.kind === "block" || defense.kind === "reduce" || defense.kind === "protect";
-    if (passive && ownedCharges(me, defense.id) >= (defense.charges ?? 1)) {
-      return { ok: false, error: `Du har redan ${defense.name}.` };
-    }
-    if (defense.kind === "discount" && me.raidDiscount > 0) {
-      return { ok: false, error: `Du har redan ${defense.name}.` };
-    }
-    if (defense.kind === "slot" && me.maxEnergy > rules.maxEnergy) {
+    // One source of truth for the shop: the same `maxedOut` the panel uses to
+    // grey the card also refuses the purchase if a stale client asks anyway.
+    if (maxedOut(state.mode, me, defense)) {
       return { ok: false, error: `Du har redan ${defense.name}.` };
     }
     if (defense.kind === "energy" && me.energy >= me.maxEnergy) {
@@ -779,123 +886,74 @@ export function applyAction(
     return { ok: true, state: next };
   }
 
-  // ── Gold Quest chest ───────────────────────────────────────────────────
+  // ── Vault Raiders chest ────────────────────────────────────────────────
   if (action.kind === "chest") {
-    const chests = rules.chests;
-    if (!chests) return { ok: false, error: "Det här läget har inga kistor." };
+    const offers = rules.chests;
+    if (!offers) return { ok: false, error: "Det här läget har inga kistor." };
     // One tap a round: without this a player could sit on the chest button and
     // gamble the whole match away between two questions.
     if (me.chestRound === next.round) {
       return { ok: false, error: "Du har redan öppnat en kista den här rundan." };
     }
-    // Which of the three chests was tapped, and not just decoration. Each box
-    // gets its own draw, so the three really do hold different things and the
-    // tap is the decision; a caller that sends no index gets the first box.
-    const chest = typeof action.chest === "number" ? Math.min(2, Math.max(0, Math.floor(action.chest))) : 0;
+    // The three boxes are three different bets, not three draws from one table.
+    // The index is the decision; a caller that sends none gets the safe box.
+    const index = typeof action.chest === "number" ? Math.min(offers.length - 1, Math.max(0, Math.floor(action.chest))) : 0;
+    const offer = offers[index];
     me.chestRound = next.round;
 
-    let roll = rng();
-    for (let i = 0; i < chest; i += 1) roll = rng();
-    const outcome = drawChest(chests, roll);
-    // Measured rather than assumed: a swap can leave the opener poorer than
-    // they started, and the reveal has to say so out loud.
     const before = me.balance;
     let rival: string | undefined;
+    let kind: ChestKind = offer.kind;
+    let text: string;
 
-    if (outcome.kind === "gold") {
-      const coins = outcome.value ?? 0;
-      me.balance += coins;
-      pushEvent(next, `${name} öppnade ${outcome.name}: +${coins} ${rules.currencyShort}.`, now);
-    } else if (outcome.kind === "steal") {
-      const victim = randomRival(next, name, rng());
-      if (!victim) {
-        me.balance += CHEST_FALLBACK_REWARD;
-        pushEvent(
-          next,
-          `${name} öppnade ${outcome.name}, men det fanns ingen att råna — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
-          now
-        );
-      } else {
+    if (offer.id === "safe") {
+      me.balance += CHEST_SAFE_REWARD;
+      text = `${name} öppnade ${offer.name}: +${CHEST_SAFE_REWARD} ${rules.currencyShort}.`;
+    } else if (offer.id === "raid") {
+      // The raid box takes from the leader, whose purse the room can already
+      // see. A slice of the biggest vault is why it is worth skipping the sure
+      // payout — and why a fat vault should buy a defense.
+      const victim = Object.values(next.players)
+        .filter((p) => p.name !== name)
+        .sort((a, b) => reachableGold(state.mode, b) - reachableGold(state.mode, a))[0];
+      const reachable = victim ? reachableGold(state.mode, victim) : 0;
+      const steal = victim ? Math.min(CHEST_RAID_CAP, Math.floor((reachable * CHEST_RAID_PCT) / 100)) : 0;
+      if (victim && steal > 0) {
         rival = victim.name;
-        const steal = Math.max(
-          0,
-          Math.min(CHEST_STEAL_CAP, victim.balance - protectedGold(state.mode, victim), Math.floor((victim.balance * (outcome.value ?? 0)) / 100))
-        );
-        if (steal > 0) {
-          victim.balance -= steal;
-          me.balance += steal;
-        } else {
-          me.balance += CHEST_FALLBACK_REWARD;
-        }
-        pushEvent(
-          next,
-          steal > 0
-            ? `${name} öppnade ${outcome.name} och rånade ${victim.name}: ${steal} ${rules.currencyShort}.`
-            : `${name} öppnade ${outcome.name}, men ${victim.name} hade inget oskyddat guld — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
-          now
-        );
-      }
-    } else if (outcome.kind === "swap") {
-      const partner = randomRival(next, name, rng());
-      if (!partner) {
-        me.balance += CHEST_FALLBACK_REWARD;
-        pushEvent(
-          next,
-          `${name} öppnade ${outcome.name}, men ingen fanns att byta med — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
-          now
-        );
-      } else if (partner.balance === me.balance) {
-        rival = partner.name;
-        me.balance += CHEST_FALLBACK_REWARD;
-        pushEvent(
-          next,
-          `${name} öppnade ${outcome.name}, men saldona var lika — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i tröstpris.`,
-          now
-        );
+        victim.balance -= steal;
+        me.balance += steal;
+        text = `${name} öppnade ${offer.name} och tog ${steal} ${rules.currencyShort} från ${victim.name}.`;
       } else {
-        rival = partner.name;
-        const mine = me.balance;
-        me.balance = partner.balance;
-        partner.balance = mine;
-        pushEvent(
-          next,
-          `${name} bytte saldo med ${partner.name} — sitter nu på ${me.balance} ${rules.currencyShort}.`,
-          now
-        );
-      }
-    } else if (outcome.kind === "shield") {
-      // The seal arms the mode's block defense, not a hardcoded id. Holding a
-      // second one pays out in coins instead of stacking into an unraidable
-      // vault.
-      const shield = rules.defenses.find((d) => d.kind === "block");
-      if (!shield || me.defenses.includes(shield.id)) {
+        kind = "gold";
         me.balance += CHEST_FALLBACK_REWARD;
-        pushEvent(
-          next,
-          `${name} hade redan ${shield?.name ?? "ett skydd"} — sigillet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort} i stället.`,
-          now
-        );
-      } else {
-        me.defenses.push(shield.id);
-        pushEvent(next, `${name} hittade ${shield.name} i kistan.`, now);
+        text = `${name} öppnade ${offer.name}, men inget låg inom räckhåll — valvet gav ${CHEST_FALLBACK_REWARD} ${rules.currencyShort}.`;
       }
-    } else if (outcome.kind === "storm") {
-      me.nextCorrectBonus += outcome.value ?? 180;
-      pushEvent(next, `${name} laddade en storm: nästa rätta svar ger +${outcome.value ?? 180} ${rules.currencyShort}.`, now);
+    } else {
+      // The only box that can cost coins. That risk is what makes the safe box
+      // a real option instead of the one nobody taps.
+      if (rng() < CHEST_WILD_CHANCE) {
+        kind = "gold";
+        me.balance += CHEST_WILD_WIN;
+        text = `${name} öppnade ${offer.name} och vann: +${CHEST_WILD_WIN} ${rules.currencyShort}.`;
+      } else {
+        const loss = Math.min(CHEST_WILD_LOSS, me.balance);
+        me.balance -= loss;
+        kind = "bust";
+        text = `${name} öppnade ${offer.name} och förlorade ${loss} ${rules.currencyShort}.`;
+      }
     }
 
+    pushEvent(next, text, now);
     const reveal: ChestReveal = {
       name,
       keen: me.keen,
-      chest,
-      kind: outcome.kind,
-      title: outcome.name,
-      blurb: outcome.blurb,
+      chest: index,
+      kind,
+      title: offer.name,
+      blurb: offer.blurb,
       delta: me.balance - before,
       rival,
-      // The branch above already wrote the sentence, so a screen never has to
-      // invent its own wording for what happened.
-      text: next.events[0]?.text ?? "",
+      text,
     };
     return { ok: true, state: next, reveal };
   }
@@ -913,7 +971,9 @@ export function applyAction(
     player.hackProgress = success ? player.hackProgress + 1 : 0;
 
     if (success) {
-      const reward = 180 + Math.min(120, player.hackProgress * 20);
+      // A side drill should be a bonus, not a second quiz: it pays a little more
+      // than one correct answer and less than an answer plus a streak.
+      const reward = 100 + Math.min(60, player.hackProgress * 20);
       player.balance += reward;
       player.energy = Math.min(player.maxEnergy, player.energy + 1);
       player.trace = Math.max(0, player.trace - 10);
@@ -939,21 +999,24 @@ export function applyAction(
       return { ok: false, error: `Du behöver ${power.cost} ${rules.currencyShort} för ${power.name}.` };
     }
     me.balance -= power.cost;
-    if (power.effect === "double") {
-      // Doubling is a comeback tool, not an instant win: the gain is capped.
-      const gain = Math.min(POWER_GAIN_CAP, me.balance);
-      me.balance += gain;
-      me.doubled = true;
-      pushEvent(next, `${name} använde ${power.name}: +${gain} ${rules.currencyShort} (${me.balance} totalt).`, now);
-    } else {
+    // The ledger is written on purchase, so a power whose effect is consumed by
+    // the next hack is still a once-a-match purchase.
+    me.usedPowers = [...(me.usedPowers ?? []), power.id];
+    if (power.effect === "untrace") {
       const wiped = me.trace;
       me.trace = 0;
-      me.untraced = true;
       pushEvent(
         next,
         wiped > 0
           ? `${name} använde ${power.name} och nollställde spåret (−${wiped}).`
           : `${name} använde ${power.name} utan att ha något spår att tvätta.`,
+        now
+      );
+    } else {
+      me.insider = true;
+      pushEvent(
+        next,
+        `${name} använde ${power.name}: nästa hack kostar 1 verktyg och tar ${INSIDER_HACK.pct} % (max ${INSIDER_HACK.cap}).`,
         now
       );
     }
@@ -972,34 +1035,43 @@ export function applyAction(
   const style = rules.styles?.find((s) => s.id === action.style);
   if (rules.styles && !style) return { ok: false, error: "Välj ett rån först." };
 
-  if (style) {
-    // Pirate Heist: the fee is gold, and the raid itself can fail.
-    if (me.balance < style.cost) {
-      return { ok: false, error: `Du behöver ${style.cost} ${rules.currencyShort} för ${style.name}.` };
-    }
-    me.balance -= style.cost;
-    if (rng() > style.chance) {
-      pushEvent(next, `${name} misslyckades med ${style.name.toLowerCase()} mot ${target.name}.`, now);
-      return { ok: true, state: next };
-    }
-  } else if (rules.raidCost > 0) {
-    // Mästernyckel shaves one energy off a single raid and an exposed Crypto
-    // hacker pays one more; neither can push the cost below one.
-    const cost = raidCostFor(state.mode, me);
-    if (me.energy < cost) {
-      const exposed = Boolean(rules.trace && me.trace >= rules.trace.exposed);
-      return {
-        ok: false,
-        error: `Du behöver ${cost} ${rules.energyName.toLowerCase()}${exposed ? " — du är avslöjad, så hacket kostar 1 extra" : ""}.`,
-      };
-    }
-    me.energy -= cost;
-    if (me.raidDiscount > 0) me.raidDiscount = 0;
+  // One action cost for every mode, checked before anything is spent. Pirate's
+  // gold ante is checked here too, so a refused raid never quietly eats crew.
+  const cost = raidCostFor(state.mode, me);
+  if (me.energy < cost) {
+    const exposed = Boolean(
+      rules.id === "crypto" && !me.insider && rules.trace && me.trace >= rules.trace.exposed
+    );
+    return {
+      ok: false,
+      error: `Du behöver ${cost} ${rules.energyName.toLowerCase()}${exposed ? " — du är avslöjad, så hacket kostar 1 extra" : ""}.`,
+    };
+  }
+  if (style && me.balance < style.cost) {
+    return { ok: false, error: `Du behöver ${style.cost} ${rules.currencyShort} för ${style.name}.` };
+  }
+  me.energy -= cost;
+  if (me.raidDiscount > 0) me.raidDiscount = 0;
+  if (style) me.balance -= style.cost;
+
+  // Pirate Heist is the one mode where the dice can simply say no. The ante is
+  // kept, and the victim still gets their quiet moment so a losing streak
+  // cannot be farmed onto one player.
+  if (style && rng() > style.chance) {
+    target.protectedUntil = now + PROTECTION_MS;
+    pushEvent(
+      next,
+      `${name} misslyckades med ${style.name.toLowerCase()} mot ${target.name} — avgiften är förbrukad.`,
+      now
+    );
+    return { ok: true, state: next };
   }
 
   // Cargo Hold keeps a slice of the purse out of every raid.
   const reachable = reachableGold(state.mode, target);
-  let steal = projectedSteal(state.mode, target, style);
+  const armedInsider = state.mode === "crypto" && me.insider && !style;
+  const tuning = attackTuning(state.mode, me, style);
+  let steal = projectedSteal(state.mode, target, { raider: me, style });
 
   // A defense is only spent when there was something to defend.
   if (steal > 0) {
@@ -1029,7 +1101,7 @@ export function applyAction(
       }
     }
   } else {
-    pushEvent(next, `${name} kom inte åt ${target.name}s ${rules.id === "crypto" ? "crypto" : "guld"}.`, now);
+    pushEvent(next, `${name} kom inte åt ${target.name}s ${rules.currencyShort}.`, now);
   }
 
   steal = Math.max(0, Math.min(steal, reachable));
@@ -1042,7 +1114,15 @@ export function applyAction(
       me.raided.push(target.name);
       me.raids += 1;
     }
-    const verb = style ? style.verb : rules.id === "crypto" ? "hackade" : "rånade";
+    const verb = style
+      ? style.verb
+      : rules.id === "crypto"
+        ? tuning.insider
+          ? "gick inifrån och hackade"
+          : tuning.exposed
+            ? "hackade högljutt"
+            : "hackade"
+        : "rånade";
     pushEvent(next, `${name} ${verb} ${target.name}: ${steal} ${rules.currencyShort}.`, now);
   }
   // Every attempt buys the victim a moment of peace, blocked or not. Thirty
@@ -1050,9 +1130,18 @@ export function applyAction(
   // host reads the next one.
   target.protectedUntil = now + PROTECTION_MS;
 
+  // Insider is spent by the attempt, whether it landed or was blocked: it was
+  // bought to make one hack, not to wait for a better board.
+  if (armedInsider) me.insider = false;
+
   if (rules.trace) {
-    me.trace = Math.min(100, me.trace + (steal > 0 ? rules.trace.success : rules.trace.fail));
-    if (me.trace >= rules.trace.exposed) {
+    const before = me.trace;
+    // Going loud adds its own trace on top of the hack's, so exposure is a
+    // window you spend rather than a state you can camp in.
+    const loud = tuning.exposed && !tuning.insider ? EXPOSED_HACK.trace : 0;
+    me.trace = Math.min(100, me.trace + (steal > 0 ? rules.trace.success : rules.trace.fail) + loud);
+    // Announce the crossing once, not every hack while it lasts.
+    if (before < rules.trace.exposed && me.trace >= rules.trace.exposed) {
       pushEvent(next, `${name} är avslöjad — spåret är uppe i ${me.trace}.`, now);
     }
   }
@@ -1060,7 +1149,7 @@ export function applyAction(
   return { ok: true, state: next };
 }
 
-/** Crypto Clash: trace cools by 10 per round. Returns null if nothing moved. */
+/** Crypto Clash: trace cools by `TRACE_DECAY` per round. Returns null if nothing moved. */
 export function decayTrace(state: HeistState): HeistState | null {
   if (!MODE_RULES[state.mode].trace) return null;
   let changed = false;

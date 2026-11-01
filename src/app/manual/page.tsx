@@ -7,17 +7,27 @@ import { Badge } from "@/components/ui/badge";
 import { translateText, useLang } from "@/lib/i18n";
 import {
   CHEST_FALLBACK_REWARD,
-  CHEST_STEAL_CAP,
+  CHEST_RAID_CAP,
+  CHEST_RAID_PCT,
+  CHEST_SAFE_REWARD,
+  CHEST_WILD_CHANCE,
+  CHEST_WILD_LOSS,
+  CHEST_WILD_WIN,
+  EXPOSED_HACK,
+  EXPOSED_TARGET_MULTIPLIER,
+  INSIDER_HACK,
   MODE_IDENTITY,
   MODE_RULES,
-  POWER_GAIN_CAP,
   PROTECTION_MS,
   RAID_EXPOSURE_FEE,
+  TRACE_DECAY,
   classicStreakBonus,
   heistStreakBonus,
+  type ChestOffer,
   type Defense,
   type HeistMode,
   type Power,
+  type RaidStyle,
 } from "@/lib/game-modes";
 import {
   ArrowRight,
@@ -152,18 +162,34 @@ export default function ManualPage() {
   const crypto = MODE_RULES.crypto;
   const pirate = MODE_RULES.pirate;
   const vaultChests = vault.chests ?? [];
-  const chestTotal = vaultChests.reduce((sum, chest) => sum + chest.weight, 0);
-  const doorPct = vault.defenses.find((d) => d.id === "door")?.value ?? 25;
+  const pirateStyles = pirate.styles ?? [];
+  const doorPct = vault.defenses.find((d) => d.id === "door")?.value ?? 40;
+  const cryptoExposed = crypto.trace?.exposed ?? 65;
+
+  /** The expected gold a raid pays against a purse, after its ante. */
+  const styleAverage = (style: RaidStyle, purse: number) =>
+    Math.round(style.chance * Math.min(style.cap, Math.floor((purse * style.pct) / 100)) - style.cost);
 
   /** What a chest actually does, with its numbers, rather than its flavour text. */
-  function chestEffect(chest: (typeof vaultChests)[number]): string {
-    if (chest.kind === "gold") return `+${chest.value} ${L("mynt", "coins")}`;
-    if (chest.kind === "steal") {
-      return `${chest.value} % ${L("av en rivals oskyddade valv, högst", "of a rival's unprotected vault, max")} ${CHEST_STEAL_CAP}`;
+  function chestEffect(offer: ChestOffer): string {
+    if (offer.id === "safe") return `+${CHEST_SAFE_REWARD} ${L("mynt, garanterat", "coins, guaranteed")}`;
+    if (offer.id === "raid") {
+      return `${CHEST_RAID_PCT} % ${L(
+        "av den rikaste rivalens oskyddade valv",
+        "of the richest rival's unprotected vault"
+      )}, ${L("högst", "max")} ${CHEST_RAID_CAP}`;
     }
-    if (chest.kind === "swap") return L("Byt saldo med en slumpad rival", "Swap balances with a random rival");
-    if (chest.kind === "shield") return L("Ett gratis lasergrid", "A free laser grid");
-    return `+${chest.value} ${L("på nästa rätta svar", "on the next correct answer")}`;
+    return L(
+      `${Math.round(CHEST_WILD_CHANCE * 100)} % chans till +${CHEST_WILD_WIN}, annars −${CHEST_WILD_LOSS}`,
+      `${Math.round(CHEST_WILD_CHANCE * 100)}% chance of +${CHEST_WILD_WIN}, otherwise −${CHEST_WILD_LOSS}`
+    );
+  }
+
+  /** The odds label on a chest, said in the reader's language. */
+  function chestOdds(offer: ChestOffer): string {
+    if (offer.id === "safe") return L(`Alltid +${CHEST_SAFE_REWARD}`, `Always +${CHEST_SAFE_REWARD}`);
+    if (offer.id === "raid") return L("Mot ledaren", "Against the leader");
+    return L(`${Math.round(CHEST_WILD_CHANCE * 100)} / ${Math.round((1 - CHEST_WILD_CHANCE) * 100)}`, "50 / 50");
   }
 
   function defenseRows(defenses: Defense[], currency: string): ReactNode[][] {
@@ -172,12 +198,15 @@ export default function ManualPage() {
 
   /** What a power-up does, said once per effect rather than once per button. */
   function powerEffect(power: Power): string {
-    return power.effect === "double"
+    return power.effect === "untrace"
       ? L(
-          `Dubblar din crypto, men högst +${POWER_GAIN_CAP}. En gång per match.`,
-          `Doubles your crypto, but by no more than +${POWER_GAIN_CAP}. Once per match.`
+          "Nollställer ditt spår direkt. En gång per match.",
+          "Wipes your trace to zero instantly. Once per match."
         )
-      : L("Nollställer spåret direkt. En gång per match.", "Wipes your trace to zero instantly. Once per match.");
+      : L(
+          `Nästa hack kostar ${INSIDER_HACK.tools} verktyg och tar ${INSIDER_HACK.pct} % (max ${INSIDER_HACK.cap}), även om du är avslöjad. En gång per match.`,
+          `Your next hack costs ${INSIDER_HACK.tools} tool and takes ${INSIDER_HACK.pct}% (max ${INSIDER_HACK.cap}), even while exposed. Once per match.`
+        );
   }
 
   const mintRows = [
@@ -221,8 +250,8 @@ export default function ManualPage() {
             <Badge tone="emerald" icon={Shield}>
               {PROTECTION_MS / 1000} s {L("skydd", "protection")}
             </Badge>
-            <Badge tone="sky" icon={Gift}>
-              {L("1 kista per fråga", "1 chest per question")}
+            <Badge tone="sky" icon={Swords}>
+              {L("En åtgärd per rån", "One action per raid")}
             </Badge>
           </>
         }
@@ -276,16 +305,16 @@ export default function ManualPage() {
               n: "2",
               title: L("Svara rätt", "Answer correctly"),
               body: L(
-                "Rätt svar ger poäng, matchvaluta, energi och ett steg på streakstegen.",
-                "A correct answer pays points, match currency, energy and one step on the streak ladder."
+                "Rätt svar ger poäng, matchvaluta, en åtgärd (energi, verktyg eller besättning) och ett steg på streakstegen.",
+                "A correct answer pays points, match currency, one action point (energy, tools or crew) and one step on the streak ladder."
               ),
             },
             {
               n: "3",
               title: L("Spendera mellan frågorna", "Spend between questions"),
               body: L(
-                "Kista, hack, rån eller försvar. Allt öppnas efter att frågan är avgjord.",
-                "Chest, hack, raid or defense. Everything opens after the question is settled."
+                "Rån, hack och köp får du göra medan frågan rullar. Kistan och sidohacket öppnas när frågan är avgjord.",
+                "Raids, hacks and purchases are allowed while the question runs. The chest and the side hack open once it is settled."
               ),
             },
             {
@@ -327,8 +356,8 @@ export default function ManualPage() {
             icon: Coins,
             tone: "border-amber-400/30 bg-amber-500/10 text-amber-300",
             body: L(
-              "Fyll valvet med mynt. Kistor kan byta hela ställningen, och försvar gör ditt valv dyrt att råna.",
-              "Fill the vault with coins. Chests can turn the whole standings around, and defenses make your vault expensive to raid."
+              "Fyll valvet med mynt. Varje fråga väljer du mellan tre kistor med olika risk; försvaren gör ditt valv dyrt att råna.",
+              "Fill the vault with coins. Each question you choose between three chests with different risk; defenses make your vault expensive to raid."
             ),
           },
           {
@@ -337,8 +366,8 @@ export default function ManualPage() {
             icon: Zap,
             tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
             body: L(
-              "Hacka rivaler, men lämna spår. Vid 70 blir du avslöjad och dina hack kostar ett verktyg mer.",
-              "Hack rivals, but leave a trace. At 70 you are exposed and your hacks cost one extra tool."
+              `Hacka rivaler, men lämna spår. Vid ${cryptoExposed} blir du avslöjad: hacket tar ${EXPOSED_HACK.pct} % i stället för ${crypto.raidPct} %, men alla ser ditt saldo och tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer av dig.`,
+              `Hack rivals, but leave a trace. At ${cryptoExposed} you are exposed: the hack takes ${EXPOSED_HACK.pct}% instead of ${crypto.raidPct}%, but everyone sees your balance and takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more from you.`
             ),
           },
           {
@@ -347,8 +376,8 @@ export default function ManualPage() {
             icon: Swords,
             tone: "border-rose-400/30 bg-rose-500/10 text-rose-300",
             body: L(
-              "Ingen energi — varje rån betalas i guld och kan misslyckas. Välj risk efter hur tjock rivalens plånbok är.",
-              "No energy — every raid is paid in gold and can fail. Choose your risk based on how fat the rival's purse is."
+              "Varje rån kostar besättning och en liten guldavgift, och kan misslyckas. Du väljer tärning: ju djärvare, desto större förväntat byte.",
+              "Every raid costs crew and a small gold ante, and can fail. You pick the dice: bolder pays more on average."
             ),
           },
         ].map((card) => (
@@ -376,8 +405,8 @@ export default function ManualPage() {
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-400">
           {L(
-            "Alla tre ekonomierna följer samma rytm: svara rätt, tjäna valuta, satsa den mellan frågorna. Det som skiljer dem är vad ett misstag kostar dig. Tabellen är hela skillnaden.",
-            "All three economies follow the same rhythm: answer correctly, earn currency, spend it between questions. What separates them is what a mistake costs you. The table is the whole difference."
+            "Alla tre ekonomierna följer samma rytm: svara rätt, tjäna valuta, betala en åtgärd för att råna. Det som skiljer dem är vad rånet kostar dig och vad som kan gå fel. Tabellen är hela skillnaden.",
+            "All three economies follow the same rhythm: answer correctly, earn currency, pay one action to raid. What separates them is what the raid costs you and what can go wrong. The table is the whole difference."
           )}
         </p>
         <RuleTable
@@ -415,7 +444,7 @@ export default function ManualPage() {
           ]}
         />
         <ul className="space-y-1.5 pt-3">
-          <Tip>{L("Vill du ha mest dramatik i klassrummet: Vault Raiders — en kista kan vända hela ställningen.", "Want the most classroom drama: Vault Raiders — one chest can flip the whole table.")}</Tip>
+          <Tip>{L("Vill du ha mest dramatik i klassrummet: Vault Raiders — en kista kan avgöra ett jämnt lopp, men aldrig bära matchen själv.", "Want the most classroom drama: Vault Raiders — a chest can settle a close game, but never carry the match on its own.")}</Tip>
           <Tip>{L("Vill du att eleverna ska läsa varandra: Crypto Clash — spåret och de avrundade saldona straffar den som gapar efter mest.", "Want students to read each other: Crypto Clash — trace and the rounded balances punish whoever grabs for the most.")}</Tip>
           <Tip>{L("Vill du ha comeback och gissningar: Pirate Heist — dyrare rån tar mer, men kan misslyckas helt.", "Want comebacks and gambles: Pirate Heist — dearer raids take more, but can fail outright.")}</Tip>
           <Tip>{L("Vill du bara ha quizet: Klassisk quiz — snabbast och mest rätt vinner, utan ekonomi.", "Just want the quiz: Classic quiz — fastest and most correct wins, no economy.")}</Tip>
@@ -484,8 +513,16 @@ export default function ManualPage() {
             <Stat label={L("Skydd", "Protection")} value={`${PROTECTION_MS / 1000} s`} />
           </div>
           <p className="text-sm leading-relaxed text-slate-400">
-            {L("Rätt svar ger +100 mynt, +1 raid-energi och ett steg på streakstegen. Varje ny fråga fyller också på 1 energi, så ingen blir utelåst. Ett rån tar 15 % av rivalens oskyddade valv och högst", "A correct answer pays +100 coins, +1 raid energy and one step on the streak ladder. Each new question also adds 1 energy so nobody is locked out. A raid takes 15% of the rival's unprotected vault, up to")}{" "}
-            <b className="text-slate-200">{vault.raidCap}</b>.
+            {L(
+              `Rätt svar ger +${vault.correctBalance} mynt, +1 raid-energi och ett steg på streakstegen. Varje ny fråga fyller också på 1 energi, så ingen blir utelåst. Ett rån kostar ${vault.raidCost} energi och tar ${vault.raidPct} % av rivalens oskyddade valv, högst ${vault.raidCap}.`,
+              `A correct answer pays +${vault.correctBalance} coins, +1 raid energy and one step on the streak ladder. Each new question also adds 1 energy so nobody is locked out. A raid costs ${vault.raidCost} energy and takes ${vault.raidPct}% of the rival's unprotected vault, up to ${vault.raidCap}.`
+            )}
+          </p>
+          <p className="text-xs leading-relaxed text-slate-500">
+            {L(
+              `Energin kapas vid ${vault.maxEnergy}, så du kan spara högst två rån. Svara rätt och råna en gång per fråga är den jämna takten; hoppar du över ett rån har du två nästa gång.`,
+              `Energy caps at ${vault.maxEnergy}, so you can bank at most two raids. Answer correctly and raid once per question is the steady rhythm; skip a raid and you have two next time.`
+            )}
           </p>
 
           <h3 className="flex items-center gap-2 pt-1 font-display text-base font-extrabold text-white">
@@ -494,22 +531,18 @@ export default function ManualPage() {
           </h3>
           <p className="text-xs leading-relaxed text-slate-500">
             {L(
-              "En kista per fråga. Tre kistor, ett tryck, och hela rummet ser vad du fick. Oddsen nedan är vikterna i regelfilen.",
-              "One chest per question. Three chests, one tap, and the whole room sees what you got. The odds below are the weights in the rules file."
+              "En kista per fråga, och de tre är olika vad — inte samma lotteri tre gånger. Den säkra betalar alltid, rånkistan tar från ledaren och den vågade kan kosta dig. Hela rummet ser vad du fick.",
+              "One chest per question, and the three are different bets — not the same lottery three times. The safe one always pays, the raid one takes from the leader, and the wild one can cost you. The whole room sees the pull."
             )}
           </p>
           <RuleTable
-            head={[L("Kista", "Chest"), L("Chans", "Chance"), L("Effekt", "Effect")]}
-            rows={vaultChests.map((chest) => [
-              tr(chest.name),
-              `${Math.round((chest.weight / chestTotal) * 100)} %`,
-              chestEffect(chest),
-            ])}
+            head={[L("Kista", "Chest"), L("Vad", "What"), L("Effekt", "Effect")]}
+            rows={vaultChests.map((offer) => [tr(offer.name), chestOdds(offer), chestEffect(offer)])}
           />
           <p className="text-xs text-slate-500">
             {L(
-              `Om en stöld eller ett byte saknar ett giltigt mål betalar valvet ${CHEST_FALLBACK_REWARD} mynt i tröstpris i stället för en tom kista.`,
-              `If a steal or swap has no valid target, the vault pays ${CHEST_FALLBACK_REWARD} coins as a consolation prize instead of an empty chest.`
+              `Rånkistan tar från den som har mest oskyddat kvar — finns inget att ta betalar valvet ${CHEST_FALLBACK_REWARD} i stället. Den vågade kistan är den enda som kan minska ditt saldo.`,
+              `The raid chest takes from whoever has the most unprotected coins left — if there is nothing to take, the vault pays ${CHEST_FALLBACK_REWARD} instead. The wild chest is the only one that can reduce your balance.`
             )}
           </p>
 
@@ -525,13 +558,18 @@ export default function ManualPage() {
           <div className="surface-flat p-3 text-xs leading-relaxed text-slate-400">
             <b className="text-slate-200">{L("Så räknas ett rån:", "How a raid resolves:")}</b>{" "}
             {L(
-              `2 energi dras först. Stölden är 15 % av det som inte är skyddat, högst ${vault.raidCap}. Ett lasergrid stoppar den helt, en ståldörr tar bort ${doorPct} % och ett skendvalv stoppar den, namnger tjuven och kostar tjuven ${RAID_EXPOSURE_FEE} mynt. Offret är skyddat i ${PROTECTION_MS / 1000} sekunder efteråt, även om rånet misslyckades.`,
-              `2 energy is spent first. The theft is 15% of what is unprotected, up to ${vault.raidCap}. A laser grid stops it completely, a steel door removes ${doorPct}%, and a decoy vault stops it, names the thief and costs them ${RAID_EXPOSURE_FEE} coins. The victim is protected for ${PROTECTION_MS / 1000} seconds afterwards, even if the raid failed.`
+              `2 energi dras först. Stölden är ${vault.raidPct} % av det som inte är skyddat, högst ${vault.raidCap}. Ett lasergrid stoppar den helt, en ståldörr tar bort ${doorPct} % och ett skendvalv stoppar den, namnger tjuven och kostar tjuven ${RAID_EXPOSURE_FEE} mynt. Offret är skyddat i ${PROTECTION_MS / 1000} sekunder efteråt, även om rånet stoppades.`,
+              `2 energy is spent first. The theft is ${vault.raidPct}% of what is unprotected, up to ${vault.raidCap}. A laser grid stops it completely, a steel door removes ${doorPct}%, and a decoy vault stops it, names the thief and costs them ${RAID_EXPOSURE_FEE} coins. The victim is protected for ${PROTECTION_MS / 1000} seconds afterwards, even if the raid was blocked.`
             )}
           </div>
           <ul className="space-y-1.5 pt-1">
-            <Tip>{L("Öppna kistan varje fråga — den är gratis och varje utfall är värt något.", "Open the chest every question — it is free and every outcome is worth something.")}</Tip>
+            <Tip>{L(
+            `Kistan är krydda, inte motorn: den säkra ger ${CHEST_SAFE_REWARD} och den vågade högst ${CHEST_WILD_WIN}, medan svaren bygger valvet — kistan avgör ett jämnt lopp, den räddar inte ett förlorat.`,
+            `The chest is spice, not the engine: the safe one pays ${CHEST_SAFE_REWARD} and the wild one at most ${CHEST_WILD_WIN}, while answers build the vault — a chest settles a close game, it does not rescue a lost one.`
+          )}</Tip>
+            <Tip>{L("Ta rånkistan när ledaren har ett tjockt, oskyddat valv — annars är den säkra kistan oftast bättre.", "Take the raid chest when the leader has a fat, unprotected vault — otherwise the safe chest is usually better.")}</Tip>
             <Tip>{L("Håll 2 energi när frågan närmar sig slutet, så du kan råna direkt efteråt.", "Keep 2 energy as the question nears its end so you can raid right after it.")}</Tip>
+            <Tip>{L("Försvar är försäkring, inte skatt: en ståldörr som sparar 40 % lönar sig när ditt valv är tjockt, inte när det är tomt.", "Defense is insurance, not tax: a door that saves 40% pays off when your vault is fat, not when it is empty.")}</Tip>
             <Tip>{L("Ett skendvalv betalar sig själv: det stoppar två rån och kostar tjuven pengar.", "A decoy vault pays for itself: it stops two raids and costs the thief money.")}</Tip>
           </ul>
         </ModeSection>
@@ -550,12 +588,18 @@ export default function ManualPage() {
             <Stat label={L("Verktyg", "Tools")} value={`${crypto.startEnergy} / ${crypto.maxEnergy}`} />
             <Stat label={L("Hack", "Hack")} value={`${crypto.raidCost} ${L("verktyg", "tools")}`} />
             <Stat label={L("Stöld", "Theft")} value={`${crypto.raidPct} % / ${crypto.raidCap}`} />
-            <Stat label={L("Avslöjad", "Exposed")} value={`${crypto.trace?.exposed ?? 70} ${L("spår", "trace")}`} />
+            <Stat label={L("Avslöjad", "Exposed")} value={`${cryptoExposed} ${L("spår", "trace")}`} />
           </div>
           <p className="text-sm leading-relaxed text-slate-400">
             {L(
-              "Ett lyckat hack tar 12 % av rivalens saldo, högst 600, och kostar 2 verktyg. Ett rätt svar ger +120 crypto och ett verktyg; varje ny fråga ger också ett verktyg och sänker spåret med 10.",
-              "A successful hack takes 12% of the rival's balance, up to 600, and costs 2 tools. A correct answer pays +120 crypto and one tool; each new question also gives one tool and lowers trace by 10."
+              `Ett tyst hack tar ${crypto.raidPct} % av rivalens saldo, högst ${crypto.raidCap}, och kostar ${crypto.raidCost} verktyg. Mot en avslöjad rival tar samma hack ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer. Ett rätt svar ger +${crypto.correctBalance} crypto och ett verktyg; varje ny fråga ger också ett verktyg och svalkar spåret med ${TRACE_DECAY}.`,
+              `A quiet hack takes ${crypto.raidPct}% of the rival's balance, up to ${crypto.raidCap}, and costs ${crypto.raidCost} tools. Against an exposed rival the same hack takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more. A correct answer pays +${crypto.correctBalance} crypto and one tool; each new question also gives one tool and cools trace by ${TRACE_DECAY}.`
+            )}
+          </p>
+          <p className="text-xs leading-relaxed text-slate-500">
+            {L(
+              `Verktygen kapas vid ${crypto.maxEnergy}. Du kan alltså hacka en gång per fråga om du svarar rätt, och spara till ett högljutt hack om du hoppar över en.`,
+              `Tools cap at ${crypto.maxEnergy}. You can therefore hack once per question while answering correctly, and bank for a loud hack by skipping one.`
             )}
           </p>
 
@@ -566,19 +610,39 @@ export default function ManualPage() {
           <RuleTable
             head={[L("Händelse", "Event"), L("Spår", "Trace")]}
             rows={[
-              [L("Lyckat hack", "Successful hack"), `+${crypto.trace?.success ?? 15}`],
-              [L("Stoppat eller missat hack", "Blocked or missed hack"), `+${crypto.trace?.fail ?? 25}`],
-              [L("Avslöjad", "Exposed"), L(`vid ${crypto.trace?.exposed ?? 70}: hack kostar 1 extra verktyg`, `at ${crypto.trace?.exposed ?? 70}: hacks cost 1 extra tool`)],
-              [L("Svalnar", "Cools down"), L("−10 vid varje ny fråga", "−10 at each new question")],
-              [L("Spårstädare", "Trace cleaner"), L(`−30 för ${crypto.defenses.find((d) => d.id === "cleaner")?.cost ?? 250} crypto`, `−30 for ${crypto.defenses.find((d) => d.id === "cleaner")?.cost ?? 250} crypto`)],
+              [L("Lyckat hack", "Successful hack"), `+${crypto.trace?.success ?? 22}`],
+              [L("Stoppat eller missat hack", "Blocked or missed hack"), `+${crypto.trace?.fail ?? 32}`],
+              [
+                L("Avslöjad: ditt hack", "Exposed: your hack"),
+                L(
+                  `vid ${cryptoExposed} kostar hacket ${crypto.raidCost + EXPOSED_HACK.tools} verktyg och tar ${EXPOSED_HACK.pct} % (max ${EXPOSED_HACK.cap})`,
+                  `at ${cryptoExposed} the hack costs ${crypto.raidCost + EXPOSED_HACK.tools} tools and takes ${EXPOSED_HACK.pct}% (max ${EXPOSED_HACK.cap})`
+                ),
+              ],
+              [
+                L("Avslöjad: deras hack", "Exposed: their hack"),
+                L(
+                  `alla ser ditt exakta saldo och varje hack mot dig tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer — tills spåret svalnar under ${cryptoExposed}`,
+                  `everyone sees your exact balance and every hack against you takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more — until trace cools below ${cryptoExposed}`
+                ),
+              ],
+              [L("Svalnar", "Cools down"), L(`−${TRACE_DECAY} vid varje ny fråga`, `−${TRACE_DECAY} at each new question`)],
+              [
+                L("Spårstädare", "Trace cleaner"),
+                L(
+                  `−30 för ${crypto.defenses.find((d) => d.id === "cleaner")?.cost ?? 180} crypto`,
+                  `−30 for ${crypto.defenses.find((d) => d.id === "cleaner")?.cost ?? 180} crypto`
+                ),
+              ],
             ]}
           />
-          <p className="text-xs leading-relaxed text-slate-500">
+          <div className="surface-flat p-3 text-xs leading-relaxed text-slate-400">
+            <b className="text-slate-200">{L("Ett fönster, inte en belöning:", "A window, not a reward:")}</b>{" "}
             {L(
-              "Ett spår på 70 eller mer syns i flödet och gör varje hack dyrare. Det försvinner av sig självt när matchen går vidare, så ett misstag är ett tillfälligt handikapp — inte hela matchen.",
-              "A trace of 70 or more is announced in the feed and makes every hack dearer. It fades on its own as the match moves on, so a mistake is a temporary handicap — not the whole match."
+              `vid ${cryptoExposed} spår hackar du hårdare — ${EXPOSED_HACK.pct} % i stället för ${crypto.raidPct} %, med taket ${EXPOSED_HACK.cap}, för ett extra verktyg. Men alla ser ditt saldo, och varje hack mot dig tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer. Varje högljutt hack lägger dessutom på ${EXPOSED_HACK.trace} spår, så fönstret stängs av sig självt. Spårfritt eller Spårstädaren är vägen tillbaka till tysta hack.`,
+              `at ${cryptoExposed} trace you hack harder — ${EXPOSED_HACK.pct}% instead of ${crypto.raidPct}%, capped at ${EXPOSED_HACK.cap}, for one extra tool. But everyone sees your balance, and every hack against you takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more. Each loud hack also adds ${EXPOSED_HACK.trace} trace, so the window closes itself. Spårfritt or the trace cleaner is the way back to quiet hacks.`
             )}
-          </p>
+          </div>
 
           <h3 className="flex items-center gap-2 pt-1 font-display text-base font-extrabold text-white">
             <Zap className="h-4 w-4 text-sky-300" />
@@ -586,8 +650,8 @@ export default function ManualPage() {
           </h3>
           <div className="surface-flat p-3 text-xs leading-relaxed text-slate-400">
             {L(
-              "Mellan två frågor får varje spelare en kort utmaning som roterar mellan fem sorter: rensa signalen, läs ritningen, följ signalen, knäck åtkomstkoden och starta om reläet. Ett rätt svar ger +180 crypto och +20 per steg i hackkedjan (högst 300 totalt), ett verktyg och −10 spår. Ett fel ger +10 spår. En chans per fråga.",
-              "Between two questions each player gets a short challenge that rotates through five kinds: purge the signal, read the blueprint, trace the signal, crack the access code and reboot the relay. A success pays +180 crypto and +20 per step in the hack chain (300 total at most), one tool and −10 trace. A miss adds +10 trace. One attempt per question."
+              "Mellan två frågor får varje spelare en kort utmaning som roterar mellan fem sorter: rensa signalen, läs ritningen, följ signalen, knäck åtkomstkoden och starta om reläet. Ett rätt svar ger +100 crypto och +20 per steg i hackkedjan (högst +160 totalt), ett verktyg och −10 spår. Ett fel ger +10 spår. En chans per fråga. Sidohacket är en bonus — det ska aldrig slå ut quizet som inkomstkälla.",
+              "Between two questions each player gets a short challenge that rotates through five kinds: purge the signal, read the blueprint, trace the signal, crack the access code and reboot the relay. A success pays +100 crypto and +20 per step in the hack chain (+160 at most), one tool and −10 trace. A miss adds +10 trace. One attempt per question. The side hack is a bonus — it should never eclipse the quiz as an income source."
             )}
           </div>
 
@@ -614,10 +678,11 @@ export default function ManualPage() {
             rows={defenseRows(crypto.defenses, "crypto")}
           />
           <ul className="space-y-1.5 pt-1">
-            <Tip>{L("Hacka den som har mest — 12 % av en stor plånbok slår 12 % av en liten.", "Hack the richest player — 12% of a big purse beats 12% of a small one.")}</Tip>
-            <Tip>{L("Ligg under 70 i spår innan du hackar igen; spårstädaren är billigare än ett extra verktyg.", "Stay below 70 trace before hacking again; the cleaner is cheaper than an extra tool.")}</Tip>
-            <Tip>{L("Spara Dubbla till ett läge där taket på +900 faktiskt används.", "Save Double for a position where the +900 cap is actually used.")}</Tip>
-            <Tip>{L("Rivalernas saldon visas avrundade här — du hackar delvis i blindo, och det är meningen.", "Rival balances are rounded here — you hack partly blind, and that is the point.")}</Tip>
+            <Tip>{L(`Hacka den som har mest — ${crypto.raidPct} % av en stor plånbok slår ${crypto.raidPct} % av en liten.`, `Hack the richest player — ${crypto.raidPct}% of a big purse beats ${crypto.raidPct}% of a small one.`)}</Tip>
+            <Tip>{L(`Ligg under ${cryptoExposed} i spår innan du hackar igen; spårstädaren tar 30 och svalkan tar ${TRACE_DECAY} per fråga.`, `Stay below ${cryptoExposed} trace before hacking again; the cleaner removes 30 and the cool-down removes ${TRACE_DECAY} per question.`)}</Tip>
+            <Tip>{L("Spårfritt är vägen tillbaka till tysta hack; Insider är ett stort hack utan att vänta på rätt spår.", "Spårfritt is the way back to quiet hacks; Insider is one big hack without waiting for the right trace.")}</Tip>
+            <Tip>{L("Rivalernas saldon visas avrundade — du hackar delvis i blindo. Avslöjade rivaler visas exakt.", "Rival balances are rounded — you hack partly blind. Exposed rivals are shown exactly.")}</Tip>
+            <Tip>{L(`En avslöjad rival är det bästa målet: hack mot hen tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer. Låt någon annan bli avslöjad först.`, `An exposed rival is the best target: hacks against them take ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more. Let someone else get exposed first.`)}</Tip>
           </ul>
         </ModeSection>
 
@@ -633,14 +698,14 @@ export default function ManualPage() {
             <Stat label={L("Start", "Start")} value={pirate.startBalance.toLocaleString("sv-SE")} />
             <Stat label={L("Rätt svar", "Correct answer")} value={`+${pirate.correctBalance}`} />
             <Stat label={L("Streak", "Streak")} value={`+${heistStreakBonus(2)}–${heistStreakBonus(9)}`} />
-            <Stat label={L("Energi", "Energy")} value={L("ingen", "none")} />
-            <Stat label={L("Rån", "Raid")} value={L("betalas i guld", "paid in gold")} />
+            <Stat label={L("Besättning", "Crew")} value={`${pirate.startEnergy} / ${pirate.maxEnergy}`} />
+            <Stat label={L("Rån", "Raid")} value={`${pirate.raidCost} + ${L("guld", "gold")}`} />
             <Stat label={L("Skydd", "Protection")} value={`${PROTECTION_MS / 1000} s`} />
           </div>
           <p className="text-sm leading-relaxed text-slate-400">
             {L(
-              "Pirate Heist har ingen energi. Varje rån kostar guld, kan misslyckas och betalar ingen återbäring om det går fel. Ett rätt svar ger +100 guld och ett steg på streakstegen.",
-              "Pirate Heist has no energy. Every raid costs gold, can fail and pays no refund when it does. A correct answer pays +100 gold and one step on the streak ladder."
+              `Varje rån kostar ${pirate.raidCost} besättning och en liten guldavgift, och kan misslyckas. Avgiften är ett antelag, inte priset på bytet — du bettingar på tärningen. Ett rätt svar ger +${pirate.correctBalance} guld och ett steg på streakstegen.`,
+              `Every raid costs ${pirate.raidCost} crew and a small gold ante, and can fail. The fee is an ante, not the price of the loot — you are betting on the dice. A correct answer pays +${pirate.correctBalance} gold and one step on the streak ladder.`
             )}
           </p>
           <RuleTable
@@ -655,10 +720,25 @@ export default function ManualPage() {
           />
           <p className="text-xs leading-relaxed text-slate-500">
             {L(
-              "Ett misslyckat rån kostar fortfarande avgiften. Ett lyckat rån mot en ny rival ger ett Mint-steg; att råna samma rival igen stjäl fortfarande guld men ger ingen ny bonus.",
-              "A failed raid still costs its fee. A successful raid against a new rival adds a Mint step; raiding the same rival again still steals gold but adds no new bonus."
+              "Ett misslyckat rån kostar både besättning och avgift. Ett lyckat rån mot en ny rival ger ett Mint-steg; att råna samma rival igen stjäl fortfarande guld men ger ingen ny bonus.",
+              "A failed raid keeps both the crew and the fee. A successful raid against a new rival adds a Mint step; raiding the same rival again still steals gold but adds no new bonus."
             )}
           </p>
+          <div className="surface-flat p-3 text-xs leading-relaxed text-slate-400">
+            <b className="text-slate-200">{L("Varför djärvare rån är bättre i snitt:", "Why bolder raids pay more on average:")}</b>{" "}
+            {L(
+              `Chansen sjunker, men andelen och taket stiger mer. Räknat på ett saldo på 1 000 guld ger ${pirateStyles
+                .map((s) => `${s.name} i snitt ${styleAverage(s, 1000) >= 0 ? "+" : ""}${styleAverage(s, 1000)}`)
+                .join(", ")}. På 3 000 guld: ${pirateStyles
+                .map((s) => `${s.name} ${styleAverage(s, 3000) >= 0 ? "+" : ""}${styleAverage(s, 3000)}`)
+                .join(", ")}. Full attack missar 55 % av gångerna — det är priset för det högsta snittet.`,
+              `The chance drops, but the share and cap rise further. Against a purse of 1,000 gold: ${pirateStyles
+                .map((s) => `${s.name} averages ${styleAverage(s, 1000) >= 0 ? "+" : ""}${styleAverage(s, 1000)}`)
+                .join(", ")}. At 3,000 gold: ${pirateStyles
+                .map((s) => `${s.name} ${styleAverage(s, 3000) >= 0 ? "+" : ""}${styleAverage(s, 3000)}`)
+                .join(", ")}. Full attack misses 55% of the time — that is the price of the highest average.`
+            )}
+          </div>
           <h3 className="flex items-center gap-2 pt-1 font-display text-base font-extrabold text-white">
             <Shield className="h-4 w-4 text-emerald-300" />
             {L("Försvar", "Defenses")}
@@ -669,9 +749,9 @@ export default function ManualPage() {
             rows={defenseRows(pirate.defenses, L("guld", "gold"))}
           />
           <ul className="space-y-1.5 pt-1">
-            <Tip>{L("Smygrån mot en tunn plånbok, full attack mot ledaren.", "Sneak against a thin purse, all-out against the leader.")}</Tip>
+            <Tip>{L("Full attack har högst förväntat byte men missar 55 % — använd den mot den rikaste, inte mot en tunn plånbok.", "All-out has the highest expected haul but misses 55% — use it against the richest, not a thin purse.")}</Tip>
             <Tip>{L("Ett lastutrymme skyddar 500 guld permanent — det gör dig till ett dåligt mål.", "A cargo hold protects 500 gold permanently — it makes you a bad target.")}</Tip>
-            <Tip>{L("Räkna med att ett misslyckat full attack kostar 300 guld. Ha råd med missen.", "Assume a failed all-out attack costs 300 gold. Be able to afford the miss.")}</Tip>
+            <Tip>{L("Ett misslyckat full attack kostar 90 guld och 2 besättning. Ha råd med missen.", "A failed all-out raid costs 90 gold and 2 crew. Be able to afford the miss.")}</Tip>
           </ul>
         </ModeSection>
 
@@ -752,12 +832,32 @@ export default function ManualPage() {
                 body: L("Rätt svar i följd. Varje nytt steg ger mer, upp till taket.", "Correct answers in a row. Each new step pays more, up to the cap."),
               },
               {
-                term: L("Energi / verktyg", "Energy / tools"),
-                body: L("Det som betalar ett rån eller hack. Fylls på av rätt svar och av varje ny fråga.", "What pays for a raid or hack. Topped up by correct answers and by each new question."),
+                term: L("Åtgärd: energi / verktyg / besättning", "Action: energy / tools / crew"),
+                body: L(
+                  "Det som betalar ett rån eller hack. Varje läge har sin egen: raid-energi, verktyg eller besättning. Fylls på av rätt svar och av varje ny fråga.",
+                  "What pays for a raid or hack. Each mode has its own: raid energy, tools or crew. Topped up by correct answers and by each new question."
+                ),
               },
               {
                 term: L("Spår", "Trace"),
-                body: L("Crypto Clash' hetta. Vid 70 blir du avslöjad och hacken kostar ett verktyg mer.", "Crypto Clash's heat. At 70 you are exposed and hacks cost one extra tool."),
+                body: L(
+                  `Crypto Clash' hetta. Vid ${cryptoExposed} blir du avslöjad: hacket tar ${EXPOSED_HACK.pct} % i stället för ${crypto.raidPct} %, men alla ser dig och tar mer av dig.`,
+                  `Crypto Clash's heat. At ${cryptoExposed} you are exposed: the hack takes ${EXPOSED_HACK.pct}% instead of ${crypto.raidPct}%, but everyone sees you and takes more from you.`
+                ),
+              },
+              {
+                term: L("Avslöjad", "Exposed"),
+                body: L(
+                  `Läget över spårgränsen. Ditt hack blir större och dyrare, ditt exakta saldo syns för alla, och alla hack mot dig tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer. Varje högljutt hack lägger också på extra spår.`,
+                  `The state above the trace line. Your hack grows and costs more, your exact balance is visible, and every hack against you takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more. Each loud hack adds extra trace too.`
+                ),
+              },
+              {
+                term: L("Insider", "Insider"),
+                body: L(
+                  `En engångspower i Crypto Clash: nästa hack kostar ${INSIDER_HACK.tools} verktyg och tar ${INSIDER_HACK.pct} % (max ${INSIDER_HACK.cap}), oavsett spår.`,
+                  `A one-shot Crypto power: your next hack costs ${INSIDER_HACK.tools} tool and takes ${INSIDER_HACK.pct}% (max ${INSIDER_HACK.cap}), whatever your trace.`
+                ),
               },
               {
                 term: L("Skydd", "Protection"),
@@ -793,15 +893,36 @@ export default function ManualPage() {
               {
                 q: L("Varför kan jag inte råna någon?", "Why can't I raid anyone?"),
                 a: L(
-                  `Du behöver ${vault.raidCost} energi. Rivalen kan också vara skyddad i ${PROTECTION_MS / 1000} sekunder efter ett tidigare rån, och i Pirate Heist måste du ha råd med avgiften.`,
-                  `You need ${vault.raidCost} energy. The rival may also be protected for ${PROTECTION_MS / 1000} seconds after an earlier raid, and in Pirate Heist you must be able to afford the fee.`
+                  `Du behöver ${vault.raidCost} av lägrets åtgärd (raid-energi, verktyg eller besättning). Rivalen kan också vara skyddad i ${PROTECTION_MS / 1000} sekunder efter ett tidigare rån. I Pirate Heist måste du ha råd med guldavgiften, och i Crypto Clash kostar ett hack 3 verktyg när du är avslöjad.`,
+                  `You need ${vault.raidCost} of the mode's action point (raid energy, tools or crew). The rival may also be protected for ${PROTECTION_MS / 1000} seconds after an earlier raid. In Pirate Heist you must afford the gold ante, and in Crypto Clash a hack costs 3 tools while you are exposed.`
                 ),
               },
               {
-                q: L("Varför stal jag mindre än 15 %?", "Why did I steal less than 15%?"),
+                q: L("Varför stal jag mindre än väntat?", "Why did I steal less than expected?"),
                 a: L(
-                  "Ett försvar kan ta bort en del eller allt. Ett lastutrymme håller 500 guld utanför räckhåll, och taket stoppar stora rån.",
-                  "A defense can remove part or all of it. A cargo hold keeps 500 gold out of reach, and the cap stops large raids."
+                  `Ett försvar kan ta bort en del eller allt. Ett lastutrymme håller 500 guld utanför räckhåll, och taket stoppar stora rån. I Pirate beror andelen på tärningen du valde — ${pirateStyles.map((s) => `${s.name} ${s.pct} %`).join(", ")}.`,
+                  `A defense can remove part or all of it. A cargo hold keeps 500 gold out of reach, and the cap stops large raids. In Pirate the share depends on the dice you picked — ${pirateStyles.map((s) => `${s.name} ${s.pct}%`).join(", ")}.`
+                ),
+              },
+              {
+                q: L("Varför tar hacket mer när jag är avslöjad?", "Why does my hack take more while exposed?"),
+                a: L(
+                  `Det är fördelen med att vara avslöjad, och den är betald. Över ${cryptoExposed} spår kostar hacket ${crypto.raidCost + EXPOSED_HACK.tools} verktyg men tar ${EXPOSED_HACK.pct} % (max ${EXPOSED_HACK.cap}) i stället för ${crypto.raidPct} % (max ${crypto.raidCap}). Samtidigt ser alla ditt saldo och tar ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)} % mer av dig. Varje högljutt hack lägger på ${EXPOSED_HACK.trace} extra spår, så du kan inte stanna där.`,
+                  `It is the upside of being exposed, and it is paid for. Above ${cryptoExposed} trace the hack costs ${crypto.raidCost + EXPOSED_HACK.tools} tools but takes ${EXPOSED_HACK.pct}% (max ${EXPOSED_HACK.cap}) instead of ${crypto.raidPct}% (max ${crypto.raidCap}). At the same time everyone sees your balance and takes ${Math.round((EXPOSED_TARGET_MULTIPLIER - 1) * 100)}% more from you. Each loud hack adds ${EXPOSED_HACK.trace} extra trace, so you cannot camp there.`
+                ),
+              },
+              {
+                q: L("Varför förlorade jag mynt på en kista?", "Why did a chest cost me coins?"),
+                a: L(
+                  `Bara den vågade kistan kan göra det: ${Math.round(CHEST_WILD_CHANCE * 100)} % chans till +${CHEST_WILD_WIN}, annars −${CHEST_WILD_LOSS}. Den säkra kistan betalar alltid +${CHEST_SAFE_REWARD}, och rånkistan tar från ledaren utan att kosta dig något.`,
+                  `Only the wild chest can do that: a ${Math.round(CHEST_WILD_CHANCE * 100)}% chance of +${CHEST_WILD_WIN}, otherwise −${CHEST_WILD_LOSS}. The safe chest always pays +${CHEST_SAFE_REWARD}, and the raid chest takes from the leader without costing you anything.`
+                ),
+              },
+              {
+                q: L("Hur kan full attack vara bättre när den missar mer?", "How can all-out be better when it misses more?"),
+                a: L(
+                  "Därför att avgiften är liten och andelen är stor. Missar du betalar du bara antelaget; träffar du tar du en tredjedel av en stor plånbok. I snitt vinner den på allt över några hundra guld, men den svider när den missar.",
+                  "Because the ante is small and the share is large. A miss costs only the ante; a hit takes a third of a big purse. On average it wins against anything above a few hundred gold, but it stings when it misses."
                 ),
               },
               {
@@ -814,15 +935,15 @@ export default function ManualPage() {
               {
                 q: L("Kan jag öppna fler kistor?", "Can I open more chests?"),
                 a: L(
-                  "En per fråga. Om du hoppar över en kista sparas den inte till nästa fråga — du får helt enkelt en ny då.",
-                  "One per question. If you skip a chest it is not banked for later — you simply get a new one next question."
+                  "En per fråga, och du väljer bland tre olika vad: säker, mot ledaren eller 50/50. Hoppar du över en sparas den inte — nästa fråga ger en ny.",
+                  "One per question, and you choose between three different bets: safe, against the leader, or 50/50. If you skip one it is not banked — the next question gives a new one."
                 ),
               },
               {
                 q: L("Varför kostar mitt hack plötsligt tre verktyg?", "Why does my hack suddenly cost three tools?"),
                 a: L(
-                  `Du har ${crypto.trace?.exposed ?? 70} spår eller mer och är avslöjad. Spårstädaren tar bort 30, och spåret svalnar med 10 varje ny fråga.`,
-                  `You have ${crypto.trace?.exposed ?? 70} trace or more and are exposed. The trace cleaner removes 30, and trace cools by 10 each new question.`
+                  `Du har ${cryptoExposed} spår eller mer och är avslöjad. Spårstädaren tar bort 30, spåret svalnar med ${TRACE_DECAY} varje ny fråga, och Spårfritt nollställer det helt.`,
+                  `You have ${cryptoExposed} trace or more and are exposed. The trace cleaner removes 30, trace cools by ${TRACE_DECAY} each new question, and Spårfritt wipes it entirely.`
                 ),
               },
               {

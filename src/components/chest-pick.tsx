@@ -2,16 +2,18 @@
 import { useEffect, useRef, useState } from "react";
 import KeenAvatar from "@/components/keens/keen-avatar";
 import { KEEN_BY_ID } from "@/lib/keens";
-import type { ChestReveal as Reveal } from "@/lib/game-modes";
-import { Coins, Gift, Sparkles, TrendingDown, TrendingUp, X } from "lucide-react";
+import type { ChestOffer, ChestReveal as Reveal } from "@/lib/game-modes";
+import { Coins, Crosshair, Dices, Sparkles, TrendingDown, TrendingUp, X } from "lucide-react";
 
 /**
  * The chest, in full screen.
  *
  * Vault Raiders' chest is the one moment in a match where a player acts alone:
- * a question has just ended, three identical boxes are on screen, and only the
- * tap decides what was in it. Doing that inside the heist panel made it look
- * like a button; taking over the screen makes it the event it is.
+ * a question has just ended and three boxes are on screen. They are not three
+ * copies — one pays a sure amount, one takes a slice of the leader, one is a
+ * coin flip that can cost coins — so the tap is a decision the player can
+ * actually make. Doing that inside the heist panel made it look like a button;
+ * taking over the screen makes it the event it is.
  *
  * Two halves, because two different things have to happen:
  *  - `ChestPick` is the player's own screen, before the tap.
@@ -61,11 +63,36 @@ function Backdrop({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The player's own screen: three chests, one tap, no timer. */
+/** One look per bet, so the three boxes never read as the same object. */
+const OFFER_TONE: Record<
+  ChestOffer["id"],
+  { frame: string; glow: string; chip: string; icon: typeof Coins }
+> = {
+  safe: {
+    frame: "border-emerald-400/30 from-emerald-500/15 hover:border-emerald-300/70 hover:from-emerald-400/25",
+    glow: "bg-emerald-400/20",
+    chip: "border-emerald-400/30 bg-emerald-500/15 text-emerald-100",
+    icon: Coins,
+  },
+  raid: {
+    frame: "border-rose-400/30 from-rose-500/15 hover:border-rose-300/70 hover:from-rose-400/25",
+    glow: "bg-rose-400/20",
+    chip: "border-rose-400/30 bg-rose-500/15 text-rose-100",
+    icon: Crosshair,
+  },
+  wild: {
+    frame: "border-amber-400/40 from-amber-500/20 hover:border-amber-300/80 hover:from-amber-400/30",
+    glow: "bg-amber-400/25",
+    chip: "border-amber-400/40 bg-amber-500/20 text-amber-100",
+    icon: Dices,
+  },
+};
+
+/** The player's own screen: three different bets, one tap, no timer. */
 export function ChestPick({
   name,
   keenId,
-  legend,
+  offers,
   question,
   pending,
   onPick,
@@ -73,8 +100,8 @@ export function ChestPick({
 }: {
   name: string;
   keenId?: string | null;
-  /** Every possible outcome, so the gamble is honest about what it is. */
-  legend: string[];
+  /** The three boxes, with what each one is worth, printed before the tap. */
+  offers: ChestOffer[];
   /** The question just answered, for the header line. */
   question: number;
   pending: boolean;
@@ -85,7 +112,7 @@ export function ChestPick({
 
   return (
     <Backdrop>
-      <div className="relative w-full max-w-3xl text-center">
+      <div className="relative w-full max-w-4xl text-center">
         <div className="flex items-center justify-center gap-3">
           {keen ? (
             <KeenAvatar keen={keen} size={44} />
@@ -102,38 +129,47 @@ export function ChestPick({
           </div>
         </div>
 
-        <h2 className="page-title mt-4">Öppna en kista</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-          Tre kistor, samma fråga. Bara draget avgör vad som ligger i den du tar — och hela rummet ser vad du fick.
+        <h2 className="page-title mt-4">Välj din kista</h2>
+        <p className="mx-auto mt-2 max-w-lg text-sm text-slate-400">
+          Tre kistor, tre olika vad. Den säkra betalar, rånkistan tar från ledaren och den vågade kan kosta dig.
+          Hela rummet ser vad du fick.
         </p>
 
-        <div className="mt-7 grid grid-cols-3 gap-3 sm:gap-5">
-          {[0, 1, 2].map((i) => (
-            <button
-              key={i}
-              type="button"
-              disabled={pending}
-              onClick={() => onPick(i)}
-              className="group flex flex-col items-center gap-3 rounded-[24px] border border-amber-400/30 bg-gradient-to-b from-amber-500/15 to-slate-950/40 px-2 py-5 transition-all hover:-translate-y-1.5 hover:border-amber-300/70 hover:from-amber-400/25 disabled:opacity-50 sm:py-7"
-            >
-              <span className="animate-keen-bob" style={{ animationDelay: `${i * 0.4}s` }}>
-                <ChestArt open={false} />
-              </span>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-amber-100">Kista {i + 1}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-1.5">
-          <Gift className="h-3.5 w-3.5 text-amber-300/70" />
-          {legend.map((name2) => (
-            <span
-              key={name2}
-              className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-100/70"
-            >
-              {name2}
-            </span>
-          ))}
+        <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-4">
+          {offers.map((offer, i) => {
+            const tone = OFFER_TONE[offer.id];
+            const Icon = tone.icon;
+            return (
+              <button
+                key={offer.id}
+                type="button"
+                disabled={pending}
+                onClick={() => onPick(i)}
+                className={`group relative flex flex-col items-center gap-2 overflow-hidden rounded-[22px] border bg-gradient-to-b to-slate-950/50 px-1.5 py-4 text-center transition-all hover:-translate-y-1.5 disabled:opacity-50 sm:gap-3 sm:px-3 sm:py-6 ${tone.frame}`}
+              >
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute -top-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full blur-3xl ${tone.glow}`}
+                />
+                <span className="relative animate-keen-bob" style={{ animationDelay: `${i * 0.35}s` }}>
+                  <ChestArt open={false} />
+                </span>
+                <span className="relative flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-white sm:text-xs">
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{offer.name}</span>
+                </span>
+                <span
+                  className={`relative rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider sm:text-[10px] ${tone.chip}`}
+                  data-no-translate
+                >
+                  {offer.odds}
+                </span>
+                <span className="relative line-clamp-3 text-[9px] font-semibold leading-snug text-white/60 sm:text-[10px]">
+                  {offer.blurb}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-7">
@@ -155,9 +191,7 @@ export function ChestPick({
 const KIND_ACCENT: Record<Reveal["kind"], string> = {
   gold: "text-amber-300",
   steal: "text-rose-300",
-  swap: "text-violet-300",
-  shield: "text-emerald-300",
-  storm: "text-sky-300",
+  bust: "text-rose-400",
 };
 
 /**
@@ -232,7 +266,7 @@ export function ChestReveal({ reveal, onClose }: { reveal: Reveal; onClose: () =
         {reveal.rival && (
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-slate-300">
             <Sparkles className="h-3.5 w-3.5 text-amber-300/80" />
-            {reveal.kind === "swap" ? "Bytte med" : "Rånade"} {reveal.rival}
+            Tog från {reveal.rival}
           </p>
         )}
 

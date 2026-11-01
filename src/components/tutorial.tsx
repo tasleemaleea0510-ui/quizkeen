@@ -59,7 +59,7 @@ const STEPS = [
   {
     icon: <Gift className="h-5 w-5 text-amber-400" />,
     title: "Kistor och power-ups",
-    text: "Vault Raiders: öppna en kista per fråga — myntregn, skattkarta, spegelbyte, väktarsigill eller stormladdning. Om rånet saknar ett giltigt mål ger valvet tröstpris. Crypto Clash: “Dubbla” din plånbok en gång per match och håll spåret lågt. Pirate Heist: välj smygrån, snabbrån eller full attack.",
+    text: "Vault Raiders: en kista per fråga, och de tre är olika vad — säker, mot ledaren eller 50/50. Crypto Clash: vid 65 spår är du avslöjad. Hacket blir större, men alla ser ditt saldo och tar 50 % mer av dig; Spårfritt eller Insider är dina två nödutgångar. Pirate Heist: välj smygrån, snabbrån eller full attack — djärvare tärning tar mer i snitt.",
   },
   {
     icon: <Shield className="h-5 w-5 text-emerald-400" />,

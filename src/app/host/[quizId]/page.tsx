@@ -23,9 +23,11 @@ import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
 import {
+  MODE_IDENTITY,
   MODE_RULES,
   addCorrect,
   applyAction,
+  approxBalance,
   breakStreak,
   mintPayout,
   newHeist,
@@ -648,7 +650,7 @@ export default function HostPage() {
                     <b className="text-slate-200" data-no-translate>
                       {roundRules.mint.rest}
                     </b>
-                    . Ett lyckat rån mot en ny rival ger +
+                    . Ett lyckat {roundRules.id === "crypto" ? "hack" : "rån"} mot en ny rival ger +
                     <b className="text-slate-200" data-no-translate>
                       {roundRules.mint.perRaid}
                     </b>{" "}
@@ -657,6 +659,9 @@ export default function HostPage() {
                       {roundRules.mint.bonusCap}
                     </b>
                     .
+                  </p>
+                  <p className="mt-1">
+                    <b className="text-slate-200">Lägets beslut:</b> {MODE_IDENTITY[roundRules.id].twist.sv}
                   </p>
                 </div>
               )}
@@ -802,6 +807,17 @@ export default function HostPage() {
                       })}
                     </div>
 
+                    {heist && (
+                      <p className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-center text-[11px] font-bold text-amber-100/80">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                        {heist.mode === "crypto"
+                          ? "Handlingsfönster: vänta ~15 sekunder så hinner klassen hacka, handla och köra sidohacket."
+                          : heist.mode === "pirate"
+                            ? "Handlingsfönster: vänta ~15 sekunder så hinner klassen välja tärning, råna och handla."
+                            : "Handlingsfönster: vänta ~15 sekunder så hinner klassen råna, handla och välja kista."}
+                      </p>
+                    )}
+
                     <Button className="mt-6 h-12 w-full gap-2 text-base" onClick={next}>
                       {qIndex + 1 < total ? (
                         <>
@@ -929,7 +945,13 @@ export default function HostPage() {
                             </span>
                           )}
                           <span className="shrink-0 font-mono text-sm font-extrabold text-amber-300" data-no-translate>
-                            {p.balance.toLocaleString("sv-SE")}
+                            {/* Crypto hides exact balances until a hacker's trace
+                                gives them away — on the projector too, or the
+                                rule would only exist on the small screens. */}
+                            {heist.mode === "crypto" &&
+                            !(seat && seat.trace >= (heistRules.trace?.exposed ?? 65))
+                              ? approxBalance(p.balance)
+                              : p.balance.toLocaleString("sv-SE")}
                           </span>
                         </div>
                       );

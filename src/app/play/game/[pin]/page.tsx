@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyUsername } from "@/app/settings/actions";
-import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight, LogOut, BookOpen } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Loader2, Layers3, Swords, Coins, ArrowRight, LogOut, BookOpen, Radar, Zap } from "lucide-react";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { WornBuddy } from "@/components/keens/worn-keen";
 import CountUp from "@/components/motion/count-up";
@@ -294,6 +294,33 @@ function GameInner() {
               <span data-no-translate>
                 {(heist?.players[name]?.balance ?? 0).toLocaleString("sv-SE")}
               </span>
+            </span>
+          )}
+          {/* The rail below repeats these, but a phone that has scrolled past it
+              should still be able to see what a raid costs. */}
+          {modeRules && heist?.players[name] && (
+            <span
+              title={`${modeRules.energyName}: ${heist.players[name].energy}/${heist.players[name].maxEnergy}`}
+              className="hidden items-center gap-1 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1 text-xs font-extrabold text-indigo-200 md:flex"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span data-no-translate>
+                {heist.players[name].energy}/{heist.players[name].maxEnergy}
+              </span>
+            </span>
+          )}
+          {modeRules?.trace && heist?.players[name] && (
+            <span
+              title={`Spår: ${heist.players[name].trace}`}
+              className={cn(
+                "hidden items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-extrabold md:flex",
+                heist.players[name].trace >= (modeRules.trace.exposed ?? 65)
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+              )}
+            >
+              <Radar className="h-3.5 w-3.5" />
+              <span data-no-translate>{heist.players[name].trace}</span>
             </span>
           )}
           <span
@@ -750,7 +777,7 @@ function GameInner() {
         <ChestPick
           name={name}
           keenId={heist.players[name]?.keen ?? null}
-          legend={MODE_RULES[heist.mode].chests?.map((c) => c.name) ?? []}
+          offers={MODE_RULES[heist.mode].chests ?? []}
           question={(question?.index ?? 0) + 1}
           pending={heistSending}
           onPick={(chest) => heistAction({ kind: "chest", chest })}
