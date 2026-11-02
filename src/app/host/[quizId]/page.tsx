@@ -24,7 +24,8 @@ import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
 import {
-  ACTION_WINDOW_MS,
+  ACTION_WINDOW_CHOICES,
+  DEFAULT_ACTION_WINDOW_SECONDS,
   DEFAULT_MATCH_MINUTES,
   MATCH_LENGTHS,
   MODE_IDENTITY,
@@ -116,15 +117,18 @@ export default function HostPage() {
   // Classic keeps the shared question clock and the host advancing the room;
   // the heist modes run as a race with a match clock instead.
   const [matchMinutes, setMatchMinutes] = useState(DEFAULT_MATCH_MINUTES);
-  const [matchEndsAt, setMatchEndsAt] = useState<number | null>(null);
-  const [progress, setProgress] = useState<Record<string, PacedProgress>>({});
-  const matchMinutesRef = useRef(DEFAULT_MATCH_MINUTES);
   // ── The action window ────────────────────────────────────────────────────
-  // Fifteen seconds between questions, timestamped once and shared: the seat,
+  // Shared seconds between questions, timestamped once and shared: the seat,
   // this projector and every other phone count the same endsAt stamp, so a
   // raid or a hack cannot slip in "one more second" on someone's watch.
   // Keyed by seat in races (every seat has its own), one stamp for the room in
-  // classic (the whole room sits at the same reveal).
+  // classic (the whole room sits at the same reveal). The length is a lobby
+  // setting next to the match clock, not a constant.
+  const [windowSeconds, setWindowSeconds] = useState(DEFAULT_ACTION_WINDOW_SECONDS);
+  const windowSecondsRef = useRef(DEFAULT_ACTION_WINDOW_SECONDS);
+  const [matchEndsAt, setMatchEndsAt] = useState<number | null>(null);
+  const [progress, setProgress] = useState<Record<string, PacedProgress>>({});
+  const matchMinutesRef = useRef(DEFAULT_MATCH_MINUTES);
   const windowsRef = useRef<Record<string, number>>({});
   const classicWindowRef = useRef(0);
   const [classicWindowEndsAt, setClassicWindowEndsAt] = useState(0);
@@ -168,6 +172,7 @@ export default function HostPage() {
   useEffect(() => { quizRef.current = quiz; }, [quiz]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { matchMinutesRef.current = matchMinutes; }, [matchMinutes]);
+  useEffect(() => { windowSecondsRef.current = windowSeconds; }, [windowSeconds]);
   useEffect(() => { matchEndsAtRef.current = matchEndsAt; }, [matchEndsAt]);
 
   useEffect(() => {
@@ -235,7 +240,7 @@ export default function HostPage() {
     // Fifteen seconds between a seat's answers in a race, timestamped the
     // same way on every screen: the seat, its neighbours and this board all
     // count the same seconds from the same endsAt stamp.
-    const windowEndsAt = Date.now() + ACTION_WINDOW_MS;
+    const windowEndsAt = Date.now() + windowSecondsRef.current * 1000;
     windowsRef.current[name] = windowEndsAt;
     safeSend(game, {
       type: "broadcast", event: "pace",
@@ -459,7 +464,7 @@ export default function HostPage() {
       if (race && who && phaseRef.current === "live") {
         safeSend(game, {
           type: "broadcast", event: "match",
-          payload: { mode: modeRef.current, minutes: matchMinutesRef.current, endsAt: matchEndsAtRef.current, questions: race.list },
+          payload: { mode: modeRef.current, minutes: matchMinutesRef.current, endsAt: matchEndsAtRef.current, windowSec: windowSecondsRef.current, questions: race.list },
         });
         if (progressRef.current) safeSend(game, { type: "broadcast", event: "progress", payload: progressRef.current });
         if (heistRef.current?.players[who]) {
@@ -588,7 +593,7 @@ export default function HostPage() {
       const endsAt = Date.now() + minutes * 60000;
       matchEndsAtRef.current = endsAt;
       setMatchEndsAt(endsAt);
-      broadcast("match", { mode: chosen, minutes, endsAt, questions: list });
+      broadcast("match", { mode: chosen, minutes, endsAt, windowSec: windowSecondsRef.current, questions: list });
       phaseRef.current = "live";
       setPhase("live");
       return;
@@ -637,7 +642,7 @@ export default function HostPage() {
     // The room-wide action window: the reveal is when chest, hack and raids
     // between questions happen, so the whole room gets one shared fifteen
     // seconds — stamped once here, counted down identically on every screen.
-    const windowEndsAt = Date.now() + ACTION_WINDOW_MS;
+    const windowEndsAt = Date.now() + windowSecondsRef.current * 1000;
     classicWindowRef.current = windowEndsAt;
     setClassicWindowEndsAt(windowEndsAt);
     broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores, streaks: streaksRef.current, windowEndsAt });
@@ -984,6 +989,35 @@ export default function HostPage() {
                   </span>
                 </div>
               )}
+              {/* The action window applies to every mode — a race seat gets one
+                  between its own questions, classic the whole room between
+                  the reveals — so its length sits here for all of them. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-violet-200">
+                  <Hourglass className="h-3.5 w-3.5" />
+                  Åtgärdsfönster
+                </span>
+                {ACTION_WINDOW_CHOICES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setWindowSeconds(s)}
+                    aria-pressed={windowSeconds === s}
+                    data-no-translate
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 font-mono text-xs font-extrabold transition-colors",
+                      windowSeconds === s
+                        ? "bg-violet-400 text-violet-950 shadow"
+                        : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/30"
+                    )}
+                  >
+                    {s} s
+                  </button>
+                ))}
+                <span className="text-[11px] text-slate-500">
+                  Tiden mellan frågorna för rån, hack, kista och köp — {mode === "classic" ? "hela klassrummet räknar tillsammans" : "varje spelare får egna sekunder"}.
+                </span>
+              </div>
               {roundRules && (
                 <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-slate-400">
                   <p>
@@ -1144,7 +1178,7 @@ export default function HostPage() {
                                   {prog.correct}/{prog.answered} rätt
                                 </span>
                                 {windowsRef.current[name] && Date.now() <= windowsRef.current[name] ? (
-                                  <ActionWindowChip endsAt={windowsRef.current[name]} small />
+                                  <ActionWindowChip endsAt={windowsRef.current[name]} seconds={windowSeconds} small />
                                 ) : null}
                               </>
                             ) : (
@@ -1281,7 +1315,7 @@ export default function HostPage() {
                     {heist && (
                       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                         {phase === "reveal" && classicWindowEndsAt > Date.now() && (
-                          <ActionWindowChip endsAt={classicWindowEndsAt} />
+                          <ActionWindowChip endsAt={classicWindowEndsAt} seconds={windowSeconds} />
                         )}
                         <p className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-center text-[11px] font-bold text-amber-100/80">
                           <Clock className="h-3.5 w-3.5 shrink-0 text-amber-300" />

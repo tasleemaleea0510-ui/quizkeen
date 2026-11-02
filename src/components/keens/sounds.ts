@@ -153,3 +153,13 @@ export function playCorrect() {
 export function playWrong() {
   tone({ freq: 300, slideTo: 190, dur: 0.2, type: "sine", gain: 0.035 });
 }
+
+/**
+ * A tick of the minutes-to-close clock: meant to be felt from a pocket, not
+ * to press itself onto the room. Each of the last three seconds gets one,
+ * and the last one is pitched a touch higher so "now" is audible without
+ * looking.
+ */
+export function playTick(last = false) {
+  tone({ freq: last ? 1100 : 880, dur: 0.045, type: "square", gain: 0.022 });
+}

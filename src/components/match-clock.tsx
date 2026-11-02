@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playTick } from "@/components/keens/sounds";
 
 /**
  * The race's finish line, as seen on a wall.
@@ -58,10 +59,22 @@ export function MatchClockChip({ endsAt, minutes, className }: { endsAt: number;
  * It reads the one `endsAt` stamp the host sent, so the player, the other
  * phones and the projector all count the same seconds with no extra traffic.
  */
-export function ActionWindowChip({ endsAt, small, className }: { endsAt: number; small?: boolean; className?: string }) {
+export function ActionWindowChip({ endsAt, small, seconds = 15, className }: { endsAt: number; small?: boolean; seconds?: number; className?: string }) {
   const [left, setLeft] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+  // The final three seconds are audible: one soft tick each, the very last
+  // pitched higher. A ref keeps the interval from firing the same second
+  // twice, and the page renders lazily in a pocketed phone without missing
+  // the ticks it did render through.
+  const tickedRef = useRef(-1);
   useEffect(() => {
-    const iv = setInterval(() => setLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))), 250);
+    const iv = setInterval(() => {
+      const leftNow = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setLeft(leftNow);
+      if (leftNow > 0 && leftNow <= 3 && tickedRef.current !== leftNow) {
+        tickedRef.current = leftNow;
+        playTick(leftNow === 1);
+      }
+    }, 250);
     return () => clearInterval(iv);
   }, [endsAt]);
 
@@ -70,7 +83,7 @@ export function ActionWindowChip({ endsAt, small, className }: { endsAt: number;
     : "border-violet-400/40 bg-violet-500/15 text-violet-200";
   return (
     <span
-      title={small ? "Åtgärdsfönster" : "Åtgärdsfönster: rån, hack, kista och köp — 15 sekunder"}
+      title={small ? "Åtgärdsfönster" : `Åtgärdsfönster: rån, hack, kista och köp — ${seconds} sekunder`}
       data-no-translate
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-xs font-extrabold tracking-wider",

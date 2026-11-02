@@ -638,11 +638,15 @@ export const MATCH_LENGTHS = [3, 5, 8, 12];
 export const DEFAULT_MATCH_MINUTES = 5;
 
 /**
- * The action window: fifteen shared seconds between a question's reveal and
- * the seat's move on, when raids, hacks, the chest and purchases are live.
- * The host stamps it once per question; every screen counts the same stamp.
+ * The action window: shared seconds between a question's reveal and the
+ * seat's move on, when raids, hacks, the chest and purchases are live. The
+ * host stamps it once per question; every screen counts the same stamp.
+ * The length is the host's call, not a law of physics — a class that wants
+ * longer heists between questions picks 20 or 30 here, in the lobby.
  */
-export const ACTION_WINDOW_MS = 15_000;
+export const ACTION_WINDOW_CHOICES = [10, 15, 20, 30];
+export const DEFAULT_ACTION_WINDOW_SECONDS = 15;
+export const ACTION_WINDOW_MS = DEFAULT_ACTION_WINDOW_SECONDS * 1000;
 
 /**
  * What a correct-answer streak is worth on top of the flat reward. The first

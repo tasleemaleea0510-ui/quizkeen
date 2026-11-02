@@ -18,7 +18,6 @@ import { stageTheme } from "@/components/game/game-theme";
 import { cn } from "@/lib/utils";
 import { ANSWER_TINTS as COLORS } from "@/lib/answer-tints";
 import {
-  ACTION_WINDOW_MS,
   MODE_RULES,
   chestOpen,
   standings,
@@ -80,7 +79,7 @@ function GameInner() {
   // In the heist modes nobody waits for the host: the match hands out the
   // question sheet once, then paces every seat on its own, and the shared
   // clock is what stops the match.
-  const [race, setRace] = useState<{ minutes: number; endsAt: number; length: number } | null>(null);
+  const [race, setRace] = useState<{ minutes: number; endsAt: number; length: number; windowSec?: number } | null>(null);
   const raceListRef = useRef<RaceQuestion[] | null>(null);
   const [lap, setLap] = useState(1);
   const [endStats, setEndStats] = useState<EndStat[] | null>(null);
@@ -159,10 +158,10 @@ function GameInner() {
     // The match sheet arrives once; every pace is addressed to one seat and
     // silently dropped by all the others.
     game.on("broadcast", { event: "match" }, (msg) => {
-      const p = msg.payload as { mode?: string; minutes: number; endsAt: number; questions: RaceQuestion[] };
+      const p = msg.payload as { mode?: string; minutes: number; endsAt: number; windowSec?: number; questions: RaceQuestion[] };
       if (!Array.isArray(p?.questions) || p.questions.length === 0) return;
       raceListRef.current = p.questions;
-      setRace({ minutes: p.minutes ?? 5, endsAt: p.endsAt ?? Date.now(), length: p.questions.length });
+      setRace({ minutes: p.minutes ?? 5, endsAt: p.endsAt ?? Date.now(), length: p.questions.length, windowSec: p.windowSec });
       continueSentRef.current = false;
       setContinuing(false);
       setPhase("waiting");
@@ -300,7 +299,7 @@ function GameInner() {
   useEffect(() => {
     if (!race || phase !== "reveal" || continuing) return;
     if (continueSentRef.current) return;
-    const ends = actionEndsAt ?? Date.now() + ACTION_WINDOW_MS;
+    const ends = actionEndsAt ?? Date.now() + (race?.windowSec ?? 15) * 1000;
     const tick = setInterval(() => setContinueIn(Math.max(0, Math.ceil((ends - Date.now()) / 1000))), 500);
     const go = setTimeout(requestNext, Math.max(0, ends - Date.now()));
     return () => {
@@ -669,7 +668,7 @@ function GameInner() {
 
                 {phase === "reveal" && actionEndsAt !== null && (
                   <div className="mx-auto flex w-full max-w-md flex-col items-center gap-1.5">
-                    <ActionWindowChip endsAt={actionEndsAt} />
+                    <ActionWindowChip endsAt={actionEndsAt} seconds={race?.windowSec ?? 15} />
                     <p className="text-center text-[11px] font-bold text-violet-200/80">
                       {actionOpen
                         ? "Rån, hack, kista och köp är öppna tills fönstret stänger."
