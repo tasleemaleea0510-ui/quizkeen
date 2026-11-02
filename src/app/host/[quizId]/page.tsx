@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateGamePin } from "@/lib/utils";
+import { cn, generateGamePin } from "@/lib/utils";
 import {
   HOST_PRESENCE_CONFIG,
   LOBBY_PING,
@@ -14,8 +14,9 @@ import {
 import Link from "next/link";
 import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
-import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut, BookOpen } from "lucide-react";
+import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut, BookOpen, Hourglass, Flag, ListChecks } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
+import { MatchClock, MatchClockChip } from "@/components/match-clock";
 import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
 import GameStage from "@/components/game/game-stage";
@@ -23,9 +24,12 @@ import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
 import {
+  DEFAULT_MATCH_MINUTES,
+  MATCH_LENGTHS,
   MODE_IDENTITY,
   MODE_RULES,
   addCorrect,
+  advancePlayer,
   applyAction,
   approxBalance,
   breakStreak,
@@ -35,6 +39,7 @@ import {
   standings,
   classicStreakBonus,
   type ChestReveal as ChestRevealData,
+  type EndStat,
   type HeistAction,
   type HeistState,
   type ModeId,
@@ -45,6 +50,18 @@ type Q = { id: string; text: string; options: string[]; correctIndexes: number[]
 // How long a question stays open when nobody answers. The host can always end
 // it sooner, and it ends by itself the moment every player has answered.
 const QUESTION_SECONDS = 20;
+
+/**
+ * The race layer.
+ *
+ * In the three heist modes nobody waits for the class: a seat that answers
+ * gets scored on the spot and moves straight to its own next question, and
+ * the match itself ends when the shared clock runs out — Blooket-style. The
+ * host stays the one authority: it checks every answer, advances one seat at
+ * a time, and settles every raid.
+ */
+type RaceQuestion = { text: string; options: string[]; correctCount: number };
+type PacedProgress = { q: number; lap: number; correct: number; answered: number };
 
 /**
  * Send on a realtime channel, and never let it stop the match.
@@ -70,7 +87,7 @@ export default function HostPage() {
 
   const [pin] = useState(() => generateGamePin());
   const [quiz, setQuiz] = useState<{ title: string; questions: Q[] } | null>(null);
-  const [phase, setPhase] = useState<"lobby" | "question" | "reveal" | "end">("lobby");
+  const [phase, setPhase] = useState<"lobby" | "question" | "reveal" | "live" | "end">("lobby");
   const [leaving, setLeaving] = useState(false);
   const [qIndex, setQIndex] = useState(0);
   const [players, setPlayers] = useState<string[]>([]);
@@ -94,6 +111,23 @@ export default function HostPage() {
   // shows it too instead of leaving it on the puller's phone.
   const [chestReveal, setChestReveal] = useState<ChestRevealData | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // ── Race state ───────────────────────────────────────────────────────────
+  // Classic keeps the shared question clock and the host advancing the room;
+  // the heist modes run as a race with a match clock instead.
+  const [matchMinutes, setMatchMinutes] = useState(DEFAULT_MATCH_MINUTES);
+  const [matchEndsAt, setMatchEndsAt] = useState<number | null>(null);
+  const [progress, setProgress] = useState<Record<string, PacedProgress>>({});
+  const matchMinutesRef = useRef(DEFAULT_MATCH_MINUTES);
+  const matchEndsAtRef = useRef<number | null>(null);
+  const raceRef = useRef<{ list: RaceQuestion[] } | null>(null);
+  // Which question each seat is on, and which seats sit between questions.
+  const paceRef = useRef<Record<string, number>>({});
+  const betweenRef = useRef<Set<string>>(new Set());
+  // The start of each seat's current question, for the speed bonus.
+  const qStartRef = useRef<Record<string, number>>({});
+  const progressRef = useRef<Record<string, PacedProgress>>({});
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [endStats, setEndStats] = useState<EndStat[] | null>(null);
 
   const supabaseRef = useRef(createClient());
   const lobbyRef = useRef<any>(null);
@@ -123,6 +157,8 @@ export default function HostPage() {
   useEffect(() => { qIndexRef.current = qIndex; }, [qIndex]);
   useEffect(() => { quizRef.current = quiz; }, [quiz]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { matchMinutesRef.current = matchMinutes; }, [matchMinutes]);
+  useEffect(() => { matchEndsAtRef.current = matchEndsAt; }, [matchEndsAt]);
 
   useEffect(() => {
     getQuiz(quizId)
@@ -136,6 +172,107 @@ export default function HostPage() {
     setHeist(next);
     safeSend(gameRef.current, { type: "broadcast", event: "heist", payload: next });
     if (note) safeSend(gameRef.current, { type: "broadcast", event: "heist-note", payload: note });
+  }
+
+  const lapOf = (index: number, len: number) => (len > 0 ? Math.floor(index / len) + 1 : 1);
+
+  /** The projector's racer board; the same map the end screen ranks from. */
+  function publishProgress() {
+    setProgress({ ...progressRef.current });
+    if (progressTimerRef.current) return;
+    progressTimerRef.current = setTimeout(() => {
+      progressTimerRef.current = null;
+      broadcast("progress", progressRef.current);
+    }, 350);
+  }
+
+  /** One seat's own question, addressed to them — everyone else drops it. */
+  function sendPace(name: string) {
+    const race = raceRef.current;
+    const h = heistRef.current;
+    const game = gameRef.current;
+    if (!race || !h || !game || !h.players[name]) return;
+    const len = race.list.length;
+    const q = paceRef.current[name] ?? 0;
+    if (betweenRef.current.has(name)) {
+      // The seat answered: send back the question it just did, so the phone
+      // can show what was right and open its own between-questions window.
+      const real = quizRef.current?.questions[q];
+      safeSend(game, {
+        type: "broadcast", event: "pace",
+        payload: {
+          to: name, kind: "reveal", r: q, lap: lapOf(q, len),
+          correctIndexes: real?.correctIndexes ?? [],
+          scores: { [name]: scoresRef.current[name] ?? 0 },
+          streak: streaksRef.current[name] ?? 0,
+        },
+      });
+      return;
+    }
+    // The next question's speed bonus starts when the seat actually sees it.
+    qStartRef.current[name] = Date.now();
+    safeSend(game, {
+      type: "broadcast", event: "pace",
+      payload: { to: name, kind: "question", r: q, lap: lapOf(q, len) },
+    });
+  }
+
+  /** Score one answered question for one seat, right now, silently. */
+  function scorePacedAnswer(name: string, picked: number[], q: number, acc?: string) {
+    const race = raceRef.current;
+    const h = heistRef.current;
+    const game = gameRef.current;
+    if (!race || !h || !game) return;
+    const seat = h.players[name];
+    if (!seat) {
+      safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Tävlingen startade innan du kom med — du är inte med i den här omgången. Vänta på nästa." } });
+      return;
+    }
+    if (paceRef.current[name] === undefined) paceRef.current[name] = 0;
+    if (q !== paceRef.current[name]) {
+      // An old screen or a double click: hand back the seat's real state.
+      safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Skärmen hade hakat upp sig — din fråga ligger här nu." } });
+      sendPace(name);
+      return;
+    }
+    if (betweenRef.current.has(name)) {
+      safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Svaret är redan räknat — fortsätt till nästa fråga." } });
+      return;
+    }
+    const real = quizRef.current?.questions[q];
+    if (!real) return;
+    betweenRef.current.add(name);
+    const now = Date.now();
+    const start = qStartRef.current[name] ?? now;
+    const correctNow = isExactAnswer(picked, real.correctIndexes);
+    const newScores = { ...scoresRef.current };
+    let nextHeist = h;
+    if (correctNow) {
+      const speed = Math.max(0, 50 - Math.floor((now - start) / 400));
+      const streak = (streaksRef.current[name] ?? 0) + 1;
+      streaksRef.current[name] = streak;
+      newScores[name] = (newScores[name] || 0) + 100 + speed;
+      nextHeist = addCorrect(nextHeist, name);
+    } else {
+      streaksRef.current[name] = 0;
+      nextHeist = breakStreak(nextHeist, name);
+    }
+    if (acc && nextHeist.players[name]) nextHeist.players[name].account = acc;
+    scoresRef.current = newScores;
+    setScores(newScores);
+    heistRef.current = nextHeist;
+    setHeist(nextHeist);
+    const len = race.list.length;
+    const prev = progressRef.current[name];
+    progressRef.current[name] = {
+      q,
+      lap: lapOf(q, len),
+      correct: (prev?.correct ?? 0) + (correctNow ? 1 : 0),
+      answered: (prev?.answered ?? 0) + 1,
+    };
+    publishProgress();
+    publishHeist(nextHeist);
+    sendPace(name);
   }
 
   useEffect(() => {
@@ -180,15 +317,24 @@ export default function HostPage() {
 
     const game = supabase.channel(`game-${pin}`);
     game.on("broadcast", { event: "answer" }, (msg) => {
-      const { name, choice, choices, acc } = msg.payload as {
+      const { name, choice, choices, acc, q } = msg.payload as {
         name: string;
         choice?: number;
         choices?: number[];
         acc?: string;
+        q?: number;
       };
       // `choices` is the current shape — a question may have several right
       // answers — while `choice` is what the flashcard battle still sends.
       const picked = Array.isArray(choices) ? choices : typeof choice === "number" ? [choice] : [];
+      if (raceRef.current && typeof q === "number" && name) {
+        // Racing: this seat's answer is scored by itself, right now — the
+        // client is told what was right in a private pace reply.
+        answersRef.current[name] = { choices: picked, t: Date.now() };
+        if (acc) accountRef.current[name] = acc;
+        scorePacedAnswer(name, picked, q, acc);
+        return;
+      }
       answersRef.current[name] = { choices: picked, t: Date.now() };
       if (acc) accountRef.current[name] = acc;
       // Link the seat to the account as soon as we learn it, so the Mint at the
@@ -198,6 +344,28 @@ export default function HostPage() {
         h.players[name].account = acc;
       }
       setAnswered(Object.keys(answersRef.current).length);
+    });
+    // A seat pressing Fortsätt between their own questions. Idempotent: a
+    // re-sent tap just hands the seat its current question back.
+    game.on("broadcast", { event: "pace-next" }, (msg) => {
+      const { name } = (msg.payload ?? {}) as { name?: string };
+      const race = raceRef.current;
+      const h = heistRef.current;
+      if (!race || !h || !name || phaseRef.current !== "live") return;
+      if (!h.players[name]) return;
+      if (betweenRef.current.has(name)) {
+        const len = race.list.length;
+        const prev = paceRef.current[name] ?? 0;
+        const next = advancePlayer(h, name);
+        paceRef.current[name] = (prev + 1) % len;
+        betweenRef.current.delete(name);
+        heistRef.current = next;
+        setHeist(next);
+        publishHeist(next);
+        sendPace(name);
+      } else {
+        sendPace(name);
+      }
     });
     // A player raiding, fortifying or saving. The host is the only authority on
     // the economy: the browser sends an intention, this decides the outcome.
@@ -236,10 +404,26 @@ export default function HostPage() {
       }
       publishHeist(result.state, result.feedback ? { to: name, text: result.feedback } : undefined);
     });
-    game.on("broadcast", { event: "sync" }, () => {
+    game.on("broadcast", { event: "sync" }, (msg: any) => {
       const qz = quizRef.current;
       if (heistRef.current) {
         safeSend(game, { type: "broadcast", event: "heist", payload: heistRef.current });
+      }
+      // A race seat rejoining mid-match gets the shared clock, the question
+      // sheet (answers stripped) and its own place in the race back.
+      const who = (msg?.payload as { name?: string } | null)?.name;
+      const race = raceRef.current;
+      if (race && who && phaseRef.current === "live") {
+        safeSend(game, {
+          type: "broadcast", event: "match",
+          payload: { mode: modeRef.current, minutes: matchMinutesRef.current, endsAt: matchEndsAtRef.current, questions: race.list },
+        });
+        if (progressRef.current) safeSend(game, { type: "broadcast", event: "progress", payload: progressRef.current });
+        if (heistRef.current?.players[who]) {
+          sendPace(who);
+        } else {
+          safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: who, text: "Tävlingen startade innan du kom med — du är inte med i den här omgången. Vänta på nästa." } });
+        }
       }
       if (!qz) return;
       const ph = phaseRef.current;
@@ -320,6 +504,7 @@ export default function HostPage() {
 
   function startGame() {
     if (startedRef.current) return;
+    if (quizRef.current && quizRef.current.questions.length === 0) return;
     startedRef.current = true;
     // Freeze the player list now: everyone about to leave the lobby for the
     // game screen is exactly who the first question should wait for.
@@ -331,6 +516,33 @@ export default function HostPage() {
       // Every seat starts equal — the mode rules say so, and it is what makes a
       // classroom match fair to someone who joined five seconds ago.
       publishHeist(newHeist(chosen, players.map((name) => ({ name, keen: keensRef.current[name] ?? null }))));
+      // ── Race start ────────────────────────────────────────────────────
+      // Hand out the question sheet once (question texts and shapes only — the
+      // correct answers never leave the host), start the shared clock, and
+      // pace every seat to question 1. From here the host only reacts: it
+      // scores each answer as it arrives and advances that one seat.
+      const list: RaceQuestion[] = (quizRef.current?.questions ?? []).map((q) => ({
+        text: q.text,
+        options: q.options,
+        correctCount: q.correctIndexes.length,
+      }));
+      if (list.length === 0) { startedRef.current = false; return; }
+      raceRef.current = { list };
+      paceRef.current = {};
+      betweenRef.current = new Set();
+      qStartRef.current = {};
+      progressRef.current = {};
+      progressTimerRef.current = null;
+      setProgress({});
+      setEndStats(null);
+      const minutes = Math.max(1, Math.round(matchMinutesRef.current));
+      const endsAt = Date.now() + minutes * 60000;
+      matchEndsAtRef.current = endsAt;
+      setMatchEndsAt(endsAt);
+      broadcast("match", { mode: chosen, minutes, endsAt, questions: list });
+      phaseRef.current = "live";
+      setPhase("live");
+      return;
     }
     safeSend(lobbyRef.current, { type: "broadcast", event: "start", payload: { mode: chosen } });
     setQIndex(0);
@@ -385,6 +597,25 @@ export default function HostPage() {
     revealRef.current = reveal;
   });
 
+  // The match clock's stop: in a race the shared clock is the finish line, so
+  // an interval polls it instead of a long setTimeout that a backgrounded tab
+  // would miss. Small overshoot is intentional — the exact second matters less
+  // than not ending a match mid-answer.
+  const finishClockRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (phase !== "live") return;
+    const iv = setInterval(() => {
+      const ends = matchEndsAtRef.current;
+      if (ends && Date.now() >= ends + 250) finishClockRef.current();
+    }, 500);
+    return () => clearInterval(iv);
+  }, [phase]);
+  useEffect(() => {
+    finishClockRef.current = () => {
+      if (phaseRef.current === "live") finish();
+    };
+  });
+
   useEffect(() => () => {
     if (questionStartTimerRef.current) clearTimeout(questionStartTimerRef.current);
   }, []);
@@ -404,6 +635,8 @@ export default function HostPage() {
     if (!startedRef.current || awardedRef.current || phaseRef.current === "end") return;
     awardedRef.current = true;
     const finished = heistRef.current;
+    // A final heist snapshot, so every screen ranks on the same board.
+    if (finished) publishHeist(finished);
     // Mint per display name, so the player's own screen can show what it earned.
     const mintByName: Record<string, number> = {};
     if (finished) {
@@ -431,7 +664,33 @@ export default function HostPage() {
         }));
       void awardXP(quizId, top).catch((error) => console.error("Could not award game XP", error));
     }
-    broadcast("end", { scores: scoresRef.current, mint: mintByName });
+    // Race matches end on the clock, so the end broadcast carries the full
+    // stat sheet: placements, accuracy and the best single raid — the part
+    // a class reads out loud after the timer hits zero.
+    const race = raceRef.current;
+    let stats: EndStat[] | null = null;
+    if (race && finished) {
+      const payout = mintPayout(finished);
+      const payoutByName = new Map(payout.map((p) => [p.username, p.mint]));
+      stats = standings(finished).map((row, i) => {
+        const seat = finished.players[row.name];
+        const prog = progressRef.current[row.name];
+        return {
+          name: row.name,
+          keen: row.keen,
+          place: i + 1,
+          points: scoresRef.current[row.name] ?? 0,
+          correct: row.correct,
+          answered: prog?.answered ?? 0,
+          balance: row.balance,
+          bestRaid: seat?.bestRaid ?? 0,
+          raids: seat?.raids ?? 0,
+          mint: payoutByName.get(seat?.account || row.name) ?? undefined,
+        } satisfies EndStat;
+      });
+      setEndStats(stats);
+    }
+    broadcast("end", { scores: scoresRef.current, mint: mintByName, stats });
     phaseRef.current = "end";
     setPhase("end");
   }
@@ -452,9 +711,10 @@ export default function HostPage() {
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const total = quiz.questions.length;
-  const progress = total > 0 ? ((qIndex + (phase === "lobby" ? 0 : 1)) / total) * 100 : 0;
+  const questionProgress = total > 0 ? ((qIndex + (phase === "lobby" ? 0 : 1)) / total) * 100 : 0;
   const heistBoard = heist ? standings(heist) : [];
   const heistRules = heist ? MODE_RULES[heist.mode] : null;
+  const raceLen = raceRef.current?.list.length ?? 0;
 
   // The mascot and colour of the mode the room is about to play.
   const art = MODE_CARDS.find((c) => c.id === mode) ?? MODE_CARDS[0];
@@ -486,10 +746,13 @@ export default function HostPage() {
               {roundRules ? ` · ${roundRules.currency}` : " · frågor och poäng"}
             </p>
           </div>
-          {phase !== "lobby" && (
+          {phase !== "lobby" && phase !== "live" && (
             <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300 sm:inline">
               Fråga <span data-no-translate>{Math.min(qIndex + 1, total)}</span> / <span data-no-translate>{total}</span>
             </span>
+          )}
+          {phase === "live" && matchEndsAt && (
+            <MatchClockChip endsAt={matchEndsAt} minutes={matchMinutes} className="hidden sm:inline-flex" />
           )}
           <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-mono text-xs font-extrabold tracking-widest text-indigo-200">
             <span data-no-translate>{pin}</span>
@@ -613,6 +876,35 @@ export default function HostPage() {
                 </Link>
               </div>
               <GameModePicker value={mode} onChange={setMode} />
+              {mode !== "classic" && (
+                <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-200">
+                    <Hourglass className="h-3.5 w-3.5" />
+                    Matchklocka
+                  </span>
+                  {MATCH_LENGTHS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMatchMinutes(m)}
+                      aria-pressed={matchMinutes === m}
+                      data-no-translate
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 font-mono text-xs font-extrabold transition-colors",
+                        matchMinutes === m
+                          ? "bg-amber-400 text-amber-950 shadow"
+                          : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/30"
+                      )}
+                    >
+                      {m} min
+                    </button>
+                  ))}
+                  <span className="text-[11px] text-slate-500">
+                    Klassrummet tävlar på tid: alla svarar vidare i egen takt, och matchen stannar
+                    när klockan tar slut.
+                  </span>
+                </div>
+              )}
               {roundRules && (
                 <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-slate-400">
                   <p>
@@ -663,6 +955,13 @@ export default function HostPage() {
                   <p className="mt-1">
                     <b className="text-slate-200">Lägets beslut:</b> {MODE_IDENTITY[roundRules.id].twist.sv}
                   </p>
+                  {mode !== "classic" && (
+                    <p className="mt-1">
+                      <b className="text-slate-200">Tävling:</b> alla svarar vidare i egen takt — ingen väntar på
+                      spelledaren — och matchen stoppas av matchklockan. Efter frågoslätsen börjar omgång 2 med samma
+                      frågor igen.
+                    </p>
+                  )}
                 </div>
               )}
             </section>
@@ -687,13 +986,103 @@ export default function HostPage() {
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${questionProgress}%` }}
                   />
                 </div>
                 <span className="shrink-0 font-mono text-xs font-bold text-slate-400" data-no-translate>
-                  {Math.round(progress)} %
+                  {Math.round(questionProgress)} %
                 </span>
               </div>
+
+              {phase === "live" && (
+                <div className="space-y-4">
+                  {/* The finish line, big enough for the back row, with the one
+                      button the host still owns: stopping the race early. */}
+                  <Card className="overflow-hidden border-white/10">
+                    <CardContent className="flex flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8">
+                      {matchEndsAt ? (
+                        <MatchClock endsAt={matchEndsAt} minutes={matchMinutes} />
+                      ) : (
+                        <p className="font-mono text-4xl font-extrabold text-amber-300">0:00</p>
+                      )}
+                      <div className="flex flex-col items-start gap-2">
+                        <p className="flex items-center gap-2 font-display text-lg font-extrabold text-white">
+                          <ListChecks className="h-5 w-5 text-emerald-300" />
+                          Tävlingen pågår
+                        </p>
+                        <p className="max-w-sm text-xs leading-relaxed text-slate-400">
+                          Alla svarar vidare i egen takt — Ingen väntar på spelledaren. Räden, kistan och sidohacket\\r\\n                          fortsätter gång på gång medan klockan räknar ner.
+                        </p>
+                        <Button className="mt-1 gap-2" variant="secondary" onClick={finish}>
+                          <Flag className="h-4 w-4" />
+                          <span>Avsluta nu</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="overflow-hidden border-white/10">
+                    <CardHeader className="flex flex-row items-center justify-between border-b border-white/10 py-3">
+                      <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                        <Users className="h-4 w-4 text-indigo-300" />
+                        <span>Var är alla?</span>
+                      </CardTitle>
+                      {raceLen > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-500" data-no-translate>
+                          {raceLen} frågor · om och om igen
+                        </span>
+                      )}
+                    </CardHeader>
+                    <CardContent className="max-h-[52vh] space-y-1.5 overflow-y-auto pt-3">
+                      {roster.map((name) => {
+                        const prog = progress[name];
+                        const seat = heist?.players[name];
+                        const keen = keenFor(name);
+                        return (
+                          <div
+                            key={name}
+                            className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2"
+                          >
+                            {keen ? (
+                              <KeenAvatar keen={keen} size={28} />
+                            ) : (
+                              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-800 text-[10px] font-extrabold text-slate-400">
+                                {name.slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-200" data-no-translate>
+                              {name}
+                            </span>
+                            {prog ? (
+                              <>
+                                <span className="shrink-0 rounded-full border border-sky-400/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-200">
+                                  Omgång <span data-no-translate>{prog.lap}</span>
+                                </span>
+                                <span className="shrink-0 text-xs font-bold text-slate-300" data-no-translate>
+                                  Fråga <span data-no-translate>{prog.q + 1}</span>{raceLen > 0 ? <span data-no-translate>/{raceLen}</span> : null}
+                                </span>
+                                <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200" data-no-translate>
+                                  {prog.correct}/{prog.answered} rätt
+                                </span>
+                              </>
+                            ) : (
+                              <span className="shrink-0 text-[11px] text-slate-500">väntar på första svaret…</span>
+                            )}
+                            {seat && seat.trace > 0 && seat.trace >= (heistRules?.trace?.exposed ?? 65) && (
+                              <span className="shrink-0 rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 text-[10px] font-bold text-rose-200">
+                                avslöjad
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {roster.length === 0 && (
+                        <p className="py-4 text-center text-sm text-slate-500">Inga spelare tävlar.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
               {phase === "question" && (
                 <Card className="overflow-hidden border-white/10">
@@ -875,7 +1264,16 @@ export default function HostPage() {
                           </span>
                           {i === 0 && <Crown className="h-4 w-4 shrink-0 text-amber-400" />}
                           {keen && <KeenAvatar keen={keen} size={30} className="shrink-0" />}
-                          <span className="min-w-0 flex-1 truncate font-medium text-slate-200">{name}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-medium text-slate-200">{name}</span>
+                            {endStats?.find((e) => e.name === name) && (
+                              <span className="text-[10px] font-semibold text-slate-500" data-no-translate>
+                                {endStats.find((e) => e.name === name)!.correct}/{endStats.find((e) => e.name === name)!.answered} rätt
+                                · bästa rån <span data-no-translate>{endStats.find((e) => e.name === name)!.bestRaid}</span> {heistRules?.currencyShort ?? ""}
+                                {typeof endStats.find((e) => e.name === name)!.mint === "number" && ` · +${endStats.find((e) => e.name === name)!.mint} Mint`}
+                              </span>
+                            )}
+                          </div>
                           <span className="shrink-0 font-mono text-sm font-bold text-indigo-300" data-no-translate>
                             {s} p
                           </span>

@@ -194,7 +194,7 @@ export default async function Home() {
               </span>
               <span className="flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-violet-300" />
-                Upp till 12 spelare
+                Upp till 50 spelare
               </span>
             </div>
           </div>

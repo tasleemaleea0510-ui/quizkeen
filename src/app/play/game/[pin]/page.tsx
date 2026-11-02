@@ -22,9 +22,11 @@ import {
   chestOpen,
   standings,
   type ChestReveal as ChestRevealData,
+  type EndStat,
   type HeistAction,
   type HeistState,
 } from "@/lib/game-modes";
+import { MatchClockChip } from "@/components/match-clock";
 
 const SHAPES = [
   <svg key="t" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><path d="M12 3l9 17H3z" /></svg>,
@@ -35,11 +37,16 @@ const SHAPES = [
 
 type Question = { index: number; text: string; options: string[]; correctCount?: number };
 
+/** A race question as the room receives it: no correct answers attached. */
+type RaceQuestion = { text: string; options: string[]; correctCount: number };
+
 /** The right answers, from either payload shape — the flashcard battle sends one. */
 function correctList(p: { correctIndexes?: number[]; correctIndex?: number }): number[] {
   if (Array.isArray(p.correctIndexes)) return p.correctIndexes;
   return typeof p.correctIndex === "number" ? [p.correctIndex] : [];
 }
+
+const CONTINUE_AFTER_MS = 10000;
 
 function GameInner() {
   const params = useParams();
@@ -70,6 +77,19 @@ function GameInner() {
   // twice about the same question.
   const [chestSkipped, setChestSkipped] = useState<number | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // ── The race ─────────────────────────────────────────────────────────────
+  // In the heist modes nobody waits for the host: the match hands out the
+  // question sheet once, then paces every seat on its own, and the shared
+  // clock is what stops the match.
+  const [race, setRace] = useState<{ minutes: number; endsAt: number; length: number } | null>(null);
+  const raceListRef = useRef<RaceQuestion[] | null>(null);
+  const [lap, setLap] = useState(1);
+  const [endStats, setEndStats] = useState<EndStat[] | null>(null);
+  const continueSentRef = useRef(false);
+  const [continuing, setContinuing] = useState(false);
+  // The seconds left on the between-questions window, ticked down once per
+  // second so the Fortsätt button can count breathing down your neck.
+  const [continueIn, setContinueIn] = useState(CONTINUE_AFTER_MS / 1000);
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
@@ -126,10 +146,58 @@ function GameInner() {
       window.location.replace("/play");
     });
 
+    // ── Race events ────────────────────────────────────────────────────────
+    // The match sheet arrives once; every pace is addressed to one seat and
+    // silently dropped by all the others.
+    game.on("broadcast", { event: "match" }, (msg) => {
+      const p = msg.payload as { mode?: string; minutes: number; endsAt: number; questions: RaceQuestion[] };
+      if (!Array.isArray(p?.questions) || p.questions.length === 0) return;
+      raceListRef.current = p.questions;
+      setRace({ minutes: p.minutes ?? 5, endsAt: p.endsAt ?? Date.now(), length: p.questions.length });
+      continueSentRef.current = false;
+      setContinuing(false);
+      setPhase("waiting");
+    });
+
+    game.on("broadcast", { event: "pace" }, (msg) => {
+      const p = msg.payload as {
+        to?: string;
+        kind: "question" | "reveal";
+        r?: number;
+        lap?: number;
+        correctIndexes?: number[];
+        scores?: Record<string, number>;
+        streak?: number;
+      };
+      if (!p || p.to !== name) return;
+      const list = raceListRef.current;
+      if (!list) return;
+      const r = p.r ?? 0;
+      const q = list[r];
+      if (!q) return;
+      setQuestion({ index: r, text: q.text, options: q.options, correctCount: q.correctCount });
+      setLap(p.lap ?? 1);
+      if (p.kind === "question") {
+        resetAnswer();
+        classicStreakRef.current = 0;
+        setClassicStreak(0);
+        setPhase("question");
+      } else {
+        setCorrect(p.correctIndexes ?? []);
+        setScores((prev) => ({ ...prev, ...(p.scores ?? {}) }));
+        if (typeof p.streak === "number") {
+          classicStreakRef.current = p.streak;
+          setClassicStreak(p.streak);
+        }
+        setPhase("reveal");
+      }
+    });
+
     game.on("broadcast", { event: "end" }, (msg) => {
-      const p = msg.payload as { scores: Record<string, number>; mint?: Record<string, number> };
+      const p = msg.payload as { scores: Record<string, number>; mint?: Record<string, number>; stats?: EndStat[] };
       setScores(p.scores || {});
       if (p.mint && typeof p.mint[name] === "number") setMyMint(p.mint[name]);
+      if (Array.isArray(p.stats)) setEndStats(p.stats);
       setPhase("end");
     });
 
@@ -171,13 +239,16 @@ function GameInner() {
       } else if (p.kind === "end") {
         setScores(p.scores || {});
         if (p.mint && typeof p.mint[name] === "number") setMyMint(p.mint[name]);
+        if (Array.isArray(p.stats)) setEndStats(p.stats);
         setPhase("end");
       }
     });
 
     game.subscribe((status: string) => {
       if (status === "SUBSCRIBED") {
-        game.send({ type: "broadcast", event: "sync", payload: {} });
+        // The name rides along, so a race seat rejoining mid-match gets its
+        // own place in the race back instead of sitting forever on waiting.
+        game.send({ type: "broadcast", event: "sync", payload: { name } });
       }
     });
 
@@ -191,7 +262,39 @@ function GameInner() {
     setPicked([]);
     setSent(false);
     setCorrect([]);
+    continueSentRef.current = false;
+    setContinuing(false);
+    setContinueIn(CONTINUE_AFTER_MS / 1000);
   }
+
+  /**
+   * Fortsätt between your own questions. Only a race seat ever sends this:
+   * pressed either by hand or by the ten-second window running out. Idempotent
+   * on the host, so a double tap just hands the seat its current question back.
+   */
+  function requestNext() {
+    if (continueSentRef.current) return;
+    continueSentRef.current = true;
+    setContinuing(true);
+    gameRef.current?.send({ type: "broadcast", event: "pace-next", payload: { name } });
+  }
+
+  // The between-questions clock: in a race nobody waits for anyone except
+  // themselves. Ten seconds after the reveal you are moved on automatically —
+  // the same beat other self-paced quiz games use — so a phone left in a pocket
+  // never stalls the seat.
+  useEffect(() => {
+    if (!race || phase !== "reveal" || continuing) return;
+    if (continueSentRef.current) return;
+    setContinueIn(CONTINUE_AFTER_MS / 1000);
+    const tick = setInterval(() => setContinueIn((s) => Math.max(0, s - 1)), 1000);
+    const go = setTimeout(requestNext, CONTINUE_AFTER_MS);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(go);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [race, phase, continuing]);
 
   /** Send the answer now: one tap on a single-answer question, Svara on many. */
   function submit(choices: number[]) {
@@ -323,6 +426,9 @@ function GameInner() {
               <span data-no-translate>{heist.players[name].trace}</span>
             </span>
           )}
+          {race && (phase === "question" || phase === "reveal") && (
+            <MatchClockChip endsAt={race.endsAt} minutes={race.minutes} className="inline-flex" />
+          )}
           <span
             data-no-translate
             className="rounded-full border border-white/15 bg-white/[0.07] px-2.5 py-1 text-xs font-extrabold text-white"
@@ -376,8 +482,14 @@ function GameInner() {
                 <div className="text-center">
                   <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
                     <span className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.07] px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-white/80">
-                      Fråga #{question.index + 1}
+                      {race ? `Omgång ${lap} · Fråga ${(question.index % race.length) + 1}` : `Fråga #${question.index + 1}`}
                     </span>
+                    {race && race.minutes > 1 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-200">
+                        <Radar className="h-3.5 w-3.5" />
+                        {lap} gånger genom listan
+                      </span>
+                    )}
                     {need > 1 && (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-200">
                         <Layers3 className="h-3.5 w-3.5" />
@@ -456,9 +568,16 @@ function GameInner() {
                 )}
 
                 {sent && (
-                  <div className="flex animate-fade-in items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>Svaret är registrerat! Väntar på resultatet…</span>
+                  <div className="space-y-2">
+                    <div className="flex animate-fade-in items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Svaret är registrerat!</span>
+                    </div>
+                    {race && (
+                      <p className="text-center text-xs font-bold text-slate-400">
+                        Här spelar du mot klockan — svaret räknas direkt, du väntar inte på spelledaren.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -534,6 +653,25 @@ function GameInner() {
                     </p>
                   )}
                 </div>
+
+                {race && (
+                  <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3">
+                    {continuing ? (
+                      <Button size="lg" className="h-14 w-full gap-2 text-base" disabled>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Nästa fråga är på väg…
+                      </Button>
+                    ) : (
+                      <Button size="lg" className="h-14 w-full gap-2 text-base" onClick={requestNext}>
+                        <ArrowRight className="h-5 w-5" />
+                        Fortsätt ({continueIn} s kvar)
+                      </Button>
+                    )}
+                    <p className="text-center text-xs text-slate-400">
+                      Du spelar i din egen takt — ingen annan väntar på dig, och du väntar inte på dem.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -616,6 +754,48 @@ function GameInner() {
                   <p className="text-center text-sm text-slate-400">
                     Du hamnade utanför pallen — nästa match är din.
                   </p>
+                )}
+
+                {endStats && endStats.length > 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                      Loppet — takt och träffsäkerhet
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      Vem svarade flest, och vem var bäst på det. Poängen står bredvid.
+                    </p>
+                    <ol className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
+                      {endStats.map((s, i) => (
+                        <li
+                          key={s.name}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm",
+                            s.name === name
+                              ? "bg-indigo-500/15 text-indigo-100 ring-1 ring-inset ring-indigo-400/30"
+                              : "text-slate-300"
+                          )}
+                        >
+                          <span className="w-4 shrink-0 font-mono text-[11px] font-bold text-slate-500">
+                            {s.place ?? i + 1}
+                          </span>
+                          <span data-no-translate className="min-w-0 flex-1 truncate font-bold">
+                            {s.name}
+                          </span>
+                          <span className="shrink-0 font-mono text-[11px] text-emerald-300" data-no-translate>
+                            {s.correct}/{s.answered}
+                          </span>
+                          <span className="shrink-0 font-mono text-[11px] text-slate-400" data-no-translate>
+                            {s.points} p
+                          </span>
+                          {typeof s.mint === "number" && (
+                            <span className="shrink-0 font-mono text-[11px] font-extrabold text-amber-300" data-no-translate>
+                              +{s.mint} Mint
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 )}
 
                 {heist && modeRules && heistFinal.length > 0 && (

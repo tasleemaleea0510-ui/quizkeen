@@ -291,7 +291,7 @@ export default function ManualPage() {
           <BookOpen className="h-5 w-5 text-amber-300" />
           {L("Så spelas en match", "How a match is played")}
         </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             {
               n: "1",
@@ -319,6 +319,14 @@ export default function ManualPage() {
             },
             {
               n: "4",
+              title: L("Klockan är mållinjen", "The clock is the finish line"),
+              body: L(
+                "I de tre ekonomilägena springer var och ett sitt eget lopp: nästa fråga kommer när du trycker Fortsätt, eller tyst efter tio sekunder. Matchen tar slut när den delade klockan når noll. Klassisk quiz körs av värden — samma fråga för alla, med väntan i mellan.",
+                "In the three economy modes everyone races their own lap: the next question comes when you press Continue, or silently after ten seconds. The match ends when the shared clock hits zero. Classic quiz is run by the host — one question at a time, everyone together."
+              ),
+            },
+            {
+              n: "5",
               title: L("Mint vid slutet", "Mint at the end"),
               body: L(
                 "Placering plus en bonus per ny rival du rånat. Matchvalutan stannar i matchen.",

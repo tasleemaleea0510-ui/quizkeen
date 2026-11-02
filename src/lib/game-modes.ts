@@ -392,6 +392,27 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
 export const HEIST_MODES: HeistMode[] = ["vault", "crypto", "pirate"];
 
 /**
+ * The stat sheet a race match ends on.
+ *
+ * The clock can catch one seat between questions and another mid-answer, so
+ * the end screen is built from one host-computed table instead of whatever
+ * each screen happened to be showing. Mint is filled in by the host when it
+ * has worked out the placements.
+ */
+export type EndStat = {
+  name: string;
+  keen: string | null;
+  place: number;
+  points: number;
+  correct: number;
+  answered: number;
+  balance: number;
+  bestRaid: number;
+  raids: number;
+  mint?: number;
+};
+
+/**
  * The one-line reason each mode exists, for the picker and the manual.
  *
  * Three modes that all read "earn currency, raid a rival" are indistinguishable
@@ -515,6 +536,12 @@ export type HeistPlayer = {
   nextCorrectBonus: number;
   /** Consecutive correct answers. Every mode pays a small streak reward. */
   streak: number;
+  /** This seat's own question count. A race advances one seat at a time, so
+   *  every round-gated rule (chests, the hack drill) reads this, and a seat
+   *  that is two questions ahead of the room still gets its own chest. */
+  round: number;
+  /** The biggest single steal this player has pulled off, for the end stats. */
+  bestRaid: number;
 };
 
 export type HeistEvent = { id: string; at: number; text: string };
@@ -593,10 +620,22 @@ export function newHeist(
       hackScore: 0,
       nextCorrectBonus: 0,
       streak: 0,
+      round: 0,
+      bestRaid: 0,
     };
   }
   return { mode, round: 0, players, events: [] };
 }
+
+/**
+ * How long a racing match runs before it stops on its own.
+ *
+ * The three heist modes are races: every seat answers and moves on without
+ * waiting for the class, so a match needs a finish line in time rather than in
+ * question count. The host picks one of these lengths in the lobby.
+ */
+export const MATCH_LENGTHS = [3, 5, 8, 12];
+export const DEFAULT_MATCH_MINUTES = 5;
 
 /**
  * What a correct-answer streak is worth on top of the flat reward. The first
@@ -651,9 +690,29 @@ export function nextRound(state: HeistState): HeistState {
   const advanced = clone(state);
   advanced.round += 1;
   for (const p of Object.values(advanced.players)) {
+    p.round += 1;
     if (p.maxEnergy > 0) p.energy = Math.min(p.maxEnergy, p.energy + ROUND_ENERGY);
   }
   return decayTrace(advanced) ?? advanced;
+}
+
+/**
+ * One seat's next question.
+ *
+ * In a race the seats do not move together: whoever answered first is already
+ * two rooms ahead. So the host advances one player at a time here — the same
+ * pay-out a shared round would give (one action point, one trace cool) lands on
+ * this seat alone, and `lapAt` counts a completed lap so the match statistics
+ * can say how far through the quiz someone raced.
+ */
+export function advancePlayer(state: HeistState, name: string): HeistState {
+  if (!state.players[name]) return state;
+  const next = clone(state);
+  const p = next.players[name];
+  p.round += 1;
+  if (p.maxEnergy > 0) p.energy = Math.min(p.maxEnergy, p.energy + ROUND_ENERGY);
+  if (p.trace > 0) p.trace = Math.max(0, p.trace - TRACE_DECAY);
+  return next;
 }
 
 export function approxBalance(value: number): string {
@@ -802,7 +861,9 @@ export function exposedBonus(mode: HeistMode, target: HeistPlayer): number {
 export function chestOpen(state: HeistState, name: string): boolean {
   const player = state.players[name];
   if (!player || !MODE_RULES[state.mode].chests) return false;
-  return player.chestRound !== state.round;
+  // A seat's own round: in a race, one player's chest must not be unlocked:
+  // by another player moving on or locked by them — each opens on their own beat.
+  return player.chestRound !== player.round;
 }
 
 
@@ -891,8 +952,9 @@ export function applyAction(
     const offers = rules.chests;
     if (!offers) return { ok: false, error: "Det här läget har inga kistor." };
     // One tap a round: without this a player could sit on the chest button and
-    // gamble the whole match away between two questions.
-    if (me.chestRound === next.round) {
+    // gamble the whole match away between two questions. The seat's own round,
+    // so one seat racing ahead does not unlock anyone else's chest.
+    if (me.chestRound === me.round) {
       return { ok: false, error: "Du har redan öppnat en kista den här rundan." };
     }
     // The three boxes are three different bets, not three draws from one table.
@@ -961,10 +1023,10 @@ export function applyAction(
   // ── Cyber Hack: a skill drill between questions ────────────────────────
   if (action.kind === "hack") {
     if (state.mode !== "crypto") return { ok: false, error: "Hackutmaningen finns bara i Crypto Clash." };
-    if (me.hackRound === state.round) return { ok: false, error: "Du har redan försökt hacka den här frågan." };
+    if (me.hackRound === me.round) return { ok: false, error: "Du har redan försökt hacka den här frågan." };
 
     const player = me;
-    const challenge = hackChallengeFor(state.round, name);
+    const challenge = hackChallengeFor(me.round, name);
     const success = action.answer === challenge.answer;
     player.hackRound = state.round;
     player.hackScore += success ? 1 : 0;
@@ -1114,6 +1176,7 @@ export function applyAction(
       me.raided.push(target.name);
       me.raids += 1;
     }
+    if (steal > me.bestRaid) me.bestRaid = steal;
     const verb = style
       ? style.verb
       : rules.id === "crypto"
