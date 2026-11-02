@@ -313,16 +313,16 @@ export default function ManualPage() {
               n: "3",
               title: L("Spendera mellan frågorna", "Spend between questions"),
               body: L(
-                "Rån, hack och köp får du göra medan frågan rullar. Kistan och sidohacket öppnas när frågan är avgjord.",
-                "Raids, hacks and purchases are allowed while the question runs. The chest and the side hack open once it is settled."
+                "Rån, hack och köp får du göra medan frågan rullar. Kistan och sidohacket öppnas när frågan är avgjord — och alla rån och hack lever i ett åtgärdsfönster på femton sekunder, räknat samtidigt hos spelledaren och alla spelare.",
+                "Raids, hacks and purchases are allowed while the question runs. The chest and the side hack open once it is settled — and every raid and hack lives inside a fifteen-second action window, counted down in sync on the host's screen and every player's."
               ),
             },
             {
               n: "4",
               title: L("Klockan är mållinjen", "The clock is the finish line"),
               body: L(
-                "I de tre ekonomilägena springer var och ett sitt eget lopp: nästa fråga kommer när du trycker Fortsätt, eller tyst efter tio sekunder. Matchen tar slut när den delade klockan når noll. Klassisk quiz körs av värden — samma fråga för alla, med väntan i mellan.",
-                "In the three economy modes everyone races their own lap: the next question comes when you press Continue, or silently after ten seconds. The match ends when the shared clock hits zero. Classic quiz is run by the host — one question at a time, everyone together."
+                "I de tre ekonomilägena springer var och ett sitt eget lopp: nästa fråga kommer när du trycker Fortsätt, eller tyst när åtgärdsfönstrets femton sekunder tar slut. Matchen tar slut när den delade klockan når noll. Klassisk quiz körs av värden — samma fråga för alla, med väntan i mellan.",
+                "In the three economy modes everyone races their own lap: the next question comes when you press Continue, or silently when the fifteen-second action window runs out. The match ends when the shared clock hits zero. Classic quiz is run by the host — one question at a time, everyone together."
               ),
             },
             {

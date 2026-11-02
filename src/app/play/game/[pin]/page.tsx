@@ -18,6 +18,7 @@ import { stageTheme } from "@/components/game/game-theme";
 import { cn } from "@/lib/utils";
 import { ANSWER_TINTS as COLORS } from "@/lib/answer-tints";
 import {
+  ACTION_WINDOW_MS,
   MODE_RULES,
   chestOpen,
   standings,
@@ -26,7 +27,7 @@ import {
   type HeistAction,
   type HeistState,
 } from "@/lib/game-modes";
-import { MatchClockChip } from "@/components/match-clock";
+import { MatchClockChip, ActionWindowChip } from "@/components/match-clock";
 
 const SHAPES = [
   <svg key="t" viewBox="0 0 24 24" className="h-5 w-5 opacity-95" fill="currentColor"><path d="M12 3l9 17H3z" /></svg>,
@@ -45,8 +46,6 @@ function correctList(p: { correctIndexes?: number[]; correctIndex?: number }): n
   if (Array.isArray(p.correctIndexes)) return p.correctIndexes;
   return typeof p.correctIndex === "number" ? [p.correctIndex] : [];
 }
-
-const CONTINUE_AFTER_MS = 10000;
 
 function GameInner() {
   const params = useParams();
@@ -87,9 +86,15 @@ function GameInner() {
   const [endStats, setEndStats] = useState<EndStat[] | null>(null);
   const continueSentRef = useRef(false);
   const [continuing, setContinuing] = useState(false);
+  // ── The action window ─────────────────────────────────────────────────
+  // Fifteen shared seconds between a question's reveal and your move on —
+  // the only time when raids, hacks, the chest and purchases are live. The
+  // host stamps it once; this screen counts the same stamp everyone else
+  // does, so nobody's raid can slip in "one more second" on their own clock.
+  const [actionEndsAt, setActionEndsAt] = useState<number | null>(null);
   // The seconds left on the between-questions window, ticked down once per
   // second so the Fortsätt button can count breathing down your neck.
-  const [continueIn, setContinueIn] = useState(CONTINUE_AFTER_MS / 1000);
+  const [continueIn, setContinueIn] = useState(15);
 
   const phaseRef = useRef(phase);
   const questionRef = useRef<Question | null>(null);
@@ -126,15 +131,19 @@ function GameInner() {
       // next one while the host is already reading it out.
       setChestReveal(null);
       resetAnswer();
+      setActionEndsAt(null);
       classicStreakRef.current = 0;
       setClassicStreak(0);
       setPhase("question");
     });
 
     game.on("broadcast", { event: "reveal" }, (msg) => {
-      const p = msg.payload as { correctIndexes?: number[]; correctIndex?: number; scores: Record<string, number>; streaks?: Record<string, number> };
+      const p = msg.payload as { correctIndexes?: number[]; correctIndex?: number; scores: Record<string, number>; streaks?: Record<string, number>; windowEndsAt?: number };
       setCorrect(correctList(p));
       setScores(p.scores || {});
+      // The room-wide window stamp: raids, hacks and chests are live until
+      // it runs out, on this screen exactly as on the projector's.
+      setActionEndsAt(typeof p.windowEndsAt === "number" && p.windowEndsAt > Date.now() ? p.windowEndsAt : null);
       if (typeof p.streaks?.[name] === "number") {
         classicStreakRef.current = p.streaks[name];
         setClassicStreak(p.streaks[name]);
@@ -168,6 +177,7 @@ function GameInner() {
         correctIndexes?: number[];
         scores?: Record<string, number>;
         streak?: number;
+        windowEndsAt?: number;
       };
       if (!p || p.to !== name) return;
       const list = raceListRef.current;
@@ -179,12 +189,14 @@ function GameInner() {
       setLap(p.lap ?? 1);
       if (p.kind === "question") {
         resetAnswer();
+        setActionEndsAt(null);
         classicStreakRef.current = 0;
         setClassicStreak(0);
         setPhase("question");
       } else {
         setCorrect(p.correctIndexes ?? []);
         setScores((prev) => ({ ...prev, ...(p.scores ?? {}) }));
+        setActionEndsAt(typeof p.windowEndsAt === "number" && p.windowEndsAt > Date.now() ? p.windowEndsAt : null);
         if (typeof p.streak === "number") {
           classicStreakRef.current = p.streak;
           setClassicStreak(p.streak);
@@ -224,6 +236,7 @@ function GameInner() {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
         setChestReveal(null);
         resetAnswer();
+        setActionEndsAt(null);
         classicStreakRef.current = 0;
         setClassicStreak(0);
         setPhase("question");
@@ -231,6 +244,7 @@ function GameInner() {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
         setCorrect(correctList(p));
         setScores(p.scores || {});
+        setActionEndsAt(typeof p.windowEndsAt === "number" && p.windowEndsAt > Date.now() ? p.windowEndsAt : null);
         if (typeof p.streaks?.[name] === "number") {
           classicStreakRef.current = p.streaks[name];
           setClassicStreak(p.streaks[name]);
@@ -264,13 +278,14 @@ function GameInner() {
     setCorrect([]);
     continueSentRef.current = false;
     setContinuing(false);
-    setContinueIn(CONTINUE_AFTER_MS / 1000);
+    setContinueIn(15);
   }
 
   /**
    * Fortsätt between your own questions. Only a race seat ever sends this:
-   * pressed either by hand or by the ten-second window running out. Idempotent
-   * on the host, so a double tap just hands the seat its current question back.
+   * pressed either by hand or when the shared fifteen-second window runs
+   * out. Idempotent on the host, so a double tap just hands the seat its
+   * current question back.
    */
   function requestNext() {
     if (continueSentRef.current) return;
@@ -279,22 +294,31 @@ function GameInner() {
     gameRef.current?.send({ type: "broadcast", event: "pace-next", payload: { name } });
   }
 
-  // The between-questions clock: in a race nobody waits for anyone except
-  // themselves. Ten seconds after the reveal you are moved on automatically —
-  // the same beat other self-paced quiz games use — so a phone left in a pocket
-  // never stalls the seat.
+  // The action window is also the continue clock in a race: the same stamp
+  // everyone else counts is what moves you on. If the host's stamp is missing
+  // (an older host, a laggy rejoin) the window still runs the local fifteen.
   useEffect(() => {
     if (!race || phase !== "reveal" || continuing) return;
     if (continueSentRef.current) return;
-    setContinueIn(CONTINUE_AFTER_MS / 1000);
-    const tick = setInterval(() => setContinueIn((s) => Math.max(0, s - 1)), 1000);
-    const go = setTimeout(requestNext, CONTINUE_AFTER_MS);
+    const ends = actionEndsAt ?? Date.now() + ACTION_WINDOW_MS;
+    const tick = setInterval(() => setContinueIn(Math.max(0, Math.ceil((ends - Date.now()) / 1000))), 500);
+    const go = setTimeout(requestNext, Math.max(0, ends - Date.now()));
     return () => {
       clearInterval(tick);
       clearTimeout(go);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [race, phase, continuing]);
+  }, [race, phase, continuing, actionEndsAt]);
+
+  // Keep the countdown chips honest while a window is open: the renderer
+  // re-runs at half a second so every count reads the same clock.
+  const [, setUiTick] = useState(0);
+  useEffect(() => {
+    if (!actionEndsAt) return;
+    const iv = setInterval(() => setUiTick((t) => t + 1), 500);
+    return () => clearInterval(iv);
+  }, [actionEndsAt]);
+  const actionOpen = actionEndsAt !== null && Date.now() <= actionEndsAt + 500;
 
   /** Send the answer now: one tap on a single-answer question, Svara on many. */
   function submit(choices: number[]) {
@@ -357,6 +381,7 @@ function GameInner() {
     heist !== null &&
     heist.mode === "vault" &&
     phase === "reveal" &&
+    (actionEndsAt === null || actionOpen) &&
     chestOpen(heist, name) &&
     chestSkipped !== heist.round;
 
@@ -641,6 +666,17 @@ function GameInner() {
                     </div>
                   </div>
                 </div>
+
+                {phase === "reveal" && actionEndsAt !== null && (
+                  <div className="mx-auto flex w-full max-w-md flex-col items-center gap-1.5">
+                    <ActionWindowChip endsAt={actionEndsAt} />
+                    <p className="text-center text-[11px] font-bold text-violet-200/80">
+                      {actionOpen
+                        ? "Rån, hack, kista och köp är öppna tills fönstret stänger."
+                        : "Fönstret har stängt — nästa fråga är på väg."}
+                    </p>
+                  </div>
+                )}
 
                 <div className="text-center">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Din poäng</p>

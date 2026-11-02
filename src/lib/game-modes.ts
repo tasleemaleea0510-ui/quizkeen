@@ -638,6 +638,13 @@ export const MATCH_LENGTHS = [3, 5, 8, 12];
 export const DEFAULT_MATCH_MINUTES = 5;
 
 /**
+ * The action window: fifteen shared seconds between a question's reveal and
+ * the seat's move on, when raids, hacks, the chest and purchases are live.
+ * The host stamps it once per question; every screen counts the same stamp.
+ */
+export const ACTION_WINDOW_MS = 15_000;
+
+/**
  * What a correct-answer streak is worth on top of the flat reward. The first
  * correct answer pays the normal amount; from the second in a row the reward
  * grows by 25 and caps at 75, so consistency matters without beating knowledge.

@@ -52,6 +52,39 @@ export function MatchClockChip({ endsAt, minutes, className }: { endsAt: number;
   );
 }
 
+/**
+ * The action window, as seen near the raids: the fifteen shared seconds
+ * between questions when a seat may raid, hack, open its chest or spend.
+ * It reads the one `endsAt` stamp the host sent, so the player, the other
+ * phones and the projector all count the same seconds with no extra traffic.
+ */
+export function ActionWindowChip({ endsAt, small, className }: { endsAt: number; small?: boolean; className?: string }) {
+  const [left, setLeft] = useState(() => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const iv = setInterval(() => setLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))), 250);
+    return () => clearInterval(iv);
+  }, [endsAt]);
+
+  const urgency = left <= 3
+    ? "border-rose-400/50 bg-rose-500/15 text-rose-200"
+    : "border-violet-400/40 bg-violet-500/15 text-violet-200";
+  return (
+    <span
+      title={small ? "Åtgärdsfönster" : "Åtgärdsfönster: rån, hack, kista och köp — 15 sekunder"}
+      data-no-translate
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-xs font-extrabold tracking-wider",
+        urgency,
+        small && "px-2 py-0.5 text-[10px]",
+        className
+      )}
+    >
+      <Hourglass className={small ? "h-3 w-3" : "h-3.5 w-3.5"} />
+      {left}s
+    </span>
+  );
+}
+
 /** The wall version: big enough for the back row, with the time already spent. */
 export function MatchClock({ endsAt, minutes }: { endsAt: number; minutes: number }) {
   const [state, setState] = useState(() => remainingOf(endsAt));

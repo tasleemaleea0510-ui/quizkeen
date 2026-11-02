@@ -16,7 +16,7 @@ import { getQuiz, awardXP } from "./actions";
 import { isExactAnswer } from "@/lib/quiz-draft";
 import { Users, Play, Clock, CheckCircle2, ArrowRight, Trophy, Crown, SkipForward, Zap, Coins, Shield, LogOut, BookOpen, Hourglass, Flag, ListChecks } from "lucide-react";
 import KeenAvatar from "@/components/keens/keen-avatar";
-import { MatchClock, MatchClockChip } from "@/components/match-clock";
+import { ActionWindowChip, MatchClock, MatchClockChip } from "@/components/match-clock";
 import { ChestReveal } from "@/components/chest-pick";
 import FullscreenButton from "@/components/fullscreen-button";
 import GameStage from "@/components/game/game-stage";
@@ -24,6 +24,7 @@ import GameModePicker, { MODE_CARDS } from "@/components/game-mode-picker";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
 import { KEEN_BY_ID } from "@/lib/keens";
 import {
+  ACTION_WINDOW_MS,
   DEFAULT_MATCH_MINUTES,
   MATCH_LENGTHS,
   MODE_IDENTITY,
@@ -118,6 +119,15 @@ export default function HostPage() {
   const [matchEndsAt, setMatchEndsAt] = useState<number | null>(null);
   const [progress, setProgress] = useState<Record<string, PacedProgress>>({});
   const matchMinutesRef = useRef(DEFAULT_MATCH_MINUTES);
+  // ── The action window ────────────────────────────────────────────────────
+  // Fifteen seconds between questions, timestamped once and shared: the seat,
+  // this projector and every other phone count the same endsAt stamp, so a
+  // raid or a hack cannot slip in "one more second" on someone's watch.
+  // Keyed by seat in races (every seat has its own), one stamp for the room in
+  // classic (the whole room sits at the same reveal).
+  const windowsRef = useRef<Record<string, number>>({});
+  const classicWindowRef = useRef(0);
+  const [classicWindowEndsAt, setClassicWindowEndsAt] = useState(0);
   const matchEndsAtRef = useRef<number | null>(null);
   const raceRef = useRef<{ list: RaceQuestion[] } | null>(null);
   // Which question each seat is on, and which seats sit between questions.
@@ -186,6 +196,29 @@ export default function HostPage() {
     }, 350);
   }
 
+  /** Move one seat from its window into the next question of its race. */
+  function advanceSeat(name: string) {
+    const race = raceRef.current;
+    const h = heistRef.current;
+    if (!race || !h || !h.players[name]) return;
+    if (!betweenRef.current.has(name)) {
+      // Not sitting between questions any more — hand back its current place.
+      delete windowsRef.current[name];
+      sendPace(name);
+      return;
+    }
+    const len = race.list.length;
+    const prev = paceRef.current[name] ?? 0;
+    const next = advancePlayer(h, name);
+    paceRef.current[name] = (prev + 1) % len;
+    betweenRef.current.delete(name);
+    delete windowsRef.current[name];
+    heistRef.current = next;
+    setHeist(next);
+    publishHeist(next);
+    sendPace(name);
+  }
+
   /** One seat's own question, addressed to them — everyone else drops it. */
   function sendPace(name: string) {
     const race = raceRef.current;
@@ -198,15 +231,22 @@ export default function HostPage() {
       // The seat answered: send back the question it just did, so the phone
       // can show what was right and open its own between-questions window.
       const real = quizRef.current?.questions[q];
-      safeSend(game, {
-        type: "broadcast", event: "pace",
-        payload: {
-          to: name, kind: "reveal", r: q, lap: lapOf(q, len),
-          correctIndexes: real?.correctIndexes ?? [],
-          scores: { [name]: scoresRef.current[name] ?? 0 },
-          streak: streaksRef.current[name] ?? 0,
-        },
-      });
+    // ── Action window ──────────────────────────────────────────────────
+    // Fifteen seconds between a seat's answers in a race, timestamped the
+    // same way on every screen: the seat, its neighbours and this board all
+    // count the same seconds from the same endsAt stamp.
+    const windowEndsAt = Date.now() + ACTION_WINDOW_MS;
+    windowsRef.current[name] = windowEndsAt;
+    safeSend(game, {
+      type: "broadcast", event: "pace",
+      payload: {
+        to: name, kind: "reveal", r: q, lap: lapOf(q, len),
+        correctIndexes: real?.correctIndexes ?? [],
+        scores: { [name]: scoresRef.current[name] ?? 0 },
+        streak: streaksRef.current[name] ?? 0,
+        windowEndsAt,
+      },
+    });
       return;
     }
     // The next question's speed bonus starts when the seat actually sees it.
@@ -345,27 +385,14 @@ export default function HostPage() {
       }
       setAnswered(Object.keys(answersRef.current).length);
     });
-    // A seat pressing Fortsätt between their own questions. Idempotent: a
-    // re-sent tap just hands the seat its current question back.
+    // A seat pressing Fortsätt between its own questions, or the window
+    // sweeper doing it for a phone that pocketed itself. Idempotent: a
+    // re-sent tap just hands the seat its current place back.
     game.on("broadcast", { event: "pace-next" }, (msg) => {
       const { name } = (msg.payload ?? {}) as { name?: string };
-      const race = raceRef.current;
-      const h = heistRef.current;
-      if (!race || !h || !name || phaseRef.current !== "live") return;
-      if (!h.players[name]) return;
-      if (betweenRef.current.has(name)) {
-        const len = race.list.length;
-        const prev = paceRef.current[name] ?? 0;
-        const next = advancePlayer(h, name);
-        paceRef.current[name] = (prev + 1) % len;
-        betweenRef.current.delete(name);
-        heistRef.current = next;
-        setHeist(next);
-        publishHeist(next);
-        sendPace(name);
-      } else {
-        sendPace(name);
-      }
+      if (!name || phaseRef.current !== "live") return;
+      if (!heistRef.current?.players[name]) return;
+      advanceSeat(name);
     });
     // A player raiding, fortifying or saving. The host is the only authority on
     // the economy: the browser sends an intention, this decides the outcome.
@@ -373,14 +400,30 @@ export default function HostPage() {
       const { name, action } = (msg.payload ?? {}) as { name?: string; action?: HeistAction };
       const h = heistRef.current;
       if (!h || !name || !action) return;
-      if (phaseRef.current !== "question" && phaseRef.current !== "reveal") {
+      const live = phaseRef.current === "live";
+      if (!live && phaseRef.current !== "question" && phaseRef.current !== "reveal") {
         safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Matchen är inte igång." } });
         return;
       }
+      // ── The action window is the gate ──────────────────────────────────
+      // Fifteen shared seconds between questions, counted from one endsAt
+      // stamp on every screen. In a race the seat's window opens when its
+      // reveal lands; in classic the room stands at the same reveal and
+      // shares one stamp. Raids also stay live inside the classic question
+      // clock, as they always did.
+      const inWindow = live
+        ? Date.now() <= (windowsRef.current[name] ?? 0) + 500
+        : phaseRef.current === "reveal"
+          ? Date.now() <= classicWindowRef.current + 500
+          : true;
+      if (!inWindow) {
+        safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: live ? "Fönstret har stängt — svara på nästa fråga för att öppna ett nytt." : "Fönstret har stängt — vänta på nästa fråga." } });
+        return;
+      }
       // A chest is a between-questions decision, and the Cyber Hack drill is a
-      // reward for finishing one. Both are refused while the clock runs, even
-      // if a stale client still shows the button.
-      if ((action.kind === "chest" || action.kind === "hack") && phaseRef.current !== "reveal") {
+      // reward for finishing one. Both are refused outside the reveal even if
+      // a stale client still shows the button.
+      if (!live && (action.kind === "chest" || action.kind === "hack") && phaseRef.current !== "reveal") {
         safeSend(game, {
           type: "broadcast",
           event: "heist-note",
@@ -438,7 +481,7 @@ export default function HostPage() {
       } else if (ph === "reveal") {
         safeSend(gameRef.current, {
           type: "broadcast", event: "state",
-          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current, streaks: streaksRef.current },
+          payload: { kind: "reveal", index: i, text: q.text, options: q.options, correctIndexes: q.correctIndexes, scores: scoresRef.current, streaks: streaksRef.current, windowEndsAt: classicWindowRef.current },
         });
       } else if (ph === "end") {
         safeSend(gameRef.current, {
@@ -495,6 +538,11 @@ export default function HostPage() {
     startRef.current = Date.now();
     // A new round is when heist energy refills: the next correct answer pays.
     if (heistRef.current) publishHeist(nextRound(heistRef.current));
+    // A new question closes the previous action window and resets the race
+    // seats' stamps, so nothing leaks across rounds.
+    classicWindowRef.current = 0;
+    setClassicWindowEndsAt(0);
+    windowsRef.current = {};
     // Last question's chest should not still be hanging over the projector.
     setChestReveal(null);
     broadcast("question", { index: i, text: q.text, options: q.options, correctCount: q.correctIndexes.length });
@@ -530,6 +578,7 @@ export default function HostPage() {
       raceRef.current = { list };
       paceRef.current = {};
       betweenRef.current = new Set();
+      windowsRef.current = {};
       qStartRef.current = {};
       progressRef.current = {};
       progressTimerRef.current = null;
@@ -585,7 +634,13 @@ export default function HostPage() {
     });
     scoresRef.current = newScores;
     setScores(newScores);
-    broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores, streaks: streaksRef.current });
+    // The room-wide action window: the reveal is when chest, hack and raids
+    // between questions happen, so the whole room gets one shared fifteen
+    // seconds — stamped once here, counted down identically on every screen.
+    const windowEndsAt = Date.now() + ACTION_WINDOW_MS;
+    classicWindowRef.current = windowEndsAt;
+    setClassicWindowEndsAt(windowEndsAt);
+    broadcast("reveal", { correctIndexes: q.correctIndexes, scores: newScores, streaks: streaksRef.current, windowEndsAt });
     if (nextHeist) publishHeist(nextHeist);
     setPhase("reveal");
     phaseRef.current = "reveal";
@@ -615,6 +670,30 @@ export default function HostPage() {
       if (phaseRef.current === "live") finish();
     };
   });
+
+  // The window sweeper: when a race seat's fifteen seconds run out without a
+  // Fortsätt tap — phone asleep, pocket, walked away — the host advances that
+  // seat anyway, so an idle window never stalls the rest of the match.
+  useEffect(() => {
+    if (phase !== "live") return;
+    const iv = setInterval(() => {
+      const now = Date.now();
+      for (const seatName of Object.keys(windowsRef.current)) {
+        if (now >= (windowsRef.current[seatName] ?? 0) + 1200) advanceSeat(seatName);
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [phase]);
+
+  // The countdown chips read Date.now() while they render, so the board keeps
+  // rendering at half a second: both the shared classic stamp and each race
+  // seat's own window tick on the projector without any extra traffic.
+  const [, setUiTick] = useState(0);
+  useEffect(() => {
+    if (phase !== "live" && phase !== "question" && phase !== "reveal") return;
+    const iv = setInterval(() => setUiTick((t) => t + 1), 500);
+    return () => clearInterval(iv);
+  }, [phase]);
 
   useEffect(() => () => {
     if (questionStartTimerRef.current) clearTimeout(questionStartTimerRef.current);
@@ -1064,6 +1143,9 @@ export default function HostPage() {
                                 <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200" data-no-translate>
                                   {prog.correct}/{prog.answered} rätt
                                 </span>
+                                {windowsRef.current[name] && Date.now() <= windowsRef.current[name] ? (
+                                  <ActionWindowChip endsAt={windowsRef.current[name]} small />
+                                ) : null}
                               </>
                             ) : (
                               <span className="shrink-0 text-[11px] text-slate-500">väntar på första svaret…</span>
@@ -1197,14 +1279,19 @@ export default function HostPage() {
                     </div>
 
                     {heist && (
-                      <p className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-center text-[11px] font-bold text-amber-100/80">
-                        <Clock className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-                        {heist.mode === "crypto"
-                          ? "Handlingsfönster: vänta ~15 sekunder så hinner klassen hacka, handla och köra sidohacket."
-                          : heist.mode === "pirate"
-                            ? "Handlingsfönster: vänta ~15 sekunder så hinner klassen välja tärning, råna och handla."
-                            : "Handlingsfönster: vänta ~15 sekunder så hinner klassen råna, handla och välja kista."}
-                      </p>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {phase === "reveal" && classicWindowEndsAt > Date.now() && (
+                          <ActionWindowChip endsAt={classicWindowEndsAt} />
+                        )}
+                        <p className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-center text-[11px] font-bold text-amber-100/80">
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                          {heist.mode === "crypto"
+                            ? "Handlingsfönster: 15 sekunder per fråga — klassen hackar, handlar och kör sidohacket i dem."
+                            : heist.mode === "pirate"
+                              ? "Handlingsfönster: 15 sekunder per fråga — klassen väljer tärning, rånar och handlar i dem."
+                              : "Handlingsfönster: 15 sekunder per fråga — klassen rånar, handlar och väljer kista i dem."}
+                        </p>
+                      </div>
                     )}
 
                     <Button className="mt-6 h-12 w-full gap-2 text-base" onClick={next}>
