@@ -25,6 +25,7 @@ import {
   KEEN_BY_ID,
   OBTAINABLE_KEEN_IDS,
   PACK_BY_ID,
+  packInSeason,
   RARITY_META,
   dayKey,
   dailyDeals,
@@ -51,7 +52,20 @@ export type Pull = {
 
 export type OpenResult =
   | { ok: true; pulls: Pull[]; coins: number; spent: number; refunded: number }
-  | { ok: false; error: "auth" | "pack" | "count" | "coins" | "frozen" | "cooldown" | "banned" | "daily-off" | "hidden" };
+  | {
+      ok: false;
+      error:
+        | "auth"
+        | "pack"
+        | "count"
+        | "coins"
+        | "frozen"
+        | "cooldown"
+        | "banned"
+        | "daily-off"
+        | "hidden"
+        | "season";
+    };
 
 export type MarketResult =
   | { ok: true; coins: number; owned: number; price: number }
@@ -107,6 +121,9 @@ export async function openPack(profileId: string, packId: string, count: number)
   // A pack that is off the shelf cannot be opened even by a request that names it
   // outright: the shop and the server agree, so a stale page cannot buy one.
   if (pack.hidden) return { ok: false, error: "hidden" };
+  // Out of season is the same answer as off the shelf: a stale page cannot buy a
+  // Halloween pack in December just because it still has the button rendered.
+  if (pack.seasonal && !packInSeason(pack)) return { ok: false, error: "season" };
   if (!pack.sizes.includes(count)) return { ok: false, error: "count" };
 
   const v = await viewer(profileId);

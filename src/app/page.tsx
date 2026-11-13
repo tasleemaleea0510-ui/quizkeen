@@ -16,7 +16,8 @@ import Reveal from "@/components/motion/reveal";
 import Tilt from "@/components/motion/tilt";
 import Spotlight from "@/components/motion/spotlight";
 import { ANSWER_TINTS } from "@/lib/answer-tints";
-import { KEEN_BY_ID, TOTAL_KEENS } from "@/lib/keens";
+import { KEEN_BY_ID, PACK_BY_ID, TOTAL_KEENS, packInSeason, seasonEndsAt } from "@/lib/keens";
+import SeasonCountdown from "@/components/keens/season-countdown";
 import { readBoard } from "@/lib/leaderboard";
 import { levelFor } from "@/lib/levels";
 import { Brain, Flame, TrendingUp, Trophy as TrophyIcon } from "lucide-react";
@@ -117,6 +118,12 @@ export default async function Home() {
   // actually in use rather than a promise that it could be. It is one small
   // query, and the page is dynamic anyway.
   const board = await readBoard({ scope: "elever", limit: 5 }).catch(() => null);
+
+  // The Halloween pack is only on the shelf during November. The front page
+  // says so, with the same deadline the shop and the server use.
+  const halloween = PACK_BY_ID.halloween;
+  const halloweenLive = Boolean(halloween && !halloween.hidden && packInSeason(halloween));
+  const halloweenEndsAt = halloween && halloweenLive ? seasonEndsAt(halloween) : null;
 
   return (
     <div className="relative overflow-hidden text-white">
@@ -295,6 +302,49 @@ export default async function Home() {
             </div>
           </div>
         </div>
+
+        {/* ── Halloween ──────────────────────────────────────────────────── */}
+        {halloweenLive && (
+          <section className="mx-auto w-full max-w-6xl px-4 pb-4 sm:px-6">
+            <div className="relative overflow-hidden rounded-3xl border border-orange-400/25 bg-gradient-to-br from-orange-500/15 via-slate-900/60 to-violet-700/15 p-5 sm:p-6">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl"
+              />
+              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-orange-400/30 bg-orange-500/15 text-3xl">
+                    🎃
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-orange-300">
+                      Bara i november
+                    </p>
+                    <h2 className="mt-1 font-display text-xl font-extrabold text-white sm:text-2xl">
+                      Halloweenpaketet
+                    </h2>
+                    <p className="mt-1 max-w-lg text-sm leading-relaxed text-slate-300">
+                      Åtta spöklika Keens från Common hela vägen till Mythical — Pumpkin, Frogula, Cookie Ghost och
+                      kungen själv. Paketet försvinner när december börjar.
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Försvinner om
+                  </p>
+                  <SeasonCountdown endsAt={halloweenEndsAt} className="mt-1 block text-lg text-orange-200" />
+                  <Link
+                    href="/keens/packs"
+                    className="mt-2 inline-flex text-[11px] font-extrabold uppercase tracking-wider text-orange-300 transition-colors hover:text-white"
+                  >
+                    Öppna paket →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ── Modes ─────────────────────────────────────────────────────── */}
         <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">

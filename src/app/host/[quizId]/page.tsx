@@ -1017,7 +1017,7 @@ export default function HostPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-sky-200">
                     <Hourglass className="h-3.5 w-3.5" />
-                    Egen takt
+                    Spelläge
                   </span>
                   {[true, false].map((on) => (
                     <button
@@ -1032,7 +1032,7 @@ export default function HostPage() {
                           : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/30"
                       )}
                     >
-                      {on ? "På" : "Av"}
+                      {on ? "Blooket · egen takt" : "Kahoot · värden styr"}
                     </button>
                   ))}
                   <span className="text-[11px] text-slate-500">

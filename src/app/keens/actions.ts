@@ -21,6 +21,7 @@ const KEEN_ERRORS: Record<string, string> = {
   auth: "Du måste vara inloggad.",
   pack: "Det paketet finns inte.",
   hidden: "Det paketet är inte till salu just nu.",
+  season: "Det paketet finns bara under sin säsong — det kommer tillbaka nästa gång.",
   count: "Du kan inte öppna så många paket på en gång.",
   coins: "Du har inte tillräckligt med mynt. Spela en quiz och tjäna fler!",
   frozen: "Din myntplånbok är fryst, så du kan inte handla just nu.",

@@ -26,7 +26,7 @@ export type Rarity = (typeof RARITIES)[number];
  * their characters are drawn, and nothing else in the app assumes a pack exists
  * until it is listed.
  */
-export const PACK_IDS = ["gamer"] as const;
+export const PACK_IDS = ["gamer", "halloween"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 /** The free pack's own id — it draws from the cheap end of what is on sale. */
@@ -283,6 +283,16 @@ export type Pack = {
    * refuses to open it. Delete the line to put the pack back on sale.
    */
   hidden?: boolean;
+  /**
+   * A pack that is only on the shelf for part of the year.
+   *
+   * `months` are JavaScript month indexes (0 = January), so the Halloween pack
+   * is `[10]`: it appears on 1 November and is gone again on 1 December. The
+   * check is a pure function of the date, which means the shop, the server that
+   * prices the pack and the countdown on the front page all agree without a cron
+   * job or a database flag to forget to flip.
+   */
+  seasonal?: { months: number[]; label: string; labelEn: string };
 };
 
 export const PACKS: Pack[] = [
@@ -298,6 +308,23 @@ export const PACKS: Pack[] = [
     odds: { VANLIG: 62, OVANLIG: 30, SALLSYNT: 8 },
     sizes: [1],
     free: true,
+  },
+  {
+    id: "halloween",
+    name: "Halloweenpaketet",
+    nameEn: "Halloween pack",
+    tagline: "Bara i november — sedan går den i ide igen.",
+    taglineEn: "November only — then it goes back into hibernation.",
+    added: "2026-11-01",
+    price: 450,
+    emoji: "🎃",
+    hue: 22,
+    // One tier per sheet: common, two rares, epic, two legendaries, secret and
+    // one mythical at half a percent. The whole ladder, on purpose — the pack
+    // exists for four weeks, so it has to be worth opening.
+    odds: { VANLIG: 50, SALLSYNT: 33, EPISK: 10, LEGENDARISK: 5.5, HEMLIG: 1, MYSTISK: 0.5 },
+    sizes: [1, 3, 5],
+    seasonal: { months: [10], label: "Bara i november", labelEn: "November only" },
   },
   {
     id: "gamer",
@@ -324,8 +351,33 @@ export const PACKS: Pack[] = [
  * and the collection's pack filter all read from it, so hiding a pack changes the
  * shop and nothing else.
  */
-export const SHELF_PACKS: Pack[] = PACKS.filter((p) => !p.free && !p.hidden);
-export const HIDDEN_PACKS: Pack[] = PACKS.filter((p) => !p.free && p.hidden);
+/**
+ * True while the pack is on the shelf.
+ *
+ * A pack with no `seasonal` block is always in season; a seasonal one is only
+ * available during its months. `now` is injectable so the rule can be tested
+ * in January and December without waiting for either.
+ */
+export function packInSeason(pack: Pack, now: Date = new Date()): boolean {
+  if (!pack.seasonal) return true;
+  return pack.seasonal.months.includes(now.getMonth());
+}
+
+/**
+ * When a seasonal pack next leaves the shelf, as a timestamp — 1 December at
+ * 00:00 local time for the Halloween pack. `null` for a pack that never leaves,
+ * and `null` while it is already out of season (there is nothing to count down).
+ */
+export function seasonEndsAt(pack: Pack, now: Date = new Date()): number | null {
+  if (!pack.seasonal || !packInSeason(pack, now)) return null;
+  const probe = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+  return probe.getTime();
+}
+
+export const SHELF_PACKS: Pack[] = PACKS.filter((p) => !p.free && !p.hidden && packInSeason(p));
+export const HIDDEN_PACKS: Pack[] = PACKS.filter(
+  (p) => !p.free && (p.hidden || !packInSeason(p))
+);
 
 /**
  * The freshest pack on the shelf, or null when nothing carries an `added` date.
@@ -387,6 +439,19 @@ export const KEENS: Keen[] = [
   P(OWNER_PACK, "MYSTISK", 230, "dragony", "DragonY", "DragonY", "🐲"),
   P(OWNER_PACK, "MYSTISK", 140, "dragonyforest", "DragonY (Forest)", "DragonY (Forest)", "🌿"),
   P(OWNER_PACK, "MYSTISK", 265, "dragonymoonlight", "DragonY (Moonlight)", "DragonY (Moonlight)", "🌙"),
+
+  // ── Halloweenpaketet ───────────────────────────────────────────────────────
+  // Rarities are the sheet's own: Common, two Rares, Epic, two Legendaries,
+  // Secret and one Mythical. The artwork sits in `public/keens/<id>.png`, one
+  // file per id, exactly like every other Keen.
+  P("halloween", "VANLIG", 25, "pumpkin", "Pumpkin", "Pumpkin", "🎃"),
+  P("halloween", "SALLSYNT", 200, "chickenchick", "Chicken Chick", "Chicken Chick", "🐔"),
+  P("halloween", "SALLSYNT", 45, "chickchicken", "Chick Chicken", "Chick Chicken", "🐤"),
+  P("halloween", "EPISK", 110, "frogula", "Frogula", "Frogula", "🦇"),
+  P("halloween", "LEGENDARISK", 30, "cookiepumpkin", "Cookie Pumpkin", "Cookie Pumpkin", "🍪"),
+  P("halloween", "LEGENDARISK", 40, "cookiemummy", "Cookie Mummy", "Cookie Mummy", "🧟"),
+  P("halloween", "HEMLIG", 195, "cookieghost", "Cookie Ghost", "Cookie Ghost", "👻"),
+  P("halloween", "MYSTISK", 275, "pumpkinkingu", "Pumpkin King", "Pumpkin King", "👑"),
 ];
 
 /**
@@ -411,6 +476,16 @@ export const KEEN_BIOS: Record<string, string> = {
   dragony: "Ägarens drake, som sover på moln och vaktar hela samlingen.",
   dragonyforest: "Sover under mossan i skogen med vingarna som täcke.",
   dragonymoonlight: "Vaknar först när månen står som högst — då vaktar den valvet.",
+
+  // ── Halloweenpaketet ───────────────────────────────────────────────────────
+  pumpkin: "Grinar hela november. Sover resten av året.",
+  chickenchick: "En kyckling i en kyckling. Inget mer att säga.",
+  chickchicken: "Den andra kycklingen — den som blänger tillbaka.",
+  frogula: "Groda med kappa, tänder och en mycket tydlig plan.",
+  cookiepumpkin: "Bakad, glaserad och något besviken över att bli uppäten.",
+  cookiemummy: "Lindad i deg sedan urminnes tider. Öppnar aldrig ögonen helt.",
+  cookieghost: "Ett spöke av socker — försvinner när någon tänder lampan.",
+  pumpkinkingu: "Kungen över november. Kronan är gjord av kanderad ingefära.",
 };
 
 /** The one-liner for a Keen, or an empty string if it has none yet. */
@@ -429,7 +504,12 @@ export const PACK_BY_ID: Record<string, Pack> = Object.fromEntries(PACKS.map((p)
  * that pack, so counting it would promise a collection nobody can complete.
  */
 export function isObtainable(keen: Keen): boolean {
-  return isGrantedKeen(keen) || !PACK_BY_ID[keen.pack]?.hidden;
+  if (isGrantedKeen(keen)) return true;
+  const pack = PACK_BY_ID[keen.pack];
+  if (!pack) return false;
+  // A seasonal pack takes its Keens with it when it leaves: counting them would
+  // promise a collection that cannot be completed until next November.
+  return !pack.hidden && packInSeason(pack);
 }
 
 /**

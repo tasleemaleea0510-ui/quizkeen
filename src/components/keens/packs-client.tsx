@@ -14,6 +14,7 @@ import {
   keensInPack,
   rarityChance,
   rarityOdds,
+  seasonEndsAt,
   type AnyPackId,
   type Pack,
 } from "@/lib/keens";
@@ -24,6 +25,7 @@ import CoinCounter from "./coin-counter";
 import KeenAvatar from "./keen-avatar";
 import PackArt from "./pack-art";
 import PackOpener, { type OpenedPull } from "./pack-opener";
+import SeasonCountdown from "./season-countdown";
 import { Toasts, useToasts } from "./toast";
 import { playClick, playError, playWindUp } from "./sounds";
 
@@ -157,6 +159,25 @@ export default function PacksClient({ state }: { state: KeenState }) {
           </div>
         </div>
       </section>
+
+      {/* ── seasonal banner ───────────────────────────────────────────────── */}
+      {(() => {
+        const seasonal = SHELF_PACKS.find((p) => p.seasonal);
+        const endsAt = seasonal ? seasonEndsAt(seasonal) : null;
+        if (!seasonal || !endsAt) return null;
+        return (
+          <div className="flex flex-col gap-2 rounded-2xl border border-orange-400/25 bg-orange-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-center gap-2 text-sm font-bold text-orange-200">
+              <span aria-hidden className="text-lg">🎃</span>
+              {seasonal.name} — {seasonal.seasonal?.label}
+            </p>
+            <p className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+              Försvinner om
+              <SeasonCountdown endsAt={endsAt} className="text-orange-200" />
+            </p>
+          </div>
+        );
+      })()}
 
       {/* ── the shelf ────────────────────────────────────────────────────── */}
       <section className="space-y-4">
