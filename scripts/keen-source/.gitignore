@@ -1,0 +1,4 @@
+# Design sheets and their rasterised copies are inputs, not shipped assets.
+# The cropped output in public/keens/ is what git tracks.
+*.png
+*.svg

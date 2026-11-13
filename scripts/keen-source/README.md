@@ -28,3 +28,20 @@ without touching any real file.
 Only 8-bit RGB/RGBA PNGs are read (what a screenshot or design export produces).
 If a file arrives as JPEG, re-save it as PNG first — the script will say so
 rather than guessing.
+
+## Vector sources
+
+The Halloween sheets were vector files, not screenshots, so they go through one
+extra step: `scripts/keen-source/rasterize.mjs` renders each `.svg` to a PNG here
+with `@resvg/resvg-js`, which the cropper can then read. That renderer is *not* a
+project dependency — it was installed for the one-off conversion:
+
+```bash
+npm i --no-save @resvg/resvg-js
+node scripts/keen-source/rasterize.mjs
+node scripts/crop-keens.mjs
+```
+
+Everything in this folder except this README and `.gitignore` is ignored by git:
+the shipped artwork lives in `public/keens/`, and a design sheet is not a
+build asset.
