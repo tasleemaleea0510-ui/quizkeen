@@ -20,7 +20,7 @@
  * Match money lives only inside `HeistState` and disappears when it ends.
  */
 
-export type HeistMode = "vault" | "crypto" | "pirate";
+export type HeistMode = "vault" | "crypto" | "pirate" | "crown";
 /** A match can also be a plain quiz with no economy. */
 export type ModeId = HeistMode | "classic";
 
@@ -189,6 +189,13 @@ export type ModeRules = {
   raidCap: number;
   /** Pirate Heist picks one of these instead of a standard raid. */
   styles?: RaidStyle[];
+  /**
+   * Crown Rush: the crown decides who may be hit. Everyone hunts the leader;
+   * the leader alone may pick any rival. That is what makes leading a decision
+   * (defend the crown) instead of a victory lap — and it keeps a runaway purse
+   * from being unreachable.
+   */
+  leaderOnly?: boolean;
   /** Vault Raiders: the three boxes, one tap a round. */
   chests?: ChestOffer[];
   /** Crypto Clash: the power-ups beyond a plain hack. */
@@ -225,6 +232,16 @@ const PIRATE_DEFENSES: Defense[] = [
   { id: "decoy", name: "Skattkista", cost: 350, kind: "block", blurb: "Stoppar ett rån och kostar piraten 100 guld.", reveals: true },
   { id: "cargo", name: "Låst lastutrymme", cost: 420, kind: "protect", value: 500, blurb: "500 guld ligger utanför rånarnas räckhåll hela matchen." },
   { id: "crew", name: "Extra besättning", cost: 250, kind: "slot", blurb: "Höjer ditt maxtak för besättning med 1." },
+];
+
+const CROWN_DEFENSES: Defense[] = [
+  // The crown is the target, so the shop is a bodyguard business: cheap partial
+  // cover for the questions you are not the leader in, and one expensive piece
+  // of theatre for the round the whole class aims at you.
+  { id: "guard", name: "Kronvakt", cost: 140, kind: "reduce", value: 45, blurb: "Tar bort 45 % av nästa rån." },
+  { id: "double", name: "Skendräkt", cost: 400, kind: "block", blurb: "Stoppar ett rån, avslöjar tjuven och kostar tjuven 100 kronor.", reveals: true },
+  { id: "shield", name: "Tronskydd", cost: 300, kind: "protect", value: 400, blurb: "400 kronor ligger utanför allas räckhåll hela matchen." },
+  { id: "retinue", name: "Extra livvakt", cost: 260, kind: "slot", blurb: "Höjer ditt maxtak för vakter med 1." },
 ];
 
 const VAULT_CHEST_OFFERS: ChestOffer[] = [
@@ -387,9 +404,31 @@ export const MODE_RULES: Record<HeistMode, ModeRules> = {
     defenses: PIRATE_DEFENSES,
     mint: { first: 110, second: 75, third: 50, rest: 30, perRaid: 10, bonusCap: 30 },
   },
+  crown: {
+    id: "crown",
+    name: "Crown Rush",
+    tagline: "Alla jagar ledaren — kronan är ett mål på ryggen.",
+    currency: "Kronmynt",
+    currencyShort: "kronor",
+    startBalance: 1000,
+    startEnergy: 2,
+    // More guard slots than any other mode: in Crown Rush the whole room turns
+    // on the leader at once, so the leader needs enough defence in hand to
+    // survive a round of it — and everyone else needs raids that cost something.
+    maxEnergy: 6,
+    energyName: "Vakter",
+    correctBalance: 110,
+    correctEnergy: 1,
+    raidCost: 2,
+    raidPct: 18,
+    raidCap: 700,
+    leaderOnly: true,
+    defenses: CROWN_DEFENSES,
+    mint: { first: 110, second: 75, third: 55, rest: 30, perRaid: 8, bonusCap: 24 },
+  },
 };
 
-export const HEIST_MODES: HeistMode[] = ["vault", "crypto", "pirate"];
+export const HEIST_MODES: HeistMode[] = ["vault", "crypto", "pirate", "crown"];
 
 /**
  * The stat sheet a race match ends on.
@@ -494,6 +533,27 @@ export const MODE_IDENTITY: Record<HeistMode, ModeIdentity> = {
       risk: {
         sv: "Hög — ett misslyckat rån kostar avgiften ändå",
         en: "High — a failed raid keeps the fee",
+      },
+    };
+  })(),
+  crown: (() => {
+    const rules = MODE_RULES.crown;
+    return {
+      earns: {
+        sv: `+${rules.correctBalance} ${rules.currencyShort} per rätt svar`,
+        en: `+${rules.correctBalance} ${rules.currencyShort} per correct answer`,
+      },
+      spends: {
+        sv: `${rules.raidCost} ${rules.energyName.toLowerCase()} per rån`,
+        en: `${rules.raidCost} ${rules.energyName.toLowerCase()} per raid`,
+      },
+      twist: {
+        sv: "Kronan sitter på den rikaste: alla andra kan bara råna ledaren, men ledaren får råna vem som helst",
+        en: "The crown sits on the richest: everyone else may only raid the leader, but the leader may raid anyone",
+      },
+      risk: {
+        sv: "Hög — den som leder får hela klassens rån mot sig, och försvar är enda skyddet",
+        en: "High — the leader takes the whole class's raids, and defence is the only cover",
       },
     };
   })(),
@@ -972,7 +1032,10 @@ export function applyAction(
     // The index is the decision; a caller that sends none gets the safe box.
     const index = typeof action.chest === "number" ? Math.min(offers.length - 1, Math.max(0, Math.floor(action.chest))) : 0;
     const offer = offers[index];
-    me.chestRound = next.round;
+    // The seat's OWN round, not the room's: a player racing ahead unlocks a
+    // chest on their own beat, and stamping the global round here let them open
+    // a second one on the next question of the same lap.
+    me.chestRound = me.round;
 
     const before = me.balance;
     let rival: string | undefined;
@@ -1039,7 +1102,10 @@ export function applyAction(
     const player = me;
     const challenge = hackChallengeFor(me.round, name);
     const success = action.answer === challenge.answer;
-    player.hackRound = state.round;
+    // Same rule as the chest: the drill is one per seat per own question, so it
+    // must be stamped with the seat's round or a player who is ahead of the room
+    // could attempt the hack twice.
+    player.hackRound = player.round;
     player.hackScore += success ? 1 : 0;
     player.hackProgress = success ? player.hackProgress + 1 : 0;
 
@@ -1100,6 +1166,22 @@ export function applyAction(
   const target = next.players[action.target];
   if (!target) return { ok: false, error: "Välj en motståndare först." };
   if (target.name === name) return { ok: false, error: "Du kan inte råna dig själv." };
+  // Crown Rush: the crown decides who may be hit. Everyone hunts the leader;
+  // the leader may pick anyone. Without this the mode is Vault Raiders with a
+  // different colour, and the leader's purse is simply unreachable.
+  if (rules.leaderOnly) {
+    const ranked = Object.values(next.players).sort(
+      (a, b) => b.balance - a.balance || b.correct - a.correct
+    );
+    const leader = ranked[0];
+    // A tie at the top means there is no crown to hunt yet: everyone may raid
+    // anyone. Without this, a fresh match (every purse identical) would pick one
+    // player at random as the only legal target.
+    const tied = Boolean(ranked[1]) && ranked[1].balance === leader.balance && ranked[1].correct === leader.correct;
+    if (leader && !tied && leader.name !== name && target.name !== leader.name) {
+      return { ok: false, error: `I ${rules.name} kan du bara råna ledaren — just nu är det ${leader.name}.` };
+    }
+  }
   if (target.protectedUntil > now) {
     const left = Math.ceil((target.protectedUntil - now) / 1000);
     return { ok: false, error: `${target.name} är skyddad i ${left} s till.` };

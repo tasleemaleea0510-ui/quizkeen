@@ -80,6 +80,15 @@ const PANEL_TONE: Record<
     ring: "hover:border-emerald-300/50 hover:bg-emerald-500/10",
     tab: "border-emerald-300 text-emerald-200",
   },
+  crown: {
+    wash: "from-violet-500/25 via-violet-500/[0.07]",
+    border: "border-violet-400/25",
+    text: "text-violet-200",
+    pip: "bg-violet-400",
+    glow: "bg-violet-500/30",
+    ring: "hover:border-violet-300/50 hover:bg-violet-500/10",
+    tab: "border-violet-300 text-violet-200",
+  },
   pirate: {
     wash: "from-rose-500/25 via-rose-500/[0.07]",
     border: "border-rose-400/25",
@@ -180,6 +189,16 @@ export default function HeistPanel({
   const rivals = Object.values(state.players)
     .filter((p) => p.name !== me)
     .sort((a, b) => takeAgainst(b.name) - takeAgainst(a.name));
+  // Crown Rush: the crown is the target, so the panel has to know who wears it.
+  // Everyone else may only raid that one player; the leader may pick anyone —
+  // which is exactly what the greyed-out rows below mean.
+  const ranked = Object.values(state.players).sort((a, b) => b.balance - a.balance || b.correct - a.correct);
+  // A tie at the top means no crown is worn yet, so every rival stays a legal
+  // target — the same rule the server enforces in `applyAction`.
+  const crownTied =
+    Boolean(ranked[1]) && ranked[1].balance === ranked[0].balance && ranked[1].correct === ranked[0].correct;
+  const leaderName = rules.leaderOnly && !crownTied ? ranked[0]?.name : undefined;
+  const meHoldsCrown = Boolean(rules.leaderOnly) && leaderName === me;
   const richest = Math.max(0, ...Object.values(state.players).map((p) => p.balance));
 
   // The richest rival is the yardstick the Pirate dice are priced against:
@@ -306,6 +325,18 @@ export default function HeistPanel({
           {profile.streak > 1 && (
             <Chip tone="border-orange-400/30 bg-orange-500/10 text-orange-200">
               <Flame className="h-2.5 w-2.5" /> {profile.streak} i rad
+            </Chip>
+          )}
+          {rules.leaderOnly && leaderName && (
+            <Chip
+              tone={
+                meHoldsCrown
+                  ? "border-violet-300/50 bg-violet-500/20 text-violet-100"
+                  : "border-white/10 bg-white/[0.04] text-white/55"
+              }
+            >
+              <Crown className="h-2.5 w-2.5" />
+              {meHoldsCrown ? "Du bär kronan" : `Kronan: ${leaderName}`}
             </Chip>
           )}
           {held.length === 0 && (
@@ -512,13 +543,15 @@ export default function HeistPanel({
                   const take = takeAgainst(p.name);
                   const left = Math.max(0, Math.ceil((p.protectedUntil - Date.now()) / 1000));
                   const shielded = left > 0;
+                  // Only the leader is a legal target for everyone else.
+                  const crownLocked = Boolean(rules.leaderOnly && leaderName && !meHoldsCrown && p.name !== leaderName);
                   const blocked = rules.defenses.some((d) => d.kind === "block" && p.defenses.includes(d.id));
                   const guarded = protectedGold(state.mode, p) > 0;
                   const bonus = exposedBonus(state.mode, p);
                   const exact = rules.id !== "crypto" || !rules.trace || p.trace >= rules.trace.exposed;
                   const shownBalance = exact ? p.balance.toLocaleString("sv-SE") : approxBalance(p.balance);
                   const shownTake = exact ? take.toLocaleString("sv-SE") : approxBalance(take);
-                  const disabled = pending || shielded || blockedByBudget || take <= 0;
+                  const disabled = pending || shielded || blockedByBudget || take <= 0 || crownLocked;
                   return (
                     <button
                       key={p.name}
@@ -560,6 +593,7 @@ export default function HeistPanel({
                           <span data-no-translate>{shownBalance}</span>
                           <span>{rules.currencyShort}</span>
                           {shielded && <span className="text-sky-300">· skyddad {left}s</span>}
+                          {crownLocked && <span className="text-violet-300">· bara ledaren</span>}
                           {blocked && <span className="text-emerald-300">· sköld</span>}
                           {guarded && <span className="text-violet-300">· lastutrymme</span>}
                           {bonus > 1 && (

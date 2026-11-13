@@ -11,6 +11,10 @@ import { cn } from "@/lib/utils";
  *
  * A locked Keen is a silhouette: the same file, flattened to black and dimmed.
  * That hides the character without needing a second set of shapes.
+ *
+ * A variant Keen (a chroma of an existing character) points at another Keen's
+ * file and carries a `tint`: the same drawing, rotated in hue, so a new pack can
+ * ship without a new design sheet. One filter, no second asset.
  */
 export default function KeenAvatar({
   keen,
@@ -44,6 +48,7 @@ export default function KeenAvatar({
           "h-full w-full object-contain",
           locked && "opacity-40 brightness-0 saturate-0"
         )}
+        style={keen.tint ? { filter: `hue-rotate(${keen.tint}deg) saturate(1.15)` } : undefined}
       />
     </span>
   );

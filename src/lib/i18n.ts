@@ -1156,7 +1156,7 @@ const PAIRS: [string, string][] = [
   ["Varje ny fråga ger 1", "Every new question gives 1"],
   ["Matchställning — Mint betalas efter den här ordningen.", "Match standings — Mint is paid in this order."],
   ["Spelmanual", "Game manual"],
-  ["Alla fyra lägen, kistornas odds, försvarens priser och Mint-trappan. Manualen läser samma regler som spelet, så siffrorna stämmer alltid.", "All four modes, the chest odds, the defense prices and the Mint ladder. The manual reads the same rules as the game, so the numbers are always right."],
+  ["Alla fem lägen, kistornas odds, försvarens priser och Mint-trappan. Manualen läser samma regler som spelet, så siffrorna stämmer alltid.", "All five modes, the chest odds, the defense prices and the Mint ladder. The manual reads the same rules as the game, so the numbers are always right."],
   ["skyddat", "protected"],
   ["billigt nästa rån", "a cheaper next raid"],
   // Defense names and effects, used by both the shop and the manual.

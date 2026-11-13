@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 const ACCENTS: Record<string, string> = {
   gamer: "#7cf03a",
   gratis: "#6ee7b7",
+  chroma: "#22d3ee",
+  shadow: "#a78bfa",
 };
 
 export default function PackArt({

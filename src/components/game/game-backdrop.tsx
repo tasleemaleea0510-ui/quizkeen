@@ -15,6 +15,7 @@ const WASH: Record<ModeId, string> = {
   vault: "bg-[radial-gradient(120%_70%_at_50%_0%,rgba(245,158,11,0.24),transparent_62%)]",
   crypto: "bg-[radial-gradient(120%_70%_at_50%_0%,rgba(16,185,129,0.24),transparent_62%)]",
   pirate: "bg-[radial-gradient(120%_70%_at_50%_0%,rgba(244,63,94,0.22),transparent_62%)]",
+  crown: "bg-[radial-gradient(120%_70%_at_50%_0%,rgba(139,92,246,0.26),transparent_62%)]",
 };
 
 export default function GameBackdrop({ mode }: { mode: ModeId }) {
@@ -47,6 +48,17 @@ export default function GameBackdrop({ mode }: { mode: ModeId }) {
         <>
           <div className="qk-tide absolute inset-0" />
           <div className="absolute inset-x-0 bottom-0 h-72 bg-[radial-gradient(70%_100%_at_50%_100%,rgba(76,5,25,0.5),transparent_75%)]" />
+        </>
+      )}
+
+      {/* Crown Rush: one hard shaft of throne-light from above, and the crown's
+          own halo low in the frame, so the room reads as a court with somebody
+          standing in it. Both are static gradients — nothing to animate. */}
+      {mode === "crown" && (
+        <>
+          <div className="absolute inset-x-0 top-0 h-[26rem] bg-[conic-gradient(from_180deg_at_50%_0%,transparent_0deg,rgba(167,139,250,0.20)_18deg,transparent_36deg)]" />
+          <div className="absolute inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(139,92,246,0.30),transparent_72%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-72 bg-[radial-gradient(70%_100%_at_50%_100%,rgba(49,16,90,0.55),transparent_75%)]" />
         </>
       )}
 
