@@ -259,11 +259,15 @@ const KAHOOT_Q = [
   { q: "Vilken planet är närmast solen?", a: ["Venus", "Mars", "Merkurius", "Jorden"], correct: 2 },
 ];
 
+/** Seconds on the shared clock, the same 20 a hosted question gets. */
+const QUESTION_SECONDS = 20;
+
 const ANSWER_TINTS = ["bg-rose-500/20 border-rose-400/30", "bg-sky-500/20 border-sky-400/30", "bg-amber-500/20 border-amber-400/30", "bg-emerald-500/20 border-emerald-400/30"];
 
 function KahootDemo() {
   const [round, setRound] = React.useState(0);
-  const [left, setLeft] = React.useState(1000);
+  // One decimal place: the tick burns 0.05 every 50 ms, so this is real seconds.
+  const [left, setLeft] = React.useState(QUESTION_SECONDS);
   const [pick, setPick] = React.useState<number | null>(null);
   const [running, setRunning] = React.useState(true);
 
@@ -274,14 +278,14 @@ function KahootDemo() {
         if (v > 0.05) return v - 0.05;
         setRound((r) => (r + 1) % KAHOOT_Q.length);
         setPick(null);
-        return 1;
+        return QUESTION_SECONDS;
       });
     }, 50);
     return () => clearInterval(t);
   }, [running]);
 
   const question = KAHOOT_Q[round];
-  const pct = Math.max(0, Math.min(100, left * 100));
+  const pct = Math.max(0, Math.min(100, (left / QUESTION_SECONDS) * 100));
 
   return (
     <div className="flex flex-col rounded-3xl border border-white/10 bg-slate-900/60 p-5">
@@ -294,7 +298,7 @@ function KahootDemo() {
           <IconBtn
             onClick={() => {
               setRound(0);
-              setLeft(1000);
+              setLeft(QUESTION_SECONDS);
               setPick(null);
               setRunning(true);
             }}
