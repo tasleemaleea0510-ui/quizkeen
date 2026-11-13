@@ -151,7 +151,6 @@ const DEFENSE_NOTE: Record<HeistMode, string> = {
   vault: "Försvar köps i butiken under matchen och gäller direkt.",
   crypto: "Ett försvar gäller direkt och förbrukas när det används.",
   pirate: "Försvar betalas i piratguld och gäller direkt.",
-  crown: "Försvar är hela skyddet i Crown Rush — den som bär kronan får allas rån mot sig.",
 };
 
 export default function ManualPage() {
@@ -436,7 +435,7 @@ export default function ManualPage() {
               L("Streakbonus i poäng", "Streak bonus in points"),
               L("bara poäng", "points only"),
             ],
-            ...(["vault", "crypto", "pirate", "crown"] as const).map((id) => {
+            ...(["vault", "crypto", "pirate"] as const).map((id) => {
               const rules = MODE_RULES[id];
               const identity = MODE_IDENTITY[id];
               return [
@@ -453,7 +452,6 @@ export default function ManualPage() {
           ]}
         />
         <ul className="space-y-1.5 pt-3">
-          <Tip>{L("Vill du att hela klassen jagar samma person: Crown Rush — bara ledaren kan rånas, så den som leder måste köpa försvar i stället för att bara svara rätt.", "Want the whole class hunting one person: Crown Rush — only the leader can be raided, so the leader has to buy defence instead of just answering well.")}</Tip>
           <Tip>{L("Vill du ha mest dramatik i klassrummet: Vault Raiders — en kista kan avgöra ett jämnt lopp, men aldrig bära matchen själv.", "Want the most classroom drama: Vault Raiders — a chest can settle a close game, but never carry the match on its own.")}</Tip>
           <Tip>{L("Vill du att eleverna ska läsa varandra: Crypto Clash — spåret och de avrundade saldona straffar den som gapar efter mest.", "Want students to read each other: Crypto Clash — trace and the rounded balances punish whoever grabs for the most.")}</Tip>
           <Tip>{L("Vill du ha comeback och gissningar: Pirate Heist — dyrare rån tar mer, men kan misslyckas helt.", "Want comebacks and gambles: Pirate Heist — dearer raids take more, but can fail outright.")}</Tip>

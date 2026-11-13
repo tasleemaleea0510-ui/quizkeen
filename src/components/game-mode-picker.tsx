@@ -5,7 +5,7 @@ import { KEEN_BY_ID } from "@/lib/keens";
 import { MODE_IDENTITY, MODE_RULES, type ModeId } from "@/lib/game-modes";
 import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { Anchor, Check, Coins, Cpu, Crown, Sparkles, TrendingUp, TriangleAlert, Wallet } from "lucide-react";
+import { Anchor, Check, Coins, Cpu, Sparkles, TrendingUp, TriangleAlert, Wallet } from "lucide-react";
 
 /**
  * Choosing how a quiz is played, as a wall of posters.
@@ -64,14 +64,6 @@ export const MODE_CARDS: ModeCard[] = [
     bg: "from-rose-400 via-rose-700 to-slate-950",
     glow: "bg-rose-500/20",
     icon: Anchor,
-  },
-  {
-    id: "crown",
-    kicker: "Krona · jakt · försvar",
-    keen: "dragony",
-    bg: "from-violet-400 via-violet-700 to-slate-950",
-    glow: "bg-violet-500/20",
-    icon: Crown,
   },
 ];
 
@@ -153,8 +145,7 @@ export default function GameModePicker({
                 "group relative animate-fade-up overflow-hidden rounded-[24px] border-2 text-left transition-all duration-200",
                 active
                   ? "border-white/90 shadow-raise ring-4 ring-white/15"
-                  : "border-white/10 hover:-translate-y-0.5 hover:border-white/40",
-                c.id === "crown" && "md:col-span-2"
+                  : "border-white/10 hover:-translate-y-0.5 hover:border-white/40"
               )}
             >
               <span className={cn("absolute inset-0 bg-gradient-to-br", c.bg)} aria-hidden />
@@ -220,12 +211,7 @@ export default function GameModePicker({
                   <span className="text-[9px] font-bold uppercase tracking-wider text-white/45">
                     {active ? "Valt läge" : "Tryck för att välja"}
                   </span>
-                  {r?.leaderOnly && (
-                    <span className="rounded-full bg-black/35 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-violet-100">
-                      <Crown className="mr-1 inline h-2.5 w-2.5" />
-                      Bara ledaren kan rånas
-                    </span>
-                  )}
+
                 </span>
               </span>
             </button>

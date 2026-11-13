@@ -26,7 +26,7 @@ export type Rarity = (typeof RARITIES)[number];
  * their characters are drawn, and nothing else in the app assumes a pack exists
  * until it is listed.
  */
-export const PACK_IDS = ["gamer", "chroma", "shadow"] as const;
+export const PACK_IDS = ["gamer"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 /** The free pack's own id — it draws from the cheap end of what is on sale. */
@@ -72,21 +72,11 @@ export type Keen = {
   pack: PackId | typeof ADMIN_PACK | typeof START_PACK | typeof OWNER_PACK;
   /** Base hue (0–360), used for the soft colour behind the artwork. */
   hue: number;
-  /**
-   * Reuse another Keen's artwork, when this character is a variant of it.
-   *
-   * A variant is a real collectible with its own id, name and rarity, but it is
-   * drawn from an existing file: `art` points at it and `tint` recolours it, so a
-   * new pack ships without a new design sheet.
-   */
-  art?: string;
-  /** Degrees of hue rotation applied to the artwork above. */
-  tint?: number;
 };
 
 /** The picture for a Keen. One file per id, no drawing. */
-export function keenArtSrc(keen: Pick<Keen, "id" | "art">): string {
-  return keen.art ?? `/keens/${keen.id}.png`;
+export function keenArtSrc(keen: Pick<Keen, "id">): string {
+  return `/keens/${keen.id}.png`;
 }
 
 /** True for a Keen handed out by a person rather than rolled by a pack. */
@@ -325,35 +315,6 @@ export const PACKS: Pack[] = [
     sizes: [1, 3, 5],
     art: "/keens/packs/gamer.png",
   },
-  {
-    id: "chroma",
-    name: "Chromapaketet",
-    nameEn: "Chroma pack",
-    tagline: "Samma figurer, helt fel färger — och det är hela poängen.",
-    taglineEn: "The same characters in completely wrong colours — that is the point.",
-    added: "2026-10-02",
-    price: 320,
-    emoji: "🌈",
-    hue: 198,
-    // A tighter ladder than the gamer pack: more mid-tier, one chase card.
-    odds: { VANLIG: 52, OVANLIG: 28, SALLSYNT: 14, EPISK: 5.5, LEGENDARISK: 0.5 },
-    sizes: [1, 3, 5],
-  },
-  {
-    id: "shadow",
-    name: "Skuggpaketet",
-    nameEn: "Shadow pack",
-    tagline: "Det som rör sig i mörkret har också en färg.",
-    taglineEn: "Whatever moves in the dark has a colour too.",
-    added: "2026-10-24",
-    price: 520,
-    emoji: "🌑",
-    hue: 265,
-    // No commons at all: a shadow pack is aimed at collections that already
-    // have the cheap end and want the top of the shelf.
-    odds: { OVANLIG: 45, SALLSYNT: 32, EPISK: 16, LEGENDARISK: 6, MYSTISK: 1 },
-    sizes: [1, 3],
-  },
 ];
 
 /**
@@ -426,23 +387,6 @@ export const KEENS: Keen[] = [
   P(OWNER_PACK, "MYSTISK", 230, "dragony", "DragonY", "DragonY", "🐲"),
   P(OWNER_PACK, "MYSTISK", 140, "dragonyforest", "DragonY (Forest)", "DragonY (Forest)", "🌿"),
   P(OWNER_PACK, "MYSTISK", 265, "dragonymoonlight", "DragonY (Moonlight)", "DragonY (Moonlight)", "🌙"),
-
-  // ── Chromapaketet ──────────────────────────────────────────────────────────
-  // Variants, not new drawings: each row points at an existing file and rotates
-  // its hue. The id is still unique, so the collection, market and odds treat a
-  // variant as a character of its own.
-  { ...P("chroma", "VANLIG", 200, "crewmate-neon", "Neon Crewmate", "Neon Crewmate", "🚀"), art: "/keens/crewmate.png", tint: 205 },
-  { ...P("chroma", "OVANLIG", 140, "pig-mint", "Mint Pig", "Mint Pig", "🐷"), art: "/keens/chubbypig.png", tint: 140 },
-  { ...P("chroma", "SALLSYNT", 300, "invader-vapor", "Vapor Invader", "Vapor Invader", "👾"), art: "/keens/invader.png", tint: 300 },
-  { ...P("chroma", "EPISK", 180, "creeper-frost", "Frost Creeper", "Frost Creeper", "🧊"), art: "/keens/creeper.png", tint: 185 },
-  { ...P("chroma", "LEGENDARISK", 320, "pixelthorne-ember", "Ember Thorne", "Ember Thorne", "🔥"), art: "/keens/pixelthorne.png", tint: 320 },
-
-  // ── Skuggpaketet ───────────────────────────────────────────────────────────
-  { ...P("shadow", "OVANLIG", 40, "kraken-ink", "Ink Kraken", "Ink Kraken", "🖋️"), art: "/keens/doodlekraken.png", tint: 40 },
-  { ...P("shadow", "SALLSYNT", 265, "omeisaurus-dusk", "Dusk Omeisaurus", "Dusk Omeisaurus", "🌆"), art: "/keens/omeisaurus.png", tint: 265 },
-  { ...P("shadow", "EPISK", 300, "dragony-ash", "Ash DragonY", "Ash DragonY", "🌫️"), art: "/keens/dragony.png", tint: 300 },
-  { ...P("shadow", "LEGENDARISK", 200, "dragonyforest-night", "Night DragonY", "Night DragonY", "🌲"), art: "/keens/dragonyforest.png", tint: 200 },
-  { ...P("shadow", "MYSTISK", 90, "dragonymoonlight-eclipse", "Eclipse DragonY", "Eclipse DragonY", "🌘"), art: "/keens/dragonymoonlight.png", tint: 90 },
 ];
 
 /**
@@ -467,20 +411,6 @@ export const KEEN_BIOS: Record<string, string> = {
   dragony: "Ägarens drake, som sover på moln och vaktar hela samlingen.",
   dragonyforest: "Sover under mossan i skogen med vingarna som täcke.",
   dragonymoonlight: "Vaknar först när månen står som högst — då vaktar den valvet.",
-
-  // ── Chromapaketet ──────────────────────────────────────────────────────────
-  "crewmate-neon": "Samma besättning, nytt ljus — och fortfarande en lögnare.",
-  "pig-mint": "Kyld till perfektion. Lika rund, dubbelt så snabb.",
-  "invader-vapor": "Landar i åtta bitar men glömde färgerna hemma.",
-  "creeper-frost": "Exploderar långsamt, som en snöboll i slow motion.",
-  "pixelthorne-ember": "Glöder i mörkret — den enda skuggan med egens ljus.",
-
-  // ── Skuggpaketet ───────────────────────────────────────────────────────────
-  "kraken-ink": "Ritad i svart bläck i marginalen, inte i krita.",
-  "omeisaurus-dusk": "Vaknar när solen går ner och räknar stjärnorna.",
-  "dragony-ash": "Sover i askan efter varje provperiod.",
-  "dragonyforest-night": "Mossan har blivit mörk — nu sover den med öppna ögon.",
-  "dragonymoonlight-eclipse": "Enda gången någon sett den: under en förmörkelse.",
 };
 
 /** The one-liner for a Keen, or an empty string if it has none yet. */

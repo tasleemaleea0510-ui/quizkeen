@@ -83,6 +83,12 @@ function GameInner() {
   const raceListRef = useRef<RaceQuestion[] | null>(null);
   const [lap, setLap] = useState(1);
   const [endStats, setEndStats] = useState<EndStat[] | null>(null);
+  // The live board: points and per-seat progress for the whole room, so a phone
+  // can say "du ligger 3:a" while the projector shows the same thing.
+  const [board, setBoard] = useState<{
+    scores: Record<string, number>;
+    progress: Record<string, { correct?: number; answered?: number }>;
+  }>({ scores: {}, progress: {} });
   const continueSentRef = useRef(false);
   const [continuing, setContinuing] = useState(false);
   // ── The action window ─────────────────────────────────────────────────
@@ -210,6 +216,16 @@ function GameInner() {
       if (p.mint && typeof p.mint[name] === "number") setMyMint(p.mint[name]);
       if (Array.isArray(p.stats)) setEndStats(p.stats);
       setPhase("end");
+    });
+
+    // The live standings, published with the same throttle as the projector's
+    // progress board — one packet for everybody, not one per rival.
+    game.on("broadcast", { event: "board" }, (msg) => {
+      const p = msg.payload as {
+        scores?: Record<string, number>;
+        progress?: Record<string, { correct?: number; answered?: number }>;
+      } | null;
+      setBoard({ scores: p?.scores ?? {}, progress: p?.progress ?? {} });
     });
 
     // Every action is answered with a fresh board from the host, so the panel
@@ -364,6 +380,25 @@ function GameInner() {
 
   const leaderboard = Object.entries(scores).sort((a, b) => b[1] - a[1]);
 
+  // Race standings as they stand right now: points first, then questions
+  // cleared. This is the same order the host's board uses.
+  const raceBoard = Object.entries(Object.keys(board.scores).length ? board.scores : scores)
+    .sort(
+      (a, b) =>
+        b[1] - a[1] || (board.progress[b[0]]?.answered ?? 0) - (board.progress[a[0]]?.answered ?? 0)
+    )
+    .map(([who, points], i) => ({
+      name: who,
+      points,
+      place: i + 1,
+      cleared: board.progress[who]?.answered ?? 0,
+      correct: board.progress[who]?.correct ?? 0,
+    }));
+  const myPlace = raceBoard.findIndex((r) => r.name === name) + 1;
+  const myStat = endStats?.find((s) => s.name === name);
+  const accuracy =
+    myStat && myStat.answered > 0 ? Math.round((myStat.correct / myStat.answered) * 100) : 0;
+
   const myScore = scores[name] ?? scores[accountRef.current] ?? 0;
   const need = question?.correctCount ?? 1;
   // Only an exact set counts: all the right answers and nothing else.
@@ -452,6 +487,15 @@ function GameInner() {
           )}
           {race && (phase === "question" || phase === "reveal") && (
             <MatchClockChip endsAt={race.endsAt} minutes={race.minutes} className="inline-flex" />
+          )}
+          {race && myPlace > 0 && (phase === "question" || phase === "reveal") && (
+            <span
+              title={`Du ligger ${myPlace}:a av ${raceBoard.length}`}
+              className="hidden items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-200 sm:flex"
+            >
+              <Trophy className="h-3.5 w-3.5" />
+              <span data-no-translate>{myPlace}:a</span>
+            </span>
           )}
           <span
             data-no-translate
@@ -677,6 +721,44 @@ function GameInner() {
                   </div>
                 )}
 
+                {race && raceBoard.length > 0 && (
+                  <div className="mx-auto w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      <span>Ställning</span>
+                      <span data-no-translate>{myPlace > 0 ? `Du ligger ${myPlace}:a` : ""}</span>
+                    </div>
+                    <ol className="space-y-0.5">
+                      {raceBoard.slice(0, 10).map((r) => (
+                        <li
+                          key={r.name}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-2 py-1 text-xs",
+                            r.name === name
+                              ? "bg-indigo-500/20 font-bold text-indigo-100"
+                              : "text-slate-300"
+                          )}
+                        >
+                          <span className="w-5 shrink-0 font-mono text-[10px] text-slate-500">{r.place}</span>
+                          <span data-no-translate className="min-w-0 flex-1 truncate">
+                            {r.name}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-slate-500" data-no-translate>
+                            {r.cleared} klarade
+                          </span>
+                          <span className="shrink-0 font-mono text-[11px]" data-no-translate>
+                            {r.points} p
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                    {myPlace > 10 && (
+                      <p className="mt-1 px-2 text-[10px] text-slate-500">
+                        Du ligger {myPlace}:a — utanför topp 10.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="text-center">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Din poäng</p>
                   <p className="mt-1 font-mono text-lg font-bold text-white">
@@ -721,6 +803,51 @@ function GameInner() {
                     {leaderboard.length} spelare{modeRules ? ` · ${modeRules.name}` : ""}
                   </p>
                 </div>
+
+                {race && (
+                  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-600/25 to-violet-600/20 p-4 text-center">
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-indigo-200">
+                      Din placering
+                    </p>
+                    <p className="mt-1 font-display text-4xl font-extrabold text-white" data-no-translate>
+                      {myPlace > 0 ? `${myPlace}:a` : "–"}
+                    </p>
+                    {leaderboard[0] && (
+                      <p className="mt-1 text-sm font-semibold text-white/80">
+                        Vinnare:{" "}
+                        <span data-no-translate className="font-extrabold text-white">
+                          {leaderboard[0][0]}
+                        </span>
+                      </p>
+                    )}
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-black/25 px-2 py-1.5">
+                        <span className="block font-mono text-sm font-extrabold text-white" data-no-translate>
+                          {myStat?.answered ?? 0}
+                        </span>
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-white/50">
+                          Klarade
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-black/25 px-2 py-1.5">
+                        <span className="block font-mono text-sm font-extrabold text-emerald-300" data-no-translate>
+                          {myStat?.correct ?? 0}/{myStat?.answered ?? 0}
+                        </span>
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-white/50">
+                          Rätt
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-black/25 px-2 py-1.5">
+                        <span className="block font-mono text-sm font-extrabold text-amber-300" data-no-translate>
+                          {accuracy} %
+                        </span>
+                        <span className="block text-[9px] font-bold uppercase tracking-wider text-white/50">
+                          Träffsäkerhet
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <p className="text-center text-[11px] font-extrabold uppercase tracking-widest text-slate-500">
                   Quizpoäng

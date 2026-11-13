@@ -117,6 +117,11 @@ export default function HostPage() {
   // Classic keeps the shared question clock and the host advancing the room;
   // the heist modes run as a race with a match clock instead.
   const [matchMinutes, setMatchMinutes] = useState(DEFAULT_MATCH_MINUTES);
+  // Classic quizzes can race too. On (the default) every seat pulls its own
+  // questions from the shared sheet and the match clock is the finish line; off
+  // is the old host-paced quiz where the whole room moves together.
+  const [selfPaced, setSelfPaced] = useState(true);
+  const selfPacedRef = useRef(true);
   // ── The action window ────────────────────────────────────────────────────
   // Shared seconds between questions, timestamped once and shared: the seat,
   // this projector and every other phone count the same endsAt stamp, so a
@@ -172,6 +177,7 @@ export default function HostPage() {
   useEffect(() => { quizRef.current = quiz; }, [quiz]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { matchMinutesRef.current = matchMinutes; }, [matchMinutes]);
+  useEffect(() => { selfPacedRef.current = selfPaced; }, [selfPaced]);
   useEffect(() => { windowSecondsRef.current = windowSeconds; }, [windowSeconds]);
   useEffect(() => { matchEndsAtRef.current = matchEndsAt; }, [matchEndsAt]);
 
@@ -198,6 +204,10 @@ export default function HostPage() {
     progressTimerRef.current = setTimeout(() => {
       progressTimerRef.current = null;
       broadcast("progress", progressRef.current);
+      // The projector already had the progress map, but a phone cannot rank the
+      // room from progress alone — it needs the points beside it. One extra
+      // packet, throttled on the same timer as `progress`.
+      broadcast("board", { scores: scoresRef.current, progress: progressRef.current });
     }, 350);
   }
 
@@ -205,7 +215,9 @@ export default function HostPage() {
   function advanceSeat(name: string) {
     const race = raceRef.current;
     const h = heistRef.current;
-    if (!race || !h || !h.players[name]) return;
+    // A classic self-paced race has no economy, so the heist board is optional.
+    if (!race) return;
+    if (h && !h.players[name]) return;
     if (!betweenRef.current.has(name)) {
       // Not sitting between questions any more — hand back its current place.
       delete windowsRef.current[name];
@@ -214,13 +226,15 @@ export default function HostPage() {
     }
     const len = race.list.length;
     const prev = paceRef.current[name] ?? 0;
-    const next = advancePlayer(h, name);
+    const next = h ? advancePlayer(h, name) : null;
     paceRef.current[name] = (prev + 1) % len;
     betweenRef.current.delete(name);
     delete windowsRef.current[name];
-    heistRef.current = next;
-    setHeist(next);
-    publishHeist(next);
+    if (next) {
+      heistRef.current = next;
+      setHeist(next);
+      publishHeist(next);
+    }
     sendPace(name);
   }
 
@@ -229,7 +243,9 @@ export default function HostPage() {
     const race = raceRef.current;
     const h = heistRef.current;
     const game = gameRef.current;
-    if (!race || !h || !game || !h.players[name]) return;
+    if (!race || !game) return;
+    // In a classic race there is no heist seat; in a heist race there must be.
+    if (h && !h.players[name]) return;
     const len = race.list.length;
     const q = paceRef.current[name] ?? 0;
     if (betweenRef.current.has(name)) {
@@ -267,9 +283,8 @@ export default function HostPage() {
     const race = raceRef.current;
     const h = heistRef.current;
     const game = gameRef.current;
-    if (!race || !h || !game) return;
-    const seat = h.players[name];
-    if (!seat) {
+    if (!race || !game) return;
+    if (h && !h.players[name]) {
       safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: name, text: "Tävlingen startade innan du kom med — du är inte med i den här omgången. Vänta på nästa." } });
       return;
     }
@@ -297,16 +312,18 @@ export default function HostPage() {
       const streak = (streaksRef.current[name] ?? 0) + 1;
       streaksRef.current[name] = streak;
       newScores[name] = (newScores[name] || 0) + 100 + speed;
-      nextHeist = addCorrect(nextHeist, name);
+      if (nextHeist) nextHeist = addCorrect(nextHeist, name);
     } else {
       streaksRef.current[name] = 0;
-      nextHeist = breakStreak(nextHeist, name);
+      if (nextHeist) nextHeist = breakStreak(nextHeist, name);
     }
-    if (acc && nextHeist.players[name]) nextHeist.players[name].account = acc;
+    if (acc && nextHeist?.players[name]) nextHeist.players[name].account = acc;
     scoresRef.current = newScores;
     setScores(newScores);
-    heistRef.current = nextHeist;
-    setHeist(nextHeist);
+    if (nextHeist) {
+      heistRef.current = nextHeist;
+      setHeist(nextHeist);
+    }
     const len = race.list.length;
     const prev = progressRef.current[name];
     progressRef.current[name] = {
@@ -316,7 +333,7 @@ export default function HostPage() {
       answered: (prev?.answered ?? 0) + 1,
     };
     publishProgress();
-    publishHeist(nextHeist);
+    if (nextHeist) publishHeist(nextHeist);
     sendPace(name);
   }
 
@@ -467,9 +484,11 @@ export default function HostPage() {
           payload: { mode: modeRef.current, minutes: matchMinutesRef.current, endsAt: matchEndsAtRef.current, windowSec: windowSecondsRef.current, questions: race.list },
         });
         if (progressRef.current) safeSend(game, { type: "broadcast", event: "progress", payload: progressRef.current });
-        if (heistRef.current?.players[who]) {
+        // A race seat is anyone on the sheet: the heist modes also need a seat
+        // in the economy, a classic race does not.
+        if (raceRef.current && (!heistRef.current || heistRef.current.players[who])) {
           sendPace(who);
-        } else {
+        } else if (heistRef.current) {
           safeSend(game, { type: "broadcast", event: "heist-note", payload: { to: who, text: "Tävlingen startade innan du kom med — du är inte med i den här omgången. Vänta på nästa." } });
         }
       }
@@ -565,10 +584,14 @@ export default function HostPage() {
     awardedRef.current = false;
     streaksRef.current = {};
     const chosen = modeRef.current;
-    if (chosen !== "classic" && players.length > 0) {
-      // Every seat starts equal — the mode rules say so, and it is what makes a
-      // classroom match fair to someone who joined five seconds ago.
-      publishHeist(newHeist(chosen, players.map((name) => ({ name, keen: keensRef.current[name] ?? null }))));
+    // Classic races when the lobby switch says so; the heist modes always do.
+    const racing = chosen !== "classic" || selfPacedRef.current;
+    if (racing && players.length > 0) {
+      if (chosen !== "classic") {
+        // Every seat starts equal — the mode rules say so, and it is what makes
+        // a classroom match fair to someone who joined five seconds ago.
+        publishHeist(newHeist(chosen, players.map((name) => ({ name, keen: keensRef.current[name] ?? null }))));
+      }
       // ── Race start ────────────────────────────────────────────────────
       // Hand out the question sheet once (question texts and shapes only — the
       // correct answers never leave the host), start the shared clock, and
@@ -593,6 +616,10 @@ export default function HostPage() {
       const endsAt = Date.now() + minutes * 60000;
       matchEndsAtRef.current = endsAt;
       setMatchEndsAt(endsAt);
+      // Send the room to its game screen. This branch used to return before the
+      // lobby was told to start, so a self-paced match began with every player
+      // still sitting in the waiting room, waiting for a question that never came.
+      safeSend(lobbyRef.current, { type: "broadcast", event: "start", payload: { mode: chosen } });
       broadcast("match", { mode: chosen, minutes, endsAt, windowSec: windowSecondsRef.current, questions: list });
       phaseRef.current = "live";
       setPhase("live");
@@ -753,7 +780,33 @@ export default function HostPage() {
     // a class reads out loud after the timer hits zero.
     const race = raceRef.current;
     let stats: EndStat[] | null = null;
-    if (race && finished) {
+    if (race && !finished) {
+      // A classic race ends on points. Same stat sheet shape as a heist match,
+      // built from the score map plus each seat's own progress, so every screen
+      // can show placements, cleared questions and accuracy.
+      // Everyone who started the match appears, even a seat that never answered:
+      // a results board that silently drops people reads as a bug to the person
+      // who is missing from it.
+      const names = new Set<string>([...roster, ...Object.keys(scoresRef.current)]);
+      stats = Array.from(names)
+        .map((who) => ({ who, points: scoresRef.current[who] ?? 0 }))
+        .sort((a, b) => b.points - a.points)
+        .map(({ who, points }, i) => {
+          const prog = progressRef.current[who];
+          return {
+            name: who,
+            keen: keensRef.current[who] ?? null,
+            place: i + 1,
+            points,
+            correct: prog?.correct ?? 0,
+            answered: prog?.answered ?? 0,
+            balance: points,
+            bestRaid: 0,
+            raids: 0,
+          } satisfies EndStat;
+        });
+      setEndStats(stats);
+    } else if (race && finished) {
       const payout = mintPayout(finished);
       const payoutByName = new Map(payout.map((p) => [p.username, p.mint]));
       stats = standings(finished).map((row, i) => {
@@ -960,7 +1013,35 @@ export default function HostPage() {
                 </Link>
               </div>
               <GameModePicker value={mode} onChange={setMode} />
-              {mode !== "classic" && (
+              {mode === "classic" && (
+                <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-sky-200">
+                    <Hourglass className="h-3.5 w-3.5" />
+                    Egen takt
+                  </span>
+                  {[true, false].map((on) => (
+                    <button
+                      key={String(on)}
+                      type="button"
+                      onClick={() => setSelfPaced(on)}
+                      aria-pressed={selfPaced === on}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-extrabold transition-colors",
+                        selfPaced === on
+                          ? "bg-sky-400 text-sky-950 shadow"
+                          : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/30"
+                      )}
+                    >
+                      {on ? "På" : "Av"}
+                    </button>
+                  ))}
+                  <span className="text-[11px] text-slate-500">
+                    På: alla svarar i egen takt och matchen stannar när klockan tar slut. Av: hela
+                    klassen följer värden fråga för fråga.
+                  </span>
+                </div>
+              )}
+              {(mode !== "classic" || selfPaced) && (
                 <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-200">
                     <Hourglass className="h-3.5 w-3.5" />
@@ -1015,7 +1096,7 @@ export default function HostPage() {
                   </button>
                 ))}
                 <span className="text-[11px] text-slate-500">
-                  Tiden mellan frågorna för rån, hack, kista och köp — {mode === "classic" ? "hela klassrummet räknar tillsammans" : "varje spelare får egna sekunder"}.
+                  Tiden mellan frågorna för rån, hack, kista och köp — {mode === "classic" && !selfPaced ? "hela klassrummet räknar tillsammans" : "varje spelare får egna sekunder"}.
                 </span>
               </div>
               {roundRules && (

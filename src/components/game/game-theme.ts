@@ -54,14 +54,6 @@ export const STAGE_THEME: Record<ModeId, StageTheme> = {
     halo: "bg-rose-500/25",
     edge: "shadow-[inset_60px_0_90px_-70px_rgba(244,63,94,0.9)]",
   },
-  crown: {
-    id: "crown",
-    name: "Crown Rush",
-    chip: "border-violet-400/35 bg-violet-500/15 text-violet-200",
-    accent: "text-violet-300",
-    halo: "bg-violet-500/25",
-    edge: "shadow-[inset_60px_0_90px_-70px_rgba(139,92,246,0.9)]",
-  },
 };
 
 /** The theme for the mode being played, or the plain quiz when there is none. */
