@@ -90,6 +90,9 @@ function GameInner() {
     progress: Record<string, { correct?: number; answered?: number }>;
   }>({ scores: {}, progress: {} });
   const continueSentRef = useRef(false);
+  // Has anything arrived from the host yet? Until it has, this screen keeps
+  // asking for its state — see the subscribe block below.
+  const syncedRef = useRef(false);
   const [continuing, setContinuing] = useState(false);
   // ── The action window ─────────────────────────────────────────────────
   // Fifteen shared seconds between a question's reveal and your move on —
@@ -131,6 +134,7 @@ function GameInner() {
     const game = supabase.channel(`game-${pin}`);
 
     game.on("broadcast", { event: "question" }, (msg) => {
+      syncedRef.current = true;
       setQuestion(msg.payload as Question);
       // A chest overlay from the previous question must not sit on top of the
       // next one while the host is already reading it out.
@@ -167,6 +171,7 @@ function GameInner() {
       const p = msg.payload as { mode?: string; minutes: number; endsAt: number; windowSec?: number; questions: RaceQuestion[] };
       if (!Array.isArray(p?.questions) || p.questions.length === 0) return;
       raceListRef.current = p.questions;
+      syncedRef.current = true;
       setRace({ minutes: p.minutes ?? 5, endsAt: p.endsAt ?? Date.now(), length: p.questions.length, windowSec: p.windowSec });
       continueSentRef.current = false;
       setContinuing(false);
@@ -185,6 +190,7 @@ function GameInner() {
         windowEndsAt?: number;
       };
       if (!p || p.to !== name) return;
+      syncedRef.current = true;
       const list = raceListRef.current;
       if (!list) return;
       const r = p.r ?? 0;
@@ -247,6 +253,7 @@ function GameInner() {
 
     game.on("broadcast", { event: "state" }, (msg) => {
       const p = msg.payload as any;
+      syncedRef.current = true;
       if (p.kind === "question") {
         setQuestion({ index: p.index, text: p.text, options: p.options, correctCount: p.correctCount });
         setChestReveal(null);
@@ -273,16 +280,40 @@ function GameInner() {
       }
     });
 
-    game.subscribe((status: string) => {
-      if (status === "SUBSCRIBED") {
-        // The name rides along, so a race seat rejoining mid-match gets its
-        // own place in the race back instead of sitting forever on waiting.
-        game.send({ type: "broadcast", event: "sync", payload: { name } });
+    // ── Joining a match that has already started ─────────────────────���───────
+    // A self-paced match begins the instant the host sends the room here, so
+    // the sheet — and your first question — are usually sent while this channel
+    // is still connecting. Asking once on subscribe was a single chance: if that
+    // packet raced the host's own join, the seat sat on "Väntar på
+    // spelledaren…" for the whole match. Ask again, a few times, until something
+    // arrives, then stop bothering the host.
+    let syncTimer: ReturnType<typeof setInterval> | null = null;
+    let syncTries = 0;
+    const askForState = () => {
+      if (syncedRef.current) {
+        if (syncTimer) clearInterval(syncTimer);
+        syncTimer = null;
+        return;
       }
+      syncTries += 1;
+      // The name rides along, so a race seat gets its own place back.
+      game.send({ type: "broadcast", event: "sync", payload: { name } });
+      if (syncTries >= 8 && syncTimer) {
+        clearInterval(syncTimer);
+        syncTimer = null;
+      }
+    };
+
+    game.subscribe((status: string) => {
+      if (status !== "SUBSCRIBED") return;
+      syncedRef.current = false;
+      askForState();
+      if (!syncTimer) syncTimer = setInterval(askForState, 1500);
     });
 
     gameRef.current = game;
     return () => {
+      if (syncTimer) clearInterval(syncTimer);
       supabase.removeChannel(game);
     };
   }, [pin]);
@@ -538,10 +569,21 @@ function GameInner() {
                 <span className={cn("grid h-16 w-16 place-items-center rounded-2xl border", theme.chip)}>
                   <Loader2 className="h-7 w-7 animate-spin" />
                 </span>
-                <p className="font-display text-xl font-bold text-white">Väntar på spelledaren…</p>
-                <p className="max-w-sm text-sm text-slate-400">
-                  Håll koll på projektorn — nästa fråga landar här samma sekund som den startar.
+                <p className="font-display text-xl font-bold text-white">
+                  {race ? "Hämtar din bana…" : "Väntar på spelledaren…"}
                 </p>
+                <p className="max-w-sm text-sm text-slate-400">
+                  {race
+                    ? "Tävlingen är igång och du spelar i din egen takt — din första fråga är på väg."
+                    : "Håll koll på projektorn — nästa fråga landar här samma sekund som den startar."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => gameRef.current?.send({ type: "broadcast", event: "sync", payload: { name } })}
+                  className="rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white/30"
+                >
+                  Hämta igen
+                </button>
               </div>
             )}
 

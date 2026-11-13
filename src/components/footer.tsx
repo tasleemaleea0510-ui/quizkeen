@@ -20,9 +20,6 @@ export default function Footer() {
           <Link href="/help" className="transition-colors hover:text-white">
             Hjälp
           </Link>
-          <Link href="/sandbox" className="transition-colors hover:text-white">
-            Sandlåda
-          </Link>
         </nav>
         <p className="text-xs text-slate-600">Byggt av Abdullah Shafi</p>
       </div>

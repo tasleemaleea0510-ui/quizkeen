@@ -621,6 +621,22 @@ export default function HostPage() {
       // still sitting in the waiting room, waiting for a question that never came.
       safeSend(lobbyRef.current, { type: "broadcast", event: "start", payload: { mode: chosen } });
       broadcast("match", { mode: chosen, minutes, endsAt, windowSec: windowSecondsRef.current, questions: list });
+      // ── Pace the room ────────────────────────────────────────────────────
+      // Everyone is being sent to the game screen right now, so nobody's
+      // channel is listening yet: the sheet above, and any question sent in the
+      // same breath, lands before a phone has subscribed. That is why a
+      // self-paced match could open with the projector running and every player
+      // stuck on "Väntar på spelledaren…". Wait for the page to join, then hand
+      // each seat its first question; seats that arrive later ask for
+      // themselves with `sync`.
+      const seats = [...players];
+      setTimeout(() => {
+        seats.forEach((seat) => {
+          if (paceRef.current[seat] !== undefined) return;
+          if (heistRef.current && !heistRef.current.players[seat]) return;
+          sendPace(seat);
+        });
+      }, 1500);
       phaseRef.current = "live";
       setPhase("live");
       return;
