@@ -1,48 +1,46 @@
 # Keen source images
 
-Two ways art arrives here:
+Design sheets go in this folder, one picture per Keen, named after the Keen's id.
+`scripts/crop-keens.mjs` trims the flat background, keeps the largest shape,
+squares it, cuts the background out to transparency and writes a 512×512 PNG into
+`public/keens/`.
 
-1. **Drawn in-house** — `art/<id>.svg`, one hand-written vector per Keen. This is
-   where the Halloween pack lives. Nothing is traced or copied from another
-   game's asset files.
-2. **Supplied as a picture** — a PNG dropped in this folder, named after the
-   Keen's id.
-
-Either way the last step is the same: `scripts/crop-keens.mjs` trims the flat
-background, squares the artwork, cuts the background out to transparency and
-writes a 512×512 PNG into `public/keens/`.
+A pack's cover art is named `pack-<packId>.png` and lands in
+`public/keens/packs/<packId>.png` instead — same trim and square, but the picture
+keeps its own background, because a cover is artwork rather than a cut-out.
 
 | File | Keen | Rarity |
 | --- | --- | --- |
-| `pumpkin` | Pumpkin | Common (`VANLIG`) |
-| `chickenchick` | Chicken Chick | Rare (`SALLSYNT`) |
-| `chickchicken` | Chick Chicken | Rare (`SALLSYNT`) |
-| `frogula` | Frogula | Epic (`EPISK`) |
-| `cookiepumpkin` | Cookie Pumpkin | Legendary (`LEGENDARISK`) |
-| `cookiemummy` | Cookie Mummy | Legendary (`LEGENDARISK`) |
-| `cookieghost` | Cookie Ghost | Secret (`HEMLIG`) |
-| `pumpkinkingu` | Pumpkin King | Mythical (`MYSTISK`) |
+| `pumpkin.png` | Pumpkin | Common (`VANLIG`) |
+| `chickenchick.png` | Chicken Chick | Rare (`SALLSYNT`) |
+| `chickchicken.png` | Chick Chicken | Rare (`SALLSYNT`) |
+| `frogula.png` | Frogula | Epic (`EPISK`) |
+| `cookiepumpkin.png` | Cookie Pumpkin | Legendary (`LEGENDARISK`) |
+| `cookiemummy.png` | Cookie Mummy | Legendary (`LEGENDARISK`) |
+| `cookieghost.png` | Cookie Ghost | Secret (`HEMLIG`) |
+| `pumpkinkingu.png` | Pumpkin King | Mythical (`MYSTISK`) |
+| `pack-halloween.png` | the Halloween pack cover | — |
 
-## Rebuilding the Halloween art
+## Running it
 
 ```bash
-# 1. render the vectors to PNG at 1024 (needs the one-off renderer)
-npm i --no-save @resvg/resvg-js
-node scripts/keen-source/rasterize.mjs
-
-# 2. trim, square, cut out and downscale to 512
-node scripts/crop-keens.mjs
+node scripts/crop-keens.mjs            # crop everything in this folder
+node scripts/crop-keens.mjs --self-test # prove the decoder/cropper works
 ```
 
-`rasterize.mjs` reads `art/*.svg` and writes `<id>.png` beside it. The renderer is
-deliberately *not* a project dependency: it is a conversion tool, not something
-the site ships.
+## What the crop does
 
-`node scripts/crop-keens.mjs --self-test` proves the decoder/cropper works
-without touching any real file.
+A design sheet is not just the character: it has a caption underneath
+("Common (Pumpkin)"), sometimes a stray mark at the edge, sometimes a title above
+the art. So the cropper flood-fills the artwork at full resolution and keeps the
+**largest connected shape**, which is the character — a caption is a scatter of
+small blobs by comparison. That is why the label never ends up inside the card.
+
+The background threshold is deliberately a little generous so a soft drop shadow
+on the sheet does not survive as a pale halo on the dark UI.
 
 Only 8-bit RGB/RGBA PNGs are read. A JPEG must be re-saved as PNG first — the
 script says so rather than guessing.
 
-The rendered PNGs in this folder are ignored by git; `art/` is tracked, because
-the drawings are the source.
+Everything here except this README and `.gitignore` is ignored by git: the
+shipped art lives in `public/keens/`, and a design sheet is not a build asset.

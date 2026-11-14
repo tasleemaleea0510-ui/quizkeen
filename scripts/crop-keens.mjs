@@ -26,7 +26,7 @@
  * or a design export produces. If a file is JPEG, save it as PNG first.
  */
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import zlib from "node:zlib";
 
 // Sources live outside `public/` on purpose: a design sheet is not a shipped
@@ -34,8 +34,14 @@ import zlib from "node:zlib";
 const SOURCE_DIR = join("scripts", "keen-source");
 const OUT_DIR = join("public", "keens");
 const SIZE = 512;
-/** How far a pixel must sit from the background colour to count as artwork. */
-const TOLERANCE = 42;
+/**
+ * How far a pixel must sit from the background colour to count as artwork.
+ *
+ * High enough to swallow the soft grey drop shadow a design sheet leaves under
+ * the character — otherwise the cut-out carries a pale halo onto the dark UI —
+ * and low enough that the pale blue and cream parts of the cards survive.
+ */
+const TOLERANCE = 58;
 
 // ── PNG decode ───────────────────────────────────────────────────────────────
 
@@ -179,26 +185,67 @@ function isArtwork(data, i, bg) {
   return distance > TOLERANCE;
 }
 
-/** The tight box around everything that is not background. */
+/**
+ * The box around the biggest single shape in the picture.
+ *
+ * A design sheet is not just the character: it has a caption under it
+ * ("Common (Pumpkin)"), sometimes a stray mark on the edge, sometimes a title
+ * above the art. Taking the bounding box of *everything* that is not background
+ * therefore crops the label into the card and shrinks the character to fit it.
+ *
+ * So: flood-fill the artwork at full resolution and keep the largest connected
+ * region. Within a sheet that is always the character (or the pack poster); a
+ * caption is a handful of separate little blobs by comparison.
+ */
 function artworkBounds(image) {
   const bg = backgroundColor(image);
   const { width, height, data } = image;
-  let minX = width;
-  let minY = height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      if (!isArtwork(data, i, bg)) continue;
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
+  const seen = new Uint8Array(width * height);
+  const stack = [];
+  let best = null;
+
+  for (let y0 = 0; y0 < height; y0 += 1) {
+    for (let x0 = 0; x0 < width; x0 += 1) {
+      const start = y0 * width + x0;
+      if (seen[start]) continue;
+      seen[start] = 1;
+      if (!isArtwork(data, start * 4, bg)) continue;
+
+      stack.length = 0;
+      stack.push(start);
+      let minX = x0;
+      let maxX = x0;
+      let minY = y0;
+      let maxY = y0;
+      let area = 0;
+
+      while (stack.length) {
+        const p = stack.pop();
+        const px = p % width;
+        const py = (p - px) / width;
+        area += 1;
+        if (px < minX) minX = px;
+        if (px > maxX) maxX = px;
+        if (py < minY) minY = py;
+        if (py > maxY) maxY = py;
+
+        const push = (q) => {
+          if (q < 0 || q >= width * height || seen[q]) return;
+          seen[q] = 1;
+          if (isArtwork(data, q * 4, bg)) stack.push(q);
+        };
+        if (px > 0) push(p - 1);
+        if (px < width - 1) push(p + 1);
+        if (py > 0) push(p - width);
+        if (py < height - 1) push(p + width);
+      }
+
+      if (!best || area > best.area) best = { minX, minY, maxX, maxY, area };
     }
   }
-  if (maxX < 0) throw new Error("no artwork found — is the image blank, or the background not flat?");
-  return { minX, minY, maxX, maxY, bg };
+
+  if (!best) throw new Error("no artwork found — is the image blank, or the background not flat?");
+  return { ...best, bg };
 }
 
 /**
@@ -208,13 +255,13 @@ function artworkBounds(image) {
  * pixels it covers, which is what keeps a 3000 px sheet from turning into a
  * jagged 512 px card.
  */
-function cropToSquare(image) {
+function cropToSquare(image, { cutOut = true, padding = 1.08 } = {}) {
   const { minX, minY, maxX, maxY, bg } = artworkBounds(image);
   const boxWidth = maxX - minX + 1;
   const boxHeight = maxY - minY + 1;
   const side = Math.max(boxWidth, boxHeight);
   // A little air around the character, so it does not touch the card edge.
-  const padded = Math.round(side * 1.08);
+  const padded = Math.round(side * padding);
   const offsetX = minX - Math.round((padded - boxWidth) / 2);
   const offsetY = minY - Math.round((padded - boxHeight) / 2);
 
@@ -237,8 +284,9 @@ function cropToSquare(image) {
         for (let sx = sx0; sx < Math.max(sx1, sx0 + 1); sx += 1) {
           if (sx < 0 || sx >= image.width) continue;
           const i = (sy * image.width + sx) * 4;
-          const opaque = data_isSolid(image.data, i);
-          const alpha = opaque ? image.data[i + 3] : 0;
+          // A Keen is cut out of its background; a pack poster is a picture in
+          // its own right, so it keeps every pixel it came with.
+          const alpha = cutOut ? (isArtwork(image.data, i, bg) ? image.data[i + 3] : 0) : 255;
           r += image.data[i] * alpha;
           g += image.data[i + 1] * alpha;
           b += image.data[i + 2] * alpha;
@@ -258,23 +306,20 @@ function cropToSquare(image) {
   return { width: SIZE, height: SIZE, data: out, bg };
 }
 
-/** True when this pixel is artwork rather than background. */
-function data_isSolid(data, i) {
-  const bg = data.__bg ?? null;
-  return bg ? isArtwork(data, i, bg) : data[i + 3] > 0;
-}
-
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
 function cropFile(sourcePath, label) {
   const image = decodePng(readFileSync(sourcePath));
-  const bg = backgroundColor(image);
-  // Attach the background so the sampler can drop it while it averages.
-  image.data.__bg = bg;
-  const result = cropToSquare(image);
-  delete image.data.__bg;
+  // `pack-halloween.png` is a pack cover, not a Keen: it keeps its own
+  // background and lives with the other covers.
+  const isPack = label.startsWith("pack-");
+  const result = cropToSquare(image, isPack ? { cutOut: false, padding: 1 } : undefined);
   const png = encodePng(result);
-  writeFileSync(join(OUT_DIR, `${label}.png`), png);
+  const target = isPack
+    ? join(OUT_DIR, "packs", `${label.replace(/^pack-/, "")}.png`)
+    : join(OUT_DIR, `${label}.png`);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, png);
   return { label, source: sourcePath, bytes: png.length };
 }
 
