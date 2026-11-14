@@ -1,4 +1,7 @@
-# Design sheets and their rasterised copies are inputs, not shipped assets.
-# The cropped output in public/keens/ is what git tracks.
+# Rendered/rasterised inputs are throwaway; the shipped art lives in public/keens.
 *.png
 *.svg
+
+# ...but the vector sources of our own Keens are the artwork, so keep those.
+!art/
+!art/*.svg

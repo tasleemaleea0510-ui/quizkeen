@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- cookie frame -->
+  <path d="M96 132c0-20 16-36 36-36h248c20 0 36 16 36 36v248c0 20-16 36-36 36H132c-20 0-36-16-36-36V132z" fill="#E0A526"/>
+  <path d="M120 122h272c11 0 20 9 20 20v228c0 11-9 20-20 20H120c-11 0-20-9-20-20V142c0-11 9-20 20-20z" fill="#F2C64B"/>
+
+  <!-- inner biscuit -->
+  <path d="M136 150h240v212H136z" fill="#E8D5BE"/>
+
+  <!-- bandage wraps -->
+  <path d="M136 150h240v30c-40 26-90 40-140 40s-90-12-100-24v-46z" fill="#DCC0A0"/>
+  <path d="M136 208c40 26 96 40 150 34 40-4 74-16 90-28v42c-30 22-80 34-134 30-46-4-84-16-106-30v-48z" fill="#F4E4CF"/>
+  <path d="M136 300c30 20 76 32 122 30 46-2 86-14 118-32v30c-32 26-84 42-140 40-42-2-74-10-100-22v-46z" fill="#DCC0A0"/>
+  <path d="M136 336c30 14 74 24 120 24 50 0 96-12 120-28v30H136v-26z" fill="#F4E4CF"/>
+
+  <!-- eye band -->
+  <path d="M136 250c40-14 90-20 140-18 46 2 78 8 100 16v46c-30-10-76-16-130-16-46 0-84 6-110 14v-42z" fill="#3B2A1C"/>
+
+  <!-- glowing eyes -->
+  <ellipse cx="206" cy="272" rx="26" ry="18" fill="#F7C948"/>
+  <ellipse cx="306" cy="272" rx="26" ry="18" fill="#F7C948"/>
+  <ellipse cx="206" cy="272" rx="13" ry="12" fill="#C9812B"/>
+  <ellipse cx="306" cy="272" rx="13" ry="12" fill="#C9812B"/>
+  <ellipse cx="202" cy="268" rx="5" ry="4" fill="#FFF3C9"/>
+  <ellipse cx="302" cy="268" rx="5" ry="4" fill="#FFF3C9"/>
+
+  <!-- chocolate chip clasp -->
+  <circle cx="256" cy="416" r="22" fill="#5B3A22"/>
+  <circle cx="248" cy="408" r="6" fill="#7A5133"/>
+</svg>

@@ -1,47 +1,48 @@
 # Keen source images
 
-Drop the original design-sheet images here, one file per Keen, named after the
-Keen's id. They are read by `scripts/crop-keens.mjs`, which trims the flat
+Two ways art arrives here:
+
+1. **Drawn in-house** — `art/<id>.svg`, one hand-written vector per Keen. This is
+   where the Halloween pack lives. Nothing is traced or copied from another
+   game's asset files.
+2. **Supplied as a picture** — a PNG dropped in this folder, named after the
+   Keen's id.
+
+Either way the last step is the same: `scripts/crop-keens.mjs` trims the flat
 background, squares the artwork, cuts the background out to transparency and
 writes a 512×512 PNG into `public/keens/`.
 
 | File | Keen | Rarity |
 | --- | --- | --- |
-| `pumpkin.png` | Pumpkin | Common (`VANLIG`) |
-| `chickenchick.png` | Chicken Chick | Rare (`SALLSYNT`) |
-| `chickchicken.png` | Chick Chicken | Rare (`SALLSYNT`) |
-| `frogula.png` | Frogula | Epic (`EPISK`) |
-| `cookiepumpkin.png` | Cookie Pumpkin | Legendary (`LEGENDARISK`) |
-| `cookiemummy.png` | Cookie Mummy | Legendary (`LEGENDARISK`) |
-| `cookieghost.png` | Cookie Ghost | Secret (`HEMLIG`) |
-| `pumpkinkingu.png` | Pumpkin King | Mythical (`MYSTISK`) |
+| `pumpkin` | Pumpkin | Common (`VANLIG`) |
+| `chickenchick` | Chicken Chick | Rare (`SALLSYNT`) |
+| `chickchicken` | Chick Chicken | Rare (`SALLSYNT`) |
+| `frogula` | Frogula | Epic (`EPISK`) |
+| `cookiepumpkin` | Cookie Pumpkin | Legendary (`LEGENDARISK`) |
+| `cookiemummy` | Cookie Mummy | Legendary (`LEGENDARISK`) |
+| `cookieghost` | Cookie Ghost | Secret (`HEMLIG`) |
+| `pumpkinkingu` | Pumpkin King | Mythical (`MYSTISK`) |
 
-Then run, from the project root:
+## Rebuilding the Halloween art
 
 ```bash
+# 1. render the vectors to PNG at 1024 (needs the one-off renderer)
+npm i --no-save @resvg/resvg-js
+node scripts/keen-source/rasterize.mjs
+
+# 2. trim, square, cut out and downscale to 512
 node scripts/crop-keens.mjs
 ```
+
+`rasterize.mjs` reads `art/*.svg` and writes `<id>.png` beside it. The renderer is
+deliberately *not* a project dependency: it is a conversion tool, not something
+the site ships.
 
 `node scripts/crop-keens.mjs --self-test` proves the decoder/cropper works
 without touching any real file.
 
-Only 8-bit RGB/RGBA PNGs are read (what a screenshot or design export produces).
-If a file arrives as JPEG, re-save it as PNG first — the script will say so
-rather than guessing.
+Only 8-bit RGB/RGBA PNGs are read. A JPEG must be re-saved as PNG first — the
+script says so rather than guessing.
 
-## Vector sources
-
-The Halloween sheets were vector files, not screenshots, so they go through one
-extra step: `scripts/keen-source/rasterize.mjs` renders each `.svg` to a PNG here
-with `@resvg/resvg-js`, which the cropper can then read. That renderer is *not* a
-project dependency — it was installed for the one-off conversion:
-
-```bash
-npm i --no-save @resvg/resvg-js
-node scripts/keen-source/rasterize.mjs
-node scripts/crop-keens.mjs
-```
-
-Everything in this folder except this README and `.gitignore` is ignored by git:
-the shipped artwork lives in `public/keens/`, and a design sheet is not a
-build asset.
+The rendered PNGs in this folder are ignored by git; `art/` is tracked, because
+the drawings are the source.
