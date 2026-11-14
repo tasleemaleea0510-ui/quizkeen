@@ -1,3 +1,4 @@
+"use client";
 import * as React from "react";
 import type { Pack } from "@/lib/keens";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,14 @@ export default function PackArt({
   className?: string;
   variant?: "tile" | "hero";
 }) {
+  // A cover whose file is not on disk yet must not become a broken-image icon:
+  // the pack falls back to its drawn bag, and picks the picture up as soon as
+  // the file exists. Same rule as the Keens themselves.
+  const [coverFailed, setCoverFailed] = React.useState(false);
+  React.useEffect(() => {
+    setCoverFailed(false);
+  }, [pack.art]);
+
   const hue = pack.hue;
   const hero = variant === "hero";
   const accent = ACCENTS[pack.id] ?? `hsl(${(hue + 180) % 360} 92% 66%)`;
@@ -37,7 +46,7 @@ export default function PackArt({
   // A pack whose bag the design sheet provides is that picture, full stop. The
   // image is cropped from the sheet, so the shelf shows the real cover instead of
   // a re-drawing of it.
-  if (pack.art) {
+  if (pack.art && !coverFailed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- fixed local art, no loader needed
       <img
@@ -46,6 +55,7 @@ export default function PackArt({
         draggable={false}
         decoding="async"
         loading="lazy"
+        onError={() => setCoverFailed(true)}
         className={cn("shrink-0 object-contain drop-shadow-[0_16px_28px_rgba(126,34,206,0.45)]", className)}
       />
     );

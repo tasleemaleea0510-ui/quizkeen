@@ -324,6 +324,9 @@ export const PACKS: Pack[] = [
     // exists for four weeks, so it has to be worth opening.
     odds: { VANLIG: 50, SALLSYNT: 33, EPISK: 10, LEGENDARISK: 5.5, HEMLIG: 1, MYSTISK: 0.5 },
     sizes: [1, 3, 5],
+    // The cover is cropped from the pack's design sheet, exactly like the gamer
+    // pack's. Until that file exists the pack draws its own bag instead.
+    art: "/keens/packs/halloween.png",
     seasonal: { months: [10], label: "Bara i november", labelEn: "November only" },
   },
   {
