@@ -45,6 +45,7 @@ export const RARITY_LABEL: Record<string, string> = {
 /** Shelves in the order the vault shows them; the label is what staff read. */
 export const KEEN_SHELVES: { id: string; label: string }[] = [
   { id: "gamer", label: "Gamer" },
+  { id: "halloween", label: "Halloween" },
   { id: "admin", label: "Admin-gåva" },
   { id: "owner", label: "Ägar-gåva" },
 ];
@@ -56,6 +57,16 @@ export const KEEN_CATALOGUE: KeenEntry[] = [
   { id: "chubbypig", name: "Chubby Pig", rarity: "EPISK", pack: "gamer", hue: 110, emoji: "🐷" },
   { id: "creeper", name: "Creeper", rarity: "LEGENDARISK", pack: "gamer", hue: 130, emoji: "🧟" },
   { id: "pixelthorne", name: "Pixel Thorne", rarity: "HEMLIG", pack: "gamer", hue: 285, emoji: "🦔" },
+  // Halloweenpaketet — only on the shelf in November. The rows stay here all
+  // year so an owner can still honour a gift handed out during the season.
+  { id: "pumpkin", name: "Pumpkin", rarity: "VANLIG", pack: "halloween", hue: 25, emoji: "🎃" },
+  { id: "chickenchick", name: "Chicken Chick", rarity: "SALLSYNT", pack: "halloween", hue: 200, emoji: "🐔" },
+  { id: "chickchicken", name: "Chick Chicken", rarity: "SALLSYNT", pack: "halloween", hue: 45, emoji: "🐤" },
+  { id: "frogula", name: "Frogula", rarity: "EPISK", pack: "halloween", hue: 110, emoji: "🦇" },
+  { id: "cookiepumpkin", name: "Cookie Pumpkin", rarity: "LEGENDARISK", pack: "halloween", hue: 30, emoji: "🍪" },
+  { id: "cookiemummy", name: "Cookie Mummy", rarity: "LEGENDARISK", pack: "halloween", hue: 40, emoji: "🧟" },
+  { id: "cookieghost", name: "Cookie Ghost", rarity: "HEMLIG", pack: "halloween", hue: 195, emoji: "👻" },
+  { id: "pumpkinkingu", name: "Pumpkin King", rarity: "MYSTISK", pack: "halloween", hue: 275, emoji: "👑" },
   // Gåvor — never in a pack. Admins hand out the two `admin` ones (the panel
   // shows them as cards); only the owner may hand out the `owner` ones.
   { id: "doodlekraken", name: "Doodle Kraken", rarity: "MYSTISK", pack: "admin", hue: 205, emoji: "🐙" },
