@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./lib/supabase/client";
+import { isSandboxKey } from "./lib/sandbox";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
@@ -21,6 +22,23 @@ const RENEW_BEFORE_MS = 60_000;
  * is actually near expiry, so the common request costs no auth round trip.
  */
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ── The sandbox doors ────────────────────────────────────────────────────
+  // The demo is not a public page. A friend gets in through the secret path; a
+  // wrong key, or the owner's own `/sandbox` without a session, must look like
+  // nothing at all. The check lives here rather than in the pages because a
+  // Server Component runs after the layout has already flushed its headers — a
+  // `notFound()` there renders the 404 body with a 200 status, which is exactly
+  // the kind of "it is gated, honest" that a crawler still indexes.
+  if (pathname === "/sandbox" || pathname === "/sandbox/") {
+    const signedIn = request.cookies.getAll().some((c) => c.name.includes("-auth-token"));
+    if (!signedIn) return new NextResponse("Inte hittad", { status: 404 });
+  } else if (pathname.startsWith("/sandbox/s/")) {
+    const key = decodeURIComponent(pathname.slice("/sandbox/s/".length).replace(/\/$/, ""));
+    if (!isSandboxKey(key)) return new NextResponse("Inte hittad", { status: 404 });
+  }
+
   const hasSession = request.cookies.getAll().some((c) => c.name.includes("-auth-token"));
   if (!hasSession) return NextResponse.next({ request });
 
